@@ -117,7 +117,6 @@ private:
 	static void CleanThread(size_t index, void* arg);
 
 private:	
-	
 	Status Close();
 	
 private:

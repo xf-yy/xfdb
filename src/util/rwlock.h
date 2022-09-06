@@ -109,17 +109,17 @@ private:
 class ReadLockGuard
 {
 public:
-	ReadLockGuard(ReadWriteLock& rwlock) : m_bucket_rwlock(rwlock)
+	ReadLockGuard(ReadWriteLock& rwlock) : m_rwlock(rwlock)
 	{
 		rwlock.ReadLock();
 	}
 	~ReadLockGuard()
 	{
-		m_bucket_rwlock.ReadUnlock();
+		m_rwlock.ReadUnlock();
 	}
 	
 private:
-	ReadWriteLock& m_bucket_rwlock;
+	ReadWriteLock& m_rwlock;
 	
 private:
 	ReadLockGuard(const ReadLockGuard&) = delete;
@@ -129,17 +129,17 @@ private:
 class WriteLockGuard
 {
 public:
-	WriteLockGuard(ReadWriteLock& rwlock) : m_bucket_rwlock(rwlock)
+	WriteLockGuard(ReadWriteLock& rwlock) : m_rwlock(rwlock)
 	{
 		rwlock.WriteLock();
 	}
 	~WriteLockGuard()
 	{
-		m_bucket_rwlock.WriteUnlock();
+		m_rwlock.WriteUnlock();
 	}
 	
 private:
-	ReadWriteLock& m_bucket_rwlock;
+	ReadWriteLock& m_rwlock;
 	
 private:
 	WriteLockGuard(const WriteLockGuard&) = delete;

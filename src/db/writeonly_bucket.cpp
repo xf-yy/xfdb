@@ -282,22 +282,18 @@ Status WriteOnlyBucket::WriteSegment(std::map<fileid_t, TableReaderPtr>& readers
 Status WriteOnlyBucket::WriteSegment()
 {	
 	std::map<fileid_t, TableReaderPtr> readers;
-	TableWriterSnapshotPtr table_writer_snapshot;
 	
 	{
+		TableReaderSnapshotPtr prev_reader_snapshot;
 		std::lock_guard<std::mutex> lock(m_mutex);
 
+		WriteLockGuard lock_guard(m_segment_rwlock);
+		if(!m_memwriter_snapshot)
 		{
-			WriteLockGuard lock_guard(m_segment_rwlock);
-			
-			if(!m_memwriter_snapshot)
-			{
-				return ERR_NOMORE_DATA;
-			}
-			table_writer_snapshot.swap(m_memwriter_snapshot);
+			return ERR_NOMORE_DATA;
 		}
-
-		const std::vector<TableWriterPtr>& memwriters = table_writer_snapshot->TableWriters();
+		//FIXME:这里暂时一个table生成一个segment
+		const std::vector<TableWriterPtr>& memwriters = m_memwriter_snapshot->TableWriters();
 		for(size_t i = 0; i < memwriters.size(); ++i)
 		{
 			fileid_t fileid = (m_next_segment_id++ << LEVEL_BITNUM);
@@ -306,13 +302,16 @@ Status WriteOnlyBucket::WriteSegment()
 			readers[fileid] = memwriters[i];
 			m_writing_segment_fileids[fileid] = false;
 		}
+		m_memwriter_snapshot.reset();
 
-		UpdateReaderSnapshot(readers);
+		UpdateReaderSnapshot(readers, prev_reader_snapshot);
 	}
+	
 	WriteSegment(readers);
 	
 	bool need_write_segment_list;
 	{
+		TableReaderSnapshotPtr prev_reader_snapshot;
 		std::lock_guard<std::mutex> lock(m_mutex);
 		for(auto it = readers.begin(); it != readers.end(); ++it)
 		{
@@ -329,7 +328,9 @@ Status WriteOnlyBucket::WriteSegment()
 			m_writing_segment_fileids.erase(it++);
 		}
 		need_write_segment_list = !m_writed_segment_fileids.empty();
-		UpdateReaderSnapshot(readers);
+		
+		WriteLockGuard lock_guard(m_segment_rwlock);
+		UpdateReaderSnapshot(readers, prev_reader_snapshot);
 	}
 	
 	//判断是否有可写的段信息
@@ -341,27 +342,21 @@ Status WriteOnlyBucket::WriteSegment()
 	return OK;
 }
 
-void WriteOnlyBucket::UpdateReaderSnapshot(std::map<fileid_t, TableReaderPtr>& readers)
-{
-	m_segment_rwlock.ReadLock();
-	TableReaderSnapshotPtr rs_ptr = m_reader_snapshot;
-	m_segment_rwlock.ReadUnlock();
-	
+void WriteOnlyBucket::UpdateReaderSnapshot(std::map<fileid_t, TableReaderPtr>& readers, TableReaderSnapshotPtr& prev_reader_snapshot)
+{	
 	std::map<fileid_t, TableReaderPtr> new_readers;
-	if(rs_ptr)
+	if(m_reader_snapshot)
 	{
-		new_readers = rs_ptr->Readers();
+		new_readers = m_reader_snapshot->Readers();
 	}
 	for(auto it = readers.begin(); it != readers.end(); ++it)
 	{
 		new_readers[it->first] = it->second;
 	}
 
-	TableReaderSnapshotPtr new_segment_snapshot = NewTableReaderSnapshot(new_readers);
+	prev_reader_snapshot = NewTableReaderSnapshot(new_readers);
 
-	m_segment_rwlock.WriteLock();
-	m_reader_snapshot.swap(new_segment_snapshot);
-	m_segment_rwlock.WriteUnlock();
+	m_reader_snapshot.swap(prev_reader_snapshot);
 }
 
 

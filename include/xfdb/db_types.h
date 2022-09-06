@@ -111,10 +111,9 @@ struct GlobalConfig
 	uint16_t write_segment_thread_num = 8;
 	uint16_t write_metadata_thread_num = 4;
 	
-	//bool auto_merge_db = true;
 	//uint8_t force_merge_deleted_percent = 1;	//百分比
-	//uint16_t part_merge_db_thread_num = 4;
-	//uint16_t full_merge_db_thread_num = 2;
+	uint16_t part_merge_db_thread_num = 4;
+	uint16_t full_merge_db_thread_num = 2;
 	//uint16_t merge_factor = 10;
 	//uint64_t max_segment_file_size = GB(32);	//segment超过此值时不参与merge
 	

@@ -76,7 +76,7 @@ private:
 private:
 	fileid_t SelectNewSegmentFileId(MergeSegmentInfo& msinfo);
 	void FillAliveSegmentInfos(TableReaderSnapshotPtr& trs_ptr, std::vector<fileid_t>& writed_segment_fileids, SegmentListData& md);
-	void UpdateReaderSnapshot(std::map<fileid_t, TableReaderPtr>& readers);
+	void UpdateReaderSnapshot(std::map<fileid_t, TableReaderPtr>& readers, TableReaderSnapshotPtr& prev_reader_snapshot);
 	void UpdateReaderSnapshot(MergeSegmentInfo& msinfo);
 
 protected:
