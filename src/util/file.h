@@ -82,6 +82,14 @@ public:
 		return m_fd;
 	}
 	bool Open(const char* file_path, uint32_t flags);
+	inline void Close()
+	{
+		if(m_fd != INVALID_FD)
+		{
+			close(m_fd);
+			m_fd = INVALID_FD;
+		}
+	}
 	
 	inline int64_t Read(void* buf, int64_t buf_size) const
 	{
@@ -171,9 +179,6 @@ private:
 	File(const File&) = delete;
 	File& operator=(const File&) = delete;
 };
-
-typedef std::shared_ptr<File> FilePtr;
-#define NewFile std::make_shared<File>
 
 } 
 

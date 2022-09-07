@@ -200,7 +200,7 @@ void ReadOnlyEngine::ReadNotifyThread(size_t index, void* arg)
 		if(ret > 0)
 		{
 			//判断文件进程id是否是本进程的
-			xfutil::tid_t notify_pid = NotifyFile::GetNotifyPid(event.file_path);
+			xfutil::tid_t notify_pid = NotifyFile::GetNotifyPID(event.file_path);
 			if(notify_pid == pid)
 			{
 				LogWarn("found notify of current pid(%u)", notify_pid);

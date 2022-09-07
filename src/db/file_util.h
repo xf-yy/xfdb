@@ -34,17 +34,17 @@ namespace xfdb
 #define DATA_FILE_VERSION			1
 #define NOTIFY_FILE_VERSION			1
 
-#define BUCKET_LIST_FILE_MAGIC		"BKTL"
-#define SEGMENT_LIST_FILE_MAGIC 	"SEGL"
+#define BUCKET_LIST_FILE_MAGIC		"INFO"
+#define SEGMENT_LIST_FILE_MAGIC 	"META"
 #define INDEX_FILE_MAGIC			"INDX"
 #define DATA_FILE_MAGIC				"DATA"
-#define NOTIFY_FILE_MAGIC			"NTFY"
+#define NOTIFY_FILE_MAGIC			"MSGF"
 
-#define BUCKET_LIST_FILE_EXT		".bkt"
-#define SEGMENT_LIST_FILE_EXT 		".seg"
-#define INDEX_FILE_EXT				".idx"
-#define DATA_FILE_EXT				".dat"
-#define NOTIFY_FILE_EXT				".ntf"
+#define BUCKET_LIST_FILE_EXT		".info"
+#define SEGMENT_LIST_FILE_EXT 		".meta"
+#define INDEX_FILE_EXT				".index"
+#define DATA_FILE_EXT				".data"
+#define NOTIFY_FILE_EXT				".msg"
 
 //有效属性ID从2开始
 enum
@@ -98,21 +98,21 @@ static inline void MakeSegmentListFilePath(const char* bucket_path, const char* 
 {
 	snprintf(path, MAX_PATH_LEN, "%s/%s", bucket_path, filename);
 }
-static inline void MakeIndexFileName(fileid_t segmentid, char name[MAX_FILENAME_LEN])
-{
-	snprintf(name, MAX_FILENAME_LEN, "%lx" INDEX_FILE_EXT, segmentid);
-}
 static inline void MakeIndexFilePath(const char* bucket_path, fileid_t segmentid, char path[MAX_PATH_LEN])
 {
 	snprintf(path, MAX_PATH_LEN, "%s/%lx" INDEX_FILE_EXT, bucket_path, segmentid);
 }
-static inline void MakeDataFileName(fileid_t segmentid, char name[MAX_FILENAME_LEN])
+static inline void MakeTmpIndexFilePath(const char* bucket_path, fileid_t segmentid, char path[MAX_PATH_LEN])
 {
-	snprintf(name, MAX_FILENAME_LEN, "%lx" DATA_FILE_EXT, segmentid);
+	snprintf(path, MAX_PATH_LEN, "%s/~%lx" INDEX_FILE_EXT, bucket_path, segmentid);
 }
 static inline void MakeDataFilePath(const char* bucket_path, fileid_t segmentid, char path[MAX_PATH_LEN])
 {
 	snprintf(path, MAX_PATH_LEN, "%s/%lx" DATA_FILE_EXT, bucket_path, segmentid);
+}
+static inline void MakeTmpDataFilePath(const char* bucket_path, fileid_t segmentid, char path[MAX_PATH_LEN])
+{
+	snprintf(path, MAX_PATH_LEN, "%s/~%lx" DATA_FILE_EXT, bucket_path, segmentid);
 }
 
 static inline void MakeNotifyFileName(tid_t pid, fileid_t seqid, char name[MAX_FILENAME_LEN])

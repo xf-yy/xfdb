@@ -129,7 +129,7 @@ uint32_t constexpr NotifyFile::EstimateSize(const NotifyData& bd)
 		  + sizeof(uint32_t)/*crc*/;
 }
 
-xfutil::tid_t NotifyFile::GetNotifyPid(const char* file_path)
+xfutil::tid_t NotifyFile::GetNotifyPID(const char* file_path)
 {
 	const char* slash = strrchr(file_path, '/');
 	const char* file_name = (slash != nullptr) ? slash+1 : file_path;

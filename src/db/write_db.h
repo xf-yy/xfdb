@@ -62,7 +62,6 @@ public:
 	Status Merge(const std::string& bucket_name) override;
 	
 protected:
-
 	Status FullMerge(const std::string& bucket_name);		//同步merge
 	Status PartMerge(const std::string& bucket_name);		//同步merge
 	

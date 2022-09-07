@@ -23,6 +23,7 @@ limitations under the License.
 #include "buffer.h"
 #include "file.h"
 #include "iterator.h"
+#include "path.h"
 
 using namespace xfutil;
 
@@ -87,6 +88,9 @@ private:
 	const DBConfig& m_db_conf;
 	IndexWriter& m_index_writer;
 	BlockPool& m_pool;
+
+	char m_bucket_path[MAX_PATH_LEN];
+	fileid_t m_segment_fileid;
 	
 	File m_file;
 	uint64_t m_offset;

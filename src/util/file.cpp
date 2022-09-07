@@ -33,11 +33,7 @@ File::File()
 
 File::~File()
 {
-	if(m_fd != INVALID_FD)
-	{
-		close(m_fd);
-		m_fd = INVALID_FD;
-	}
+	Close();
 }
 
 bool File::Open(const char* file_path, uint32_t flags)

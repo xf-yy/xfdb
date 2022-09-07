@@ -109,7 +109,11 @@ Status SegmentWriter::Write(const TableWriterPtr& table_writer, SegmentFileIndex
 	{
 		return s;
 	}
-	m_data_writer.Finish();
+	s = m_data_writer.Finish();
+	if(s != OK)
+	{
+		return s;
+	}
 
 	SegmentMeta meta;
 	meta.max_objectid = table_writer->GetMaxObjectID();

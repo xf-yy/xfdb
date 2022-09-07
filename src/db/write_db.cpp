@@ -535,7 +535,6 @@ Status WritableDB::PartMerge(const std::string& bucket_name)
 
 	WriteOnlyBucket* bucket = (WriteOnlyBucket*)bptr.get();
 	return bucket->PartMerge();
-
 }
 
 void WritableDB::FillBucketListData(BucketListData& bd)

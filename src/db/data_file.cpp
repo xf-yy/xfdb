@@ -190,16 +190,26 @@ DataWriter::DataWriter(const DBConfig& db_conf, BlockPool& pool, IndexWriter& in
 
 DataWriter::~DataWriter()
 {
+	m_file.Close();
+	
+	char file_path[MAX_PATH_LEN], tmp_file_path[MAX_PATH_LEN];
+	MakeTmpDataFilePath(m_bucket_path, m_segment_fileid, tmp_file_path);
+	MakeDataFilePath(m_bucket_path, m_segment_fileid, file_path);
+
+	File::Rename(tmp_file_path, file_path);
+
 	m_pool.Free(m_block_start);
 }
 
-Status DataWriter::Create(const char* bucket_path, fileid_t seqid)
+Status DataWriter::Create(const char* bucket_path, fileid_t fileid)
 {
+	StrCpy(m_bucket_path, sizeof(m_bucket_path), bucket_path);
+	m_segment_fileid = fileid;
+
 	char file_path[MAX_PATH_LEN];
-	MakeDataFilePath(bucket_path, seqid, file_path);
+	MakeTmpDataFilePath(bucket_path, fileid, file_path);
 	
-	bool ret = m_file.Open(file_path, OF_CREATE|OF_WRITEONLY);
-	if(!ret)
+	if(!m_file.Open(file_path, OF_CREATE|OF_WRITEONLY))
 	{
 		return ERR_FILE_WRITE;
 	}
@@ -427,7 +437,11 @@ Status DataWriter::Write(Iterator& iter)
 
 Status DataWriter::Finish()
 {
-	return m_file.Sync() ? OK : ERR_FILE_WRITE;
+	if(!m_file.Sync())
+	{
+		return ERR_FILE_WRITE;
+	}
+	return OK;
 }
 
 Status DataWriter::Remove(const char* bucket_path, fileid_t fileid)

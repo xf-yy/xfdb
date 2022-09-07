@@ -41,18 +41,19 @@ public:
 	Thread(){}
 		
 public:
-	void Start(ThreadFunc func, void* arg, size_t index = 0)
+	void Start(ThreadFunc func, void* arg, size_t index = 0, bool detach = false)
 	{
 		std::thread t(func, index, arg);
+		if(detach)
+		{
+			t.detach();
+		}
 		m_thread.swap(t);
 	}
+	
 	void Join()
 	{
 		m_thread.join();
-	}
-	void Detach()
-	{
-		m_thread.detach();
 	}
 
 	static void Sleep(uint32_t time_ms)
@@ -86,7 +87,7 @@ public:
 	{}
 		
 public:
-	void Start(size_t thread_count, ThreadFunc func, void* arg)
+	void Start(size_t thread_count, ThreadFunc func, void* arg = nullptr, bool detach = false)
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
 		
@@ -94,26 +95,22 @@ public:
 		for(size_t i = 0; i < thread_count; ++i)
 		{
 			ThreadPtr thread = NewThread();
-			thread->Start(func, arg, i);
+			thread->Start(func, arg, i, detach);
 			m_threads.push_back(thread);
 		}
 	}
+	
 	void Join()
 	{
-		std::lock_guard<std::mutex> lock(m_mutex);
-		
-		for(size_t i = 0; i < m_threads.size(); ++i)
+		std::vector<ThreadPtr> tmp_threads;
 		{
-			m_threads[i]->Join();
+			std::lock_guard<std::mutex> lock(m_mutex);
+			tmp_threads = m_threads;
 		}
-	}
-	void Detach()
-	{
-		std::lock_guard<std::mutex> lock(m_mutex);
 		
-		for(size_t i = 0; i < m_threads.size(); ++i)
+		for(size_t i = 0; i < tmp_threads.size(); ++i)
 		{
-			m_threads[i]->Detach();
+			tmp_threads[i]->Join();
 		}
 	}
 	

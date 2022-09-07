@@ -39,19 +39,18 @@ const char* LEVEL_DESC[LogLevel::LEVEL_MAX] =
 
 bool LoggerImpl::Write(const StrView& buf)
 {
-	m_logfile->Write(buf.data, buf.size);
+	m_logfile.Write(buf.data, buf.size);
 	
-	if(m_logfile->Size() >= m_conf.max_file_size)
+	if(m_logfile.Size() >= m_conf.max_file_size)
 	{
-		m_logfile.reset();
+		m_logfile.Close();
 		
 		char dst_path[MAX_PATH_LEN];
 		Path::Combine(dst_path, sizeof(dst_path), m_conf.file_path.c_str(), ".1");
 		File::Remove(dst_path);
 		File::Rename(m_conf.file_path.c_str(), dst_path);
 
-		m_logfile = NewFile();
-		m_logfile->Open(m_conf.file_path.c_str(), OF_WRITEONLY|OF_APPEND|OF_CREATE);
+		m_logfile.Open(m_conf.file_path.c_str(), OF_WRITEONLY|OF_APPEND|OF_CREATE);
 	}
 	return true;
 }
@@ -79,8 +78,7 @@ bool LoggerImpl::Init(const LogConf& conf)
 	Logger::SetLevel(m_conf.level);
 	
 	//打开日志文件
-	m_logfile = NewFile();
-	if(!m_logfile->Open(m_conf.file_path.c_str(), OF_WRITEONLY|OF_APPEND|OF_CREATE))
+	if(!m_logfile.Open(m_conf.file_path.c_str(), OF_WRITEONLY|OF_APPEND|OF_CREATE))
 	{
 		return false;
 	}
@@ -103,7 +101,7 @@ void LoggerImpl::Close()
 	m_thread.Join();
 
 	//关闭日志文件
-	m_logfile.reset();
+	m_logfile.Close();
 }
 
 //格式: [date time] [level-desc] [文件名:行号:函数名] [message]

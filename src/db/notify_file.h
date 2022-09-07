@@ -36,7 +36,7 @@ public:
 public:	
 	static Status Read(const char* file_path, NotifyData& nd);
 	static Status Write(const char* file_dir, const NotifyData& nd, FileName& filename);
-	static xfutil::tid_t GetNotifyPid(const char* file_path);
+	static xfutil::tid_t GetNotifyPID(const char* file_path);
 
 private:
 	static Status Parse(const byte_t* data, uint32_t size, NotifyData& nd);

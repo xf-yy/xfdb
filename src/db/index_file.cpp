@@ -413,17 +413,27 @@ IndexWriter::IndexWriter(const DBConfig& db_conf, BlockPool& pool)
 
 IndexWriter::~IndexWriter()
 {
+	m_file.Close();
+	
+	char file_path[MAX_PATH_LEN], tmp_file_path[MAX_PATH_LEN];
+	MakeTmpIndexFilePath(m_bucket_path, m_segment_fileid, tmp_file_path);
+	MakeIndexFilePath(m_bucket_path, m_segment_fileid, file_path);
+
+	File::Rename(tmp_file_path, file_path);
+
 	m_pool.Free(m_block_start);
 	m_pool.Free((byte_t*)m_L0indexs);
 }
 
 Status IndexWriter::Create(const char* bucket_path, fileid_t fileid)
 {
-	char file_path[MAX_PATH_LEN];
-	MakeIndexFilePath(bucket_path, fileid, file_path);
+	StrCpy(m_bucket_path, sizeof(m_bucket_path), bucket_path);
+	m_segment_fileid = fileid;
 	
-	bool ret = m_file.Open(file_path, OF_CREATE|OF_WRITEONLY);
-	if(!ret)
+	char file_path[MAX_PATH_LEN];
+	MakeTmpIndexFilePath(bucket_path, fileid, file_path);
+	
+	if(!m_file.Open(file_path, OF_CREATE|OF_WRITEONLY))
 	{
 		return ERR_FILE_WRITE;
 	}
@@ -736,7 +746,11 @@ Status IndexWriter::Finish(const SegmentMeta& meta)
 	{
 		return s;
 	}
-	return m_file.Sync() ? OK : ERR_FILE_WRITE;
+	if(!m_file.Sync())
+	{
+		return ERR_FILE_WRITE;
+	}
+	return OK;
 }
 	
 Status IndexWriter::Remove(const char* bucket_path, fileid_t fileid)

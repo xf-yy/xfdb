@@ -54,7 +54,7 @@ private:
 
 private:
 	LogConf m_conf;
-	FilePtr m_logfile;
+	File m_logfile;
 	BlockingQueue<StrView> m_buf_queue;
 	Thread m_thread;
 };

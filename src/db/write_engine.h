@@ -77,7 +77,7 @@ public:
 	{
 		NotifyMsg msg(NOTIFY_FULL_MERGE, db, bucket);
 		
-		m_part_merge_queue.Push(msg);
+		m_full_merge_queue.Push(msg);
 	}
 	inline void NotifyPartMerge(DBImplPtr db, BucketPtr bucket)
 	{

@@ -24,6 +24,7 @@ limitations under the License.
 #include "file.h"
 #include "buffer.h"
 #include "xfdb/strutil.h"
+#include "path.h"
 
 namespace xfdb 
 {
@@ -119,7 +120,9 @@ private:
 private:
 	const DBConfig& m_db_conf;
 	BlockPool& m_pool;
-	
+
+	char m_bucket_path[MAX_PATH_LEN];
+	fileid_t m_segment_fileid;
 	File m_file;
 	uint64_t m_offset;
 	uint64_t m_L1offset_start;
