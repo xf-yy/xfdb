@@ -42,18 +42,18 @@ public:
 	virtual Status RemoveDB(const std::string& db_path) override;
 
 public:	
-	inline void NotifyWriteBucketList(DBImplPtr db)
+	inline void NotifyWriteDbInfo(DBImplPtr db)
 	{
-		NotifyMsg msg(NOTIFY_WRITE_BUCKET_LIST, db);
+		NotifyMsg msg(NOTIFY_WRITE_DB_INFO, db);
 	
 		uint32_t hc = Hash32((byte_t*)db->GetPath().data(), db->GetPath().size());
 	
 		m_write_metadata_queues[hc % m_conf.write_metadata_thread_num].Push(msg);
 	}
 
-	inline void NotifyWriteSegmentList(DBImplPtr db, BucketPtr bucket)
+	inline void NotifyWriteBucketMeta(DBImplPtr db, BucketPtr bucket)
 	{
-		NotifyMsg msg(NOTIFY_WRITE_SEGMENT_LIST, db, bucket);
+		NotifyMsg msg(NOTIFY_WRITE_BUCKET_META, db, bucket);
 	
 		uint32_t hc = Hash32((byte_t*)db->GetPath().data(), db->GetPath().size());
 	

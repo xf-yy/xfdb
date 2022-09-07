@@ -17,7 +17,7 @@ limitations under the License.
 #include "db_impl.h"
 #include "types.h"
 #include "bucket.h"
-#include "bucket_list_file.h"
+#include "db_info_file.h"
 #include "bucket_snapshot.h"
 #include "logger.h"
 #include "file_util.h"
@@ -30,7 +30,7 @@ DBImpl::DBImpl(Engine* engine, const DBConfig& conf, const std::string& db_path)
 	: m_engine(engine), m_conf(conf), m_path(db_path)
 {
 	m_next_bucket_id = MIN_BUCKETID;
-	m_next_bucketlist_fileid = MIN_FILEID;
+	m_next_dbinfo_fileid = MIN_FILEID;
 }
 
 DBImpl::~DBImpl()
@@ -100,7 +100,7 @@ Status DBImpl::OpenBucket(const BucketInfo& bi, BucketPtr& bptr)
 	return s;
 }
 
-void DBImpl::OpenBucketList(const BucketListData& bld, const BucketSnapshot* last_bucket_snapshot, std::map<std::string, BucketPtr>& buckets)
+void DBImpl::OpenBucket(const DbInfoData& bld, const BucketSnapshot* last_bucket_snapshot, std::map<std::string, BucketPtr>& buckets)
 {	
 	assert(last_bucket_snapshot != nullptr);
 	const auto& last_buckets = last_bucket_snapshot->Buckets();
@@ -120,7 +120,7 @@ void DBImpl::OpenBucketList(const BucketListData& bld, const BucketSnapshot* las
 	}
 }
 
-void DBImpl::OpenBucketList(const BucketListData& bld, std::map<std::string, BucketPtr>& buckets)
+void DBImpl::OpenBucket(const DbInfoData& bld, std::map<std::string, BucketPtr>& buckets)
 {	
 	BucketPtr bptr;
 	for(const auto& bi : bld.alive_buckets)
@@ -132,11 +132,11 @@ void DBImpl::OpenBucketList(const BucketListData& bld, std::map<std::string, Buc
 	}
 }
 
-Status DBImpl::OpenBucketList()
+Status DBImpl::OpenBucket()
 {
 	//读取最新的bucket list
 	std::vector<FileName> file_names;
-	Status s = ListBucketListFile(m_path.c_str(), file_names);
+	Status s = ListDbInfoFile(m_path.c_str(), file_names);
 	if(s != OK)
 	{
 		return s;
@@ -145,27 +145,27 @@ Status DBImpl::OpenBucketList()
 	{
 		return OK;
 	}
-	return OpenBucketList(file_names.back().str);
+	return OpenBucket(file_names.back().str);
 }
 
-Status DBImpl::OpenBucketList(const char* bucketlist_filename)
+Status DBImpl::OpenBucket(const char* dbinfo_filename)
 {
-	assert(bucketlist_filename != nullptr);
-	BucketListData bld;
-	Status s = BucketListFile::Read(m_path.c_str(), bucketlist_filename, bld);
+	assert(dbinfo_filename != nullptr);
+	DbInfoData bld;
+	Status s = DbInfoFile::Read(m_path.c_str(), dbinfo_filename, bld);
 	if(s != OK)
 	{
 		return s;
 	}
-	return OpenBucketList(bucketlist_filename, bld);
+	return OpenBucket(dbinfo_filename, bld);
 }
 
-Status DBImpl::OpenBucketList(const char* bucketlist_filename, const BucketListData& bld)
+Status DBImpl::OpenBucket(const char* dbinfo_filename, const DbInfoData& bld)
 {	
-	fileid_t fileid = strtoull(bucketlist_filename, nullptr, 10);
+	fileid_t fileid = strtoull(dbinfo_filename, nullptr, 10);
 	
 	std::lock_guard<std::mutex> lock(m_mutex);
-	if(fileid < m_next_bucketlist_fileid)
+	if(fileid < m_next_dbinfo_fileid)
 	{
 		return ERROR;
 	}
@@ -177,17 +177,17 @@ Status DBImpl::OpenBucketList(const char* bucketlist_filename, const BucketListD
 	std::map<std::string, BucketPtr> buckets;
 	if(bucket_snapshot)
 	{
-		OpenBucketList(bld, bucket_snapshot.get(), buckets);
+		OpenBucket(bld, bucket_snapshot.get(), buckets);
 	}
 	else
 	{
-		OpenBucketList(bld, buckets);
+		OpenBucket(bld, buckets);
 	}
 	BucketSnapshotPtr new_bucket_snapshot = NewBucketSnapshot(buckets);
 
 	m_bucket_rwlock.WriteLock();
 	m_bucket_snapshot.swap(new_bucket_snapshot);
-	m_next_bucketlist_fileid = fileid+1;
+	m_next_dbinfo_fileid = fileid+1;
 	m_next_bucket_id = bld.next_bucketid;
 	m_bucket_rwlock.WriteUnlock();
 	
@@ -195,10 +195,10 @@ Status DBImpl::OpenBucketList(const char* bucketlist_filename, const BucketListD
 }
 
 #if 0
-Status DBImpl::OpenBucket(const BucketPtr& bptr, const char* segmentlist_filename)
+Status DBImpl::OpenBucket(const BucketPtr& bptr, const char* bucket_meta_filename)
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
-	return bptr->Open(segmentlist_filename);
+	return bptr->Open(bucket_meta_filename);
 }
 #endif 
 

@@ -64,7 +64,7 @@ private:
 	Status WriteSegment();			//同步刷盘
 	Status WriteSegment(TableReaderPtr& reader, fileid_t new_segment_fileid, SegmentFileIndex& seginfo);
 	Status WriteSegment(std::map<fileid_t, TableReaderPtr>& readers);
-	Status WriteSegmentList();		//同步刷盘
+	Status WriteBucketMeta();		//同步刷盘
 	void FlushMemWriter();
 
 	Status Merge(MergeSegmentInfo& msinfo);
@@ -75,7 +75,7 @@ private:
 
 private:
 	fileid_t SelectNewSegmentFileId(MergeSegmentInfo& msinfo);
-	void FillAliveSegmentInfos(TableReaderSnapshotPtr& trs_ptr, std::vector<fileid_t>& writed_segment_fileids, SegmentListData& md);
+	void FillAliveSegmentInfos(TableReaderSnapshotPtr& trs_ptr, std::vector<fileid_t>& writed_segment_fileids, BucketMetaData& md);
 	void UpdateReaderSnapshot(std::map<fileid_t, TableReaderPtr>& readers, TableReaderSnapshotPtr& prev_reader_snapshot);
 	void UpdateReaderSnapshot(MergeSegmentInfo& msinfo);
 
@@ -102,7 +102,7 @@ protected:
 	std::map<fileid_t, bool> m_writing_segment_fileids;
 	
 	//待清除的segment list文件	
-	std::deque<FileName> m_deleting_segmentlist_names;
+	std::deque<FileName> m_deleting_bucket_meta_names;
 		
 };
 

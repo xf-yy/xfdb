@@ -286,9 +286,9 @@ class DataWriter;
 typedef std::shared_ptr<DataWriter> DataWriterPtr;
 #define NewDataWriter 	std::make_shared<DataWriter>
 
-class SegmentListFile;
-typedef std::shared_ptr<SegmentListFile> SegmentListFilePtr;
-#define NewSegmentListFile 	std::make_shared<SegmentListFile>
+class BucketMetaFile;
+typedef std::shared_ptr<BucketMetaFile> BucketMetaFilePtr;
+#define NewBucketMetaFile 	std::make_shared<BucketMetaFile>
 
 class SegmentReader;
 typedef std::shared_ptr<SegmentReader> SegmentReaderPtr;

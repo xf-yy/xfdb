@@ -187,17 +187,17 @@ void WritableEngine::WriteMetaThread(size_t index, void* arg)
 		{
 			break;
 		}
-		if(msg.type == NOTIFY_WRITE_SEGMENT_LIST)
+		if(msg.type == NOTIFY_WRITE_BUCKET_META)
 		{
 			WriteOnlyBucketPtr bucket = std::dynamic_pointer_cast<WriteOnlyBucket>(msg.bucket);
 			assert(bucket);
-			bucket->WriteSegmentList();
+			bucket->WriteBucketMeta();
 		}
-		else if(msg.type == NOTIFY_WRITE_BUCKET_LIST)
+		else if(msg.type == NOTIFY_WRITE_DB_INFO)
 		{
 			WritableDBPtr db = std::dynamic_pointer_cast<WritableDB>(msg.db);
 			assert(db);
-			db->WriteBucketList();
+			db->WriteDbInfo();
 		}
 		else
 		{

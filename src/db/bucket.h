@@ -23,7 +23,7 @@ limitations under the License.
 #include "table_writer.h"
 #include "rwlock.h"
 #include "path.h"
-#include "segment_list_file.h"
+#include "bucket_meta_file.h"
 #include "db_impl.h"
 
 namespace xfdb 
@@ -69,12 +69,12 @@ public:
 	virtual void GetStat(BucketStat& stat) const = 0;
 	
 public:	
-	Status Open(const char* segmentlist_filename);	
+	Status Open(const char* bucket_meta_filename);	
 	
 protected:
 	Status OpenSegment(const char* bucket_path, const SegmentFileIndex& sfi, SegmentReaderPtr& sr_ptr);
-	void OpenSegments(const SegmentListData& sld, std::map<fileid_t, TableReaderPtr>& readers);
-	void OpenSegments(const SegmentListData& sld, const TableReaderSnapshot* last_snapshot, std::map<fileid_t, TableReaderPtr>& readers);
+	void OpenSegments(const BucketMetaData& sld, std::map<fileid_t, TableReaderPtr>& readers);
+	void OpenSegments(const BucketMetaData& sld, const TableReaderSnapshot* last_snapshot, std::map<fileid_t, TableReaderPtr>& readers);
 
 protected:
 	const DBImplWptr m_db;
@@ -85,8 +85,8 @@ protected:
 	
 	mutable ReadWriteLock m_segment_rwlock;
 	fileid_t m_next_segment_id;
-	fileid_t m_next_segmentlist_fileid;
-	SegmentListFilePtr m_segmentlist_file;
+	fileid_t m_next_bucket_meta_fileid;
+	BucketMetaFilePtr m_bucket_meta_file;
 	TableReaderSnapshotPtr m_reader_snapshot;	
 
 	friend class DBImpl;

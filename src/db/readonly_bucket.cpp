@@ -34,7 +34,7 @@ Status ReadOnlyBucket::Open()
 {
 	//读取最新的segment list
 	std::vector<FileName> file_names;
-	Status s = ListSegmentListFile(m_bucket_path.c_str(), file_names);
+	Status s = ListBucketMetaFile(m_bucket_path.c_str(), file_names);
 	if(s != OK)
 	{
 		return s;

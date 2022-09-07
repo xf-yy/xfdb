@@ -18,7 +18,7 @@ limitations under the License.
 #include "readwrite_bucket.h"
 #include "readwrite_mem_writer.h"
 #include "table_writer_snapshot.h"
-#include "segment_list_file.h"
+#include "bucket_meta_file.h"
 #include "notify_file.h"
 #include "table_reader_snapshot.h"
 #include "write_db.h"

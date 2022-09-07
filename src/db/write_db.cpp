@@ -18,8 +18,8 @@ limitations under the License.
 #include "types.h"
 #include "write_db.h"
 #include "writeonly_bucket.h"
-#include "segment_list_file.h"
-#include "bucket_list_file.h"
+#include "bucket_meta_file.h"
+#include "db_info_file.h"
 #include "bucket_snapshot.h"
 #include "file.h"
 #include "directory.h"
@@ -64,13 +64,13 @@ Status WritableDB::Remove(const std::string& db_path)
 		}
 		//获取bucket文件列表，依次删除bucket及数据
 		std::vector<FileName> file_names;
-		ListBucketListFile(db_path.c_str(), file_names);
+		ListDbInfoFile(db_path.c_str(), file_names);
 		for(size_t i = 0; i < file_names.size(); ++i)
 		{
 			const FileName& fn = file_names[i];
 			
-			BucketListData bd;
-			s = BucketListFile::Read(db_path.c_str(), fn.str, bd);
+			DbInfoData bd;
+			s = DbInfoFile::Read(db_path.c_str(), fn.str, bd);
 			if(s != OK)
 			{
 				return s;
@@ -142,7 +142,7 @@ Status WritableDB::Open()
 	
 	//读取最新的bucket list
 	std::vector<FileName> file_infos;
-	s = ListBucketListFile(m_path.c_str(), file_infos);
+	s = ListDbInfoFile(m_path.c_str(), file_infos);
 	if(s != OK) 
 	{
 		return s;
@@ -153,17 +153,17 @@ Status WritableDB::Open()
 	}
 	for(size_t i = 0; i < file_infos.size()-1; ++i)
 	{
-		m_delete_bucketlist_files.push_back(file_infos[i]);
+		m_delete_dbinfo_files.push_back(file_infos[i]);
 	}
 
-	BucketListData bld;
-	s = BucketListFile::Read(m_path.c_str(), file_infos.back().str, bld);
+	DbInfoData bld;
+	s = DbInfoFile::Read(m_path.c_str(), file_infos.back().str, bld);
 	if(s != OK)
 	{
 		return s;
 	}
 	
-	s = OpenBucketList(file_infos.back().str, bld);
+	s = OpenBucket(file_infos.back().str, bld);
 	if(s != OK) 
 	{
 		return s;
@@ -185,12 +185,12 @@ void WritableDB::BeforeClose()
 
 Status WritableDB::Clean()
 {
-	Status s1 = CleanBucketList();
+	Status s1 = CleanDbInfo();
 	Status s2 = CleanBucket();
 	return (s1 == ERR_NOMORE_DATA && s2 == ERR_NOMORE_DATA) ? ERR_NOMORE_DATA : OK;
 }
 
-Status WritableDB::CleanBucketList()
+Status WritableDB::CleanDbInfo()
 {
 	//尝试清除bucket list，保证deleted的bucket已被清理
 	//保证一次只有一个线程在执行clean操作
@@ -199,23 +199,23 @@ Status WritableDB::CleanBucketList()
 	{		
 		{
 			std::lock_guard<std::mutex> guard(m_mutex);
-			if(m_delete_bucketlist_files.empty()) 
+			if(m_delete_dbinfo_files.empty()) 
 			{
 				return ERR_NOMORE_DATA;
 			}
-			clean_filename = m_delete_bucketlist_files.front();
+			clean_filename = m_delete_dbinfo_files.front();
 		}
 		
-		Status s = BucketListFile::Remove(m_path.c_str(), clean_filename.str);
+		Status s = DbInfoFile::Remove(m_path.c_str(), clean_filename.str);
 		if(s != OK)
 		{
 			return s;
 		}
 		{
 			std::lock_guard<std::mutex> guard(m_mutex);
-			if(!m_delete_bucketlist_files.empty()) 
+			if(!m_delete_dbinfo_files.empty()) 
 			{
-				m_delete_bucketlist_files.pop_front();
+				m_delete_dbinfo_files.pop_front();
 			}
 		}
 	}
@@ -251,10 +251,10 @@ Status WritableDB::CleanBucket()
 	return m_clean_buckets.empty() ? ERR_NOMORE_DATA : OK;
 }
 
-Status WritableDB::WriteBucketList()
+Status WritableDB::WriteDbInfo()
 {
-	BucketListData bd;
-	fileid_t bucketlist_fileid;
+	DbInfoData bd;
+	fileid_t dbinfo_fileid;
 
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
@@ -264,36 +264,36 @@ Status WritableDB::WriteBucketList()
 		{
 			return ERR_NOMORE_DATA;	//没有可写的数据
 		}
-		assert(m_next_bucketlist_fileid < MAX_FILEID);
+		assert(m_next_dbinfo_fileid < MAX_FILEID);
 
 		m_bucket_changed_cnt = 0;
-		bucketlist_fileid = m_next_bucketlist_fileid++;
-		FillBucketListData(bd);
+		dbinfo_fileid = m_next_dbinfo_fileid++;
+		FillDbInfoData(bd);
 	}	
 	
 	//写bucket文件
-	char bucketlist_filename[MAX_FILENAME_LEN];
-	MakeBucketListFileName(bucketlist_fileid, bucketlist_filename);
+	char dbinfo_filename[MAX_FILENAME_LEN];
+	MakeDbInfoFileName(dbinfo_fileid, dbinfo_filename);
 	
-	Status s = BucketListFile::Write(m_path.c_str(), bucketlist_filename, bd);
+	Status s = DbInfoFile::Write(m_path.c_str(), dbinfo_filename, bd);
 	if(s != OK)
 	{
 		//LogWarn(msg_fmt, ...);
 		return s;
 	}
 	
-	NotifyData nd(NOTIFY_UPDATE_BUCKET_LIST, m_path, bucketlist_fileid);
+	NotifyData nd(NOTIFY_UPDATE_DB_INFO, m_path, dbinfo_fileid);
 	((WritableEngine*)m_engine)->WriteNotifyFile(nd);
 
-	//TODO: 将旧的bucketlist写入delete队列
-	if(bucketlist_fileid != MIN_FILEID)
+	//TODO: 将旧的dbinfo写入delete队列
+	if(dbinfo_fileid != MIN_FILEID)
 	{
 		FileName name;
-		MakeBucketListFileName(bucketlist_fileid-1, name.str);
+		MakeDbInfoFileName(dbinfo_fileid-1, name.str);
 
 		{
 		std::lock_guard<std::mutex> lock(m_mutex);
-		m_delete_bucketlist_files.push_back(name);
+		m_delete_dbinfo_files.push_back(name);
 		}
 		((WritableEngine*)m_engine)->NotifyClean(shared_from_this());
 	}
@@ -345,7 +345,7 @@ Status WritableDB::CreateBucket(const std::string& bucket_name, BucketPtr& bptr)
 		++m_bucket_changed_cnt;
 	}
 	
-	((WritableEngine*)m_engine)->NotifyWriteBucketList(shared_from_this());
+	((WritableEngine*)m_engine)->NotifyWriteDbInfo(shared_from_this());
 	return OK;
 }
 
@@ -397,7 +397,7 @@ Status WritableDB::DeleteBucket(const std::string& bucket_name)
 		m_deleting_buckets[bucket->GetInfo().id] = bucket_name;
 		++m_bucket_changed_cnt;
 	}
-	((WritableEngine*)m_engine)->NotifyWriteBucketList(shared_from_this());
+	((WritableEngine*)m_engine)->NotifyWriteDbInfo(shared_from_this());
 	return OK;
 }
 
@@ -537,7 +537,7 @@ Status WritableDB::PartMerge(const std::string& bucket_name)
 	return bucket->PartMerge();
 }
 
-void WritableDB::FillBucketListData(BucketListData& bd)
+void WritableDB::FillDbInfoData(DbInfoData& bd)
 {
 	m_bucket_rwlock.ReadLock();
 	BucketSnapshotPtr bs_ptr = m_bucket_snapshot;

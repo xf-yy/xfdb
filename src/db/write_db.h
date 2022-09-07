@@ -26,7 +26,7 @@ limitations under the License.
 #include "lock_file.h"
 #include "db_impl.h"
 #include "write_engine.h"
-#include "bucket_list_file.h"
+#include "db_info_file.h"
 
 namespace xfdb 
 {
@@ -79,9 +79,9 @@ private:
 	Status CleanBucket();
 	Status CleanBucket(const std::string& bucket_name);
 
-	Status CleanBucketList();
-	Status WriteBucketList();
-	void FillBucketListData(BucketListData& bd);
+	Status CleanDbInfo();
+	Status WriteDbInfo();
+	void FillDbInfoData(DbInfoData& bd);
 
 private:
 	//engine
@@ -90,10 +90,10 @@ private:
 	//锁文件
 	LockFile m_lock_file;
 
-	//待删除的bucketlist文件,如果有删除的bucket，则删除bucket后才能删除bucketlist文件
-	std::deque<FileName> m_delete_bucketlist_files; 
+	//待删除的dbinfo文件,如果有删除的bucket，则删除bucket后才能删除dbinfo文件
+	std::deque<FileName> m_delete_dbinfo_files; 
 	
-	//已删除但还未写入bucketlist中的bucket
+	//已删除但还未写入dbinfo中的bucket
 	std::map<bucketid_t, std::string> m_deleting_buckets;
 	//bucket list未更新的bucket改变次数
 	int m_bucket_changed_cnt;

@@ -21,7 +21,7 @@ limitations under the License.
 #include <set>
 #include "types.h"
 #include "segment_file.h"
-#include "segment_list_file.h"
+#include "bucket_meta_file.h"
 
 namespace xfdb 
 {

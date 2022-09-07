@@ -17,7 +17,7 @@ limitations under the License.
 #include "types.h"
 #include "coding.h"
 #include "path.h"
-#include "segment_list_file.h"
+#include "bucket_meta_file.h"
 #include "file_util.h"
 #include "segment_file.h"
 
@@ -35,28 +35,28 @@ enum
 	MID_DATA_FILESIZE,
 };
 
-SegmentListFile::SegmentListFile()
+BucketMetaFile::BucketMetaFile()
 {
 	m_id = INVALID_FILEID;
 }
 
-SegmentListFile::~SegmentListFile()
+BucketMetaFile::~BucketMetaFile()
 {
 }
 
 //
-Status SegmentListFile::Open(const char* bucket_path, fileid_t fileid, LockFlag flag/* = LOCK_NONE*/)
+Status BucketMetaFile::Open(const char* bucket_path, fileid_t fileid, LockFlag flag/* = LOCK_NONE*/)
 {
 	char filename[MAX_FILENAME_LEN];
-	MakeSegmentListFileName(fileid, filename);
+	MakeBucketMetaFileName(fileid, filename);
 	
 	return Open(bucket_path, filename, flag);
 }
 
-Status SegmentListFile::Open(const char* bucket_path, const char* filename, LockFlag flag/* = LOCK_NONE*/)
+Status BucketMetaFile::Open(const char* bucket_path, const char* filename, LockFlag flag/* = LOCK_NONE*/)
 {
 	char filepath[MAX_PATH_LEN];
-	MakeSegmentListFilePath(bucket_path, filename, filepath);
+	MakeBucketMetaFilePath(bucket_path, filename, filepath);
 	
 	assert(m_file.GetFD() == INVALID_FD);
 	if(!m_file.Open(filepath, OF_READONLY))
@@ -101,7 +101,7 @@ static const bool ParseSegmentFileInfo(const byte_t*& data, const byte_t* data_e
 	return false;
 }
 
-static const bool ParseSegmentMeta(const byte_t*& data, const byte_t* data_end, SegmentListData& md)
+static const bool ParseSegmentMeta(const byte_t*& data, const byte_t* data_end, BucketMetaData& md)
 {
 	for(;;)
 	{
@@ -122,7 +122,7 @@ static const bool ParseSegmentMeta(const byte_t*& data, const byte_t* data_end, 
 	return false;
 }
 
-static const bool ParseSegmentListData(const byte_t*& data, const byte_t* data_end, SegmentListData& md)
+static const bool ParseBucketMetaData(const byte_t*& data, const byte_t* data_end, BucketMetaData& md)
 {	
 	uint32_t cnt = DecodeV32(data, data_end);
 	md.alive_segment_infos.resize(cnt);
@@ -141,19 +141,19 @@ static const bool ParseSegmentListData(const byte_t*& data, const byte_t* data_e
 	return ParseSegmentMeta(data, data_end, md);
 }
 
-Status SegmentListFile::Parse(const byte_t* data, uint32_t size, SegmentListData& md)
+Status BucketMetaFile::Parse(const byte_t* data, uint32_t size, BucketMetaData& md)
 {
 	const byte_t* data_end = data + size;
 	
 	FileHeader header;
-	if(!ParseSegmentListFileHeader(data, size, header))
+	if(!ParseBucketMetaFileHeader(data, size, header))
 	{
 		return ERR_FILE_FORMAT;
 	}
-	return ParseSegmentListData(data, data_end, md) ? OK : ERR_FILE_FORMAT;
+	return ParseBucketMetaData(data, data_end, md) ? OK : ERR_FILE_FORMAT;
 }
 
-Status SegmentListFile::Read(SegmentListData& md)
+Status BucketMetaFile::Read(BucketMetaData& md)
 {
 	K4Buffer buf;
 	Status s = ReadFile(m_file, buf);
@@ -165,23 +165,23 @@ Status SegmentListFile::Read(SegmentListData& md)
 	return Parse((byte_t*)buf.Data(), buf.Size(), md);
 }
 
-Status SegmentListFile::Write(const char* bucket_path, fileid_t fileid, SegmentListData& md)
+Status BucketMetaFile::Write(const char* bucket_path, fileid_t fileid, BucketMetaData& md)
 {
 	K4Buffer buf;
 	uint32_t size = Serialize(md, buf);
 
 	char name[MAX_FILENAME_LEN];
-	MakeSegmentListFileName(fileid, name);
+	MakeBucketMetaFileName(fileid, name);
 
 	return WriteFile(bucket_path, name, buf.Data(), size);
 }
 
-uint32_t SegmentListFile::Serialize(const SegmentListData& md, K4Buffer& buf)
+uint32_t BucketMetaFile::Serialize(const BucketMetaData& md, K4Buffer& buf)
 {
 	uint32_t esize = EstimateSize(md);
 	buf.Alloc(esize);
 	
-	byte_t* ptr = FillSegmentListFileHeader((byte_t*)buf.Data());
+	byte_t* ptr = FillBucketMetaFileHeader((byte_t*)buf.Data());
 	
 	assert(md.alive_segment_infos.size() < 0xFFFFFFFF);
 	uint32_t cnt = (uint32_t)md.alive_segment_infos.size();
@@ -222,7 +222,7 @@ static constexpr uint32_t EstimateSegmentMetaSize()
 	return (MAX_V32_SIZE + MAX_V64_SIZE)*2 /*2个属性*/;
 }	
 
-uint32_t SegmentListFile::EstimateSize(const SegmentListData& md)
+uint32_t BucketMetaFile::EstimateSize(const BucketMetaData& md)
 {
 	uint32_t size = FILE_HEAD_SIZE;
 	size += MAX_V32_SIZE + md.alive_segment_infos.size() * EstimateSegmentFileInfoSize();
@@ -232,18 +232,18 @@ uint32_t SegmentListFile::EstimateSize(const SegmentListData& md)
 	return size;
 }
 
-Status SegmentListFile::Remove(const char* bucket_path, const char* file_name, bool remove_all)
+Status BucketMetaFile::Remove(const char* bucket_path, const char* file_name, bool remove_all)
 {
 	//尝试写锁打开snapshot，并读取已删除的block文件
 	{
-		SegmentListFile mfile;
+		BucketMetaFile mfile;
 		Status s = mfile.Open(bucket_path, file_name, LOCK_TRY_WRITE);
 		if(s != OK)
 		{
 			assert(s != ERR_FILE_READ);
 			return s;
 		}
-		SegmentListData md;
+		BucketMetaData md;
 		s = mfile.Read(md);
 		if(s != OK)
 		{

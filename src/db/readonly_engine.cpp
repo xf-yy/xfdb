@@ -131,28 +131,28 @@ void ReadOnlyEngine::ProcessNotifyData(const NotifyData& nd)
 	
 	switch(nd.type)
 	{
-	case NOTIFY_UPDATE_BUCKET:
+	case NOTIFY_UPDATE_BUCKET_META:
 		assert(!nd.bucket_name.empty());
 		if(!nd.bucket_name.empty())
 		{
 			BucketPtr bptr;
 			if(db->GetBucket(nd.bucket_name, bptr))
 			{
-				MakeSegmentListFileName(nd.file_id, file_name);
+				MakeBucketMetaFileName(nd.file_id, file_name);
 				bptr->Open(file_name);
 			}
 		}
 		break;
 		
-	case NOTIFY_UPDATE_BUCKET_LIST:
+	case NOTIFY_UPDATE_DB_INFO:
 		if(nd.file_id != MIN_FILEID)
 		{
-			MakeBucketListFileName(nd.file_id, file_name);
-			db->OpenBucketList(file_name);
+			MakeDbInfoFileName(nd.file_id, file_name);
+			db->OpenBucket(file_name);
 		}
 		else
 		{
-			db->OpenBucketList();
+			db->OpenBucket();
 		}
 		break;
 		

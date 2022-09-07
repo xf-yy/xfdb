@@ -28,20 +28,20 @@ namespace xfutil
 namespace xfdb 
 {
 
-#define BUCKET_LIST_FILE_VERSION	1
-#define SEGMENT_LIST_FILE_VERSION	1
+#define DB_INFO_FILE_VERSION		1
+#define BUCKET_META_FILE_VERSION	1
 #define INDEX_FILE_VERSION			1
 #define DATA_FILE_VERSION			1
 #define NOTIFY_FILE_VERSION			1
 
-#define BUCKET_LIST_FILE_MAGIC		"INFO"
-#define SEGMENT_LIST_FILE_MAGIC 	"META"
+#define DB_INFO_FILE_MAGIC			"INFO"
+#define BUCKET_META_FILE_MAGIC 		"META"
 #define INDEX_FILE_MAGIC			"INDX"
 #define DATA_FILE_MAGIC				"DATA"
 #define NOTIFY_FILE_MAGIC			"MSGF"
 
-#define BUCKET_LIST_FILE_EXT		".info"
-#define SEGMENT_LIST_FILE_EXT 		".meta"
+#define DB_INFO_FILE_EXT			".info"
+#define BUCKET_META_FILE_EXT 		".meta"
 #define INDEX_FILE_EXT				".index"
 #define DATA_FILE_EXT				".data"
 #define NOTIFY_FILE_EXT				".msg"
@@ -78,23 +78,23 @@ static inline void MakeBucketPath(const char* db_path, const char* bucket_name, 
 	snprintf(path, MAX_PATH_LEN, "%s/%s.%u", db_path, bucket_name, bucket_id);
 }
 
-static inline void MakeBucketListFileName(fileid_t seqid, char name[MAX_FILENAME_LEN])
+static inline void MakeDbInfoFileName(fileid_t seqid, char name[MAX_FILENAME_LEN])
 {
-	snprintf(name, MAX_FILENAME_LEN, "%lu" BUCKET_LIST_FILE_EXT, seqid);
+	snprintf(name, MAX_FILENAME_LEN, "%lu" DB_INFO_FILE_EXT, seqid);
 }
-static inline void MakeBucketListFilePath(const char* db_path, const char* filename, char path[MAX_PATH_LEN])
+static inline void MakeDbInfoFilePath(const char* db_path, const char* filename, char path[MAX_PATH_LEN])
 {
 	snprintf(path, MAX_PATH_LEN, "%s/%s", db_path, filename);
 }
-static inline void MakeSegmentListFileName(fileid_t seqid, char name[MAX_FILENAME_LEN])
+static inline void MakeBucketMetaFileName(fileid_t seqid, char name[MAX_FILENAME_LEN])
 {
-	snprintf(name, MAX_FILENAME_LEN, "%lu" SEGMENT_LIST_FILE_EXT, seqid);
+	snprintf(name, MAX_FILENAME_LEN, "%lu" BUCKET_META_FILE_EXT, seqid);
 }
-static inline void MakeSegmentListFilePath(const char* bucket_path, fileid_t seqid, char path[MAX_PATH_LEN])
+static inline void MakeBucketMetaFilePath(const char* bucket_path, fileid_t seqid, char path[MAX_PATH_LEN])
 {
-	snprintf(path, MAX_PATH_LEN, "%s/%lu" SEGMENT_LIST_FILE_EXT, bucket_path, seqid);
+	snprintf(path, MAX_PATH_LEN, "%s/%lu" BUCKET_META_FILE_EXT, bucket_path, seqid);
 }
-static inline void MakeSegmentListFilePath(const char* bucket_path, const char* filename, char path[MAX_PATH_LEN])
+static inline void MakeBucketMetaFilePath(const char* bucket_path, const char* filename, char path[MAX_PATH_LEN])
 {
 	snprintf(path, MAX_PATH_LEN, "%s/%s", bucket_path, filename);
 }
@@ -125,13 +125,13 @@ static inline void MakeNotifyFilePath(const char* notify_path, tid_t pid, fileid
 }
 
 Status ListFile(const char* path, const char* pattern, std::vector<FileName>& names, bool sort = false);	
-static inline Status ListBucketListFile(const char* path, std::vector<FileName>& names)
+static inline Status ListDbInfoFile(const char* path, std::vector<FileName>& names)
 {
-	return ListFile(path, "*" BUCKET_LIST_FILE_EXT, names, true);
+	return ListFile(path, "*" DB_INFO_FILE_EXT, names, true);
 }
-static inline Status ListSegmentListFile(const char* path, std::vector<FileName>& names)
+static inline Status ListBucketMetaFile(const char* path, std::vector<FileName>& names)
 {
-	return ListFile(path, "*" SEGMENT_LIST_FILE_EXT, names, true);
+	return ListFile(path, "*" BUCKET_META_FILE_EXT, names, true);
 }
 
 static inline Status ListNotifyFile(const char* path, std::vector<FileName>& names)
@@ -142,22 +142,22 @@ static inline Status ListNotifyFile(const char* path, std::vector<FileName>& nam
 byte_t* FillHeader(byte_t* data, const char magic[FILE_MAGIC_SIZE], uint16_t version);
 bool ParseHeader(const byte_t* &data, size_t size, const char expect_magic[FILE_MAGIC_SIZE], uint16_t max_version, FileHeader& header);
 
-static inline byte_t* FillBucketListFileHeader(byte_t* buf)
+static inline byte_t* FillDbInfoFileHeader(byte_t* buf)
 {
-	return FillHeader(buf, BUCKET_LIST_FILE_MAGIC, BUCKET_LIST_FILE_VERSION);
+	return FillHeader(buf, DB_INFO_FILE_MAGIC, DB_INFO_FILE_VERSION);
 }
-static inline bool ParseBucketListFileHeader(const byte_t* &data, size_t size, FileHeader& header)
+static inline bool ParseDbInfoFileHeader(const byte_t* &data, size_t size, FileHeader& header)
 {
-	return ParseHeader(data, size, BUCKET_LIST_FILE_MAGIC, BUCKET_LIST_FILE_VERSION, header);
+	return ParseHeader(data, size, DB_INFO_FILE_MAGIC, DB_INFO_FILE_VERSION, header);
 }
 
-static inline byte_t* FillSegmentListFileHeader(byte_t* buf)
+static inline byte_t* FillBucketMetaFileHeader(byte_t* buf)
 {
-	return FillHeader(buf, SEGMENT_LIST_FILE_MAGIC, SEGMENT_LIST_FILE_VERSION);
+	return FillHeader(buf, BUCKET_META_FILE_MAGIC, BUCKET_META_FILE_VERSION);
 }
-static inline bool ParseSegmentListFileHeader(const byte_t* &data, size_t size, FileHeader& header)
+static inline bool ParseBucketMetaFileHeader(const byte_t* &data, size_t size, FileHeader& header)
 {
-	return ParseHeader(data, size, SEGMENT_LIST_FILE_MAGIC, SEGMENT_LIST_FILE_VERSION, header);
+	return ParseHeader(data, size, BUCKET_META_FILE_MAGIC, BUCKET_META_FILE_VERSION, header);
 }
 
 static inline byte_t* FillIndexFileHeader(byte_t* buf)

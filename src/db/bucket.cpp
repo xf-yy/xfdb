@@ -15,7 +15,7 @@ limitations under the License.
 ***************************************************************************/
 
 #include "bucket.h"
-#include "segment_list_file.h"
+#include "bucket_meta_file.h"
 #include "table_reader_snapshot.h"
 #include "path.h"
 #include "logger.h"
@@ -32,32 +32,32 @@ Bucket::Bucket(DBImplPtr db, const BucketInfo& info)
 	m_bucket_path = bucket_path;
 
 	m_next_segment_id = MIN_FILEID;
-	m_next_segmentlist_fileid = MIN_FILEID;
+	m_next_bucket_meta_fileid = MIN_FILEID;
 }
 
-Status Bucket::Open(const char* segmentlist_filename)
+Status Bucket::Open(const char* bucket_meta_filename)
 {	
-	assert(segmentlist_filename != nullptr);
+	assert(bucket_meta_filename != nullptr);
 
 	//读锁打开最新的segment list
-	SegmentListFilePtr segment_list_file = NewSegmentListFile();
-	Status s = segment_list_file->Open(m_bucket_path.c_str(), segmentlist_filename, LOCK_TRY_READ);
+	BucketMetaFilePtr bucket_meta_file = NewBucketMetaFile();
+	Status s = bucket_meta_file->Open(m_bucket_path.c_str(), bucket_meta_filename, LOCK_TRY_READ);
 	if(s != OK) 
 	{
 		return s;
 	}
-	SegmentListData sld;
-	s = segment_list_file->Read(sld);
+	BucketMetaData sld;
+	s = bucket_meta_file->Read(sld);
 	if(s != OK)
 	{
 		return s;
 	}
-	fileid_t fileid = strtoull(segmentlist_filename, nullptr, 10);
+	fileid_t fileid = strtoull(bucket_meta_filename, nullptr, 10);
 
 		
 	//保证一次只有一个线程在执行reload操作
 	std::lock_guard<std::mutex> lock(m_mutex);
-	if(fileid < m_next_segmentlist_fileid)
+	if(fileid < m_next_bucket_meta_fileid)
 	{
 		assert(false);
 		return ERROR;
@@ -81,8 +81,8 @@ Status Bucket::Open(const char* segmentlist_filename)
 	
 	m_segment_rwlock.WriteLock();
 	m_reader_snapshot.swap(new_ss_ptr);
-	m_segmentlist_file.swap(segment_list_file);
-	m_next_segmentlist_fileid = fileid+1;
+	m_bucket_meta_file.swap(bucket_meta_file);
+	m_next_bucket_meta_fileid = fileid+1;
 	m_next_segment_id = sld.next_segment_id;
 	m_segment_rwlock.WriteUnlock();
 
@@ -102,7 +102,7 @@ Status Bucket::OpenSegment(const char* bucket_path, const SegmentFileIndex& sfi,
 	return s;
 }
 
-void Bucket::OpenSegments(const SegmentListData& sld, std::map<fileid_t, TableReaderPtr>& readers)
+void Bucket::OpenSegments(const BucketMetaData& sld, std::map<fileid_t, TableReaderPtr>& readers)
 {
 	SegmentReaderPtr sr_ptr;
 	for(const auto& seginfo : sld.alive_segment_infos)
@@ -114,7 +114,7 @@ void Bucket::OpenSegments(const SegmentListData& sld, std::map<fileid_t, TableRe
 	}
 }
 
-void Bucket::OpenSegments(const SegmentListData& sld, const TableReaderSnapshot* last_snapshot, std::map<fileid_t, TableReaderPtr>& readers)
+void Bucket::OpenSegments(const BucketMetaData& sld, const TableReaderSnapshot* last_snapshot, std::map<fileid_t, TableReaderPtr>& readers)
 {
 	assert(last_snapshot != nullptr);
 	const std::map<fileid_t, TableReaderPtr>& last_readers = last_snapshot->Readers();
