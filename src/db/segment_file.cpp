@@ -23,7 +23,7 @@ limitations under the License.
 namespace xfdb 
 {
 
-SegmentReader::SegmentReader(BlockPool& pool) : m_index_reader(pool)
+SegmentReader::SegmentReader(BlockPool& pool) : m_index_reader(pool), m_data_reader(pool)
 {
 }
 

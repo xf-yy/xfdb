@@ -35,7 +35,7 @@ class SegmentLevelInfo
 	bool NeedMerge(std::set<fileid_t>& merging_segment_fileids) const;
 
 	//获取下个合并的段集
-	bool GetMergeSegments(MergeSegmentInfo& msi) const;
+	bool GetMergeSegments(MergingSegmentInfo& msi) const;
 };
 #endif
 

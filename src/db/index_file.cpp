@@ -34,9 +34,15 @@ enum
 	//MID_COMPRESS_TYPE,
 };
 
+#if 0
 static bool LowerCmp(const SegmentL1Index index, const StrView key)
 {
 	return index.start_key.Compare(key) < 0;
+}
+#endif
+static bool UpperCmp(const StrView key, const SegmentL1Index index)
+{
+	return key.Compare(index.start_key) < 0;
 }
 
 StrView MakeKey(StrView& prev_key, uint32_t shared_keysize, StrView& nonshared_key, String& prev_str1, String& prev_str2)
@@ -52,7 +58,7 @@ StrView MakeKey(StrView& prev_key, uint32_t shared_keysize, StrView& nonshared_k
 	return StrView(prev_str1.Data(), prev_str1.Size());
 }
 
-IndexReader::IndexReader(BlockPool& pool) : m_buf(pool)
+IndexReader::IndexReader(BlockPool& pool) : m_pool(pool), m_buf(pool)
 {
 }
 
@@ -233,6 +239,7 @@ Status IndexReader::ParseMeta(const byte_t* data, uint32_t meta_size)
 
 Status IndexReader::SearchGroup(const byte_t* group, uint32_t group_size, const GroupIndex& group_index, const StrView& key, SegmentL0Index& L0_index) const
 {
+	assert(group_size != 0);
 	const byte_t* group_end = group + group_size;
 
 	String prev_str1, prev_str2;
@@ -276,6 +283,7 @@ Status IndexReader::SearchGroup(const byte_t* group, uint32_t group_size, const 
 
 Status IndexReader::SearchChunk(const byte_t* chunk, uint32_t chunk_size, const ChunkIndex& chunk_index, const StrView& key, SegmentL0Index& L0_index) const
 {
+	assert(chunk_size != 0);
 	const byte_t* chunk_end = chunk + chunk_size;
 	const byte_t* index_ptr = chunk_end - chunk_index.index_size;
 	const byte_t* group_ptr = chunk;
@@ -313,6 +321,7 @@ Status IndexReader::SearchChunk(const byte_t* chunk, uint32_t chunk_size, const 
 
 Status IndexReader::SearchBlock(const byte_t* block, uint32_t block_size, const SegmentL1Index* L1Index, const StrView& key, SegmentL0Index& L0_index) const
 {
+	assert(block_size != 0);
 	const byte_t* block_end = block + block_size;
 	const byte_t* index_ptr = block_end - L1Index->L1index_size;
 	const byte_t* chunk_ptr = block;
@@ -362,8 +371,9 @@ const SegmentL1Index* IndexReader::Search(const StrView& key) const
 	}
 	
 	//二分查找
-	uint32_t pos = std::lower_bound(m_L1indexs.begin(), m_L1indexs.end(), key, LowerCmp) - m_L1indexs.begin();
-	return (pos < m_L1indexs.size()) ? &m_L1indexs[pos] : &m_L1indexs[m_L1indexs.size()-1];
+	uint32_t pos = std::upper_bound(m_L1indexs.begin(), m_L1indexs.end(), key, UpperCmp) - m_L1indexs.begin();
+	assert(pos > 0 && pos <= m_L1indexs.size());
+	return &m_L1indexs[pos-1];
 }
 
 Status IndexReader::Search(const StrView& key, SegmentL0Index& L0_index) const
@@ -378,20 +388,24 @@ Status IndexReader::Search(const StrView& key, SegmentL0Index& L0_index) const
 	//TODO: 读取L1块 cache
 	
 	//读取L1索引
-	K4Buffer buf;
-	Status s = ReadFile(m_file, L1Index->L1offset, L1Index->L1compress_size, buf);
-	if(s != OK)
+	//printf("L1Index->L1compress_size:%u\n", L1Index->L1compress_size);
+	byte_t* buf = m_pool.Alloc();
+	int64_t r_size = m_file.Read(L1Index->L1offset, buf, L1Index->L1compress_size);
+	if((uint64_t)r_size != L1Index->L1compress_size)
 	{
-		return s;
+		m_pool.Free(buf);
+		return ERR_FILE_READ;
 	}
 	//TODO: 判断是否需要解压
 	//TODO: 将bloom和data放入cache中
 	//TODO: 判断是否有bloom，有则判断bloom是否命中
 	
-	const byte_t* block = (byte_t*)buf.Data() + L1Index->bloom_size;
-	uint32_t block_size = buf.Size() - L1Index->bloom_size;
+	const byte_t* block = buf + L1Index->bloom_size;
+	uint32_t block_size = r_size - L1Index->bloom_size;
 
-	return SearchBlock(block, block_size, L1Index, key, L0_index);
+	Status s = SearchBlock(block, block_size, L1Index, key, L0_index);
+	m_pool.Free(buf);
+	return s;
 }
 
 
@@ -649,7 +663,7 @@ Status IndexWriter::Write(const SegmentL0Index& L0_index)
 	
 	//则限制1024个+128KB(压缩时，如果不压缩，则为64KB)
 	//TODO:如果有布隆，则限制元素数量？
-	if(m_L0index_cnt >= MAX_BLOCK_OBJECT_NUM || m_writing_size >= MAX_COMPRESS_BLOCK_SIZE)
+	if(m_L0index_cnt >= MAX_BLOCK_OBJECT_NUM || m_writing_size >= MAX_UNCOMPRESS_BLOCK_SIZE)
 	{
 		WriteBlock();
 		

@@ -35,54 +35,53 @@ typedef uint64_t fileid_t;
 typedef uint64_t objectid_t;
 
 //segment fileid: 高60bit是segmentid，低4bit是level
-#define LEVEL_BITNUM		(4)
-#define LEVEL_MASK			((1<<LEVEL_BITNUM) - 1)
+#define LEVEL_BITNUM				(4)
+#define LEVEL_MASK					((1<<LEVEL_BITNUM) - 1)
 
-#define MAX_LEVEL_NUM		LEVEL_MASK
-#define MAX_SEGMENT_ID		((0x1ULL <<(64-LEVEL_BITNUM)) - 1)
+#define MAX_LEVEL_NUM				LEVEL_MASK
+#define MAX_SEGMENT_ID				((0x1ULL <<(64-LEVEL_BITNUM)) - 1)
 
-#define LEVEL_NUM(id)		((id) & LEVEL_MASK)
-#define SEGMENT_ID(id)		((id) >> LEVEL_BITNUM)
+#define LEVEL_NUM(id)				((id) & LEVEL_MASK)
+#define SEGMENT_ID(id)				((id) >> LEVEL_BITNUM)
 
-#define INVALID_FILEID		(0)
-#define MIN_FILEID			(INVALID_FILEID + 1)
-#define MAX_FILEID			(fileid_t(-1) - 1)
+#define INVALID_FILEID				(0)
+#define MIN_FILEID					(INVALID_FILEID + 1)
+#define MAX_FILEID					(fileid_t(-1) - 1)
 static_assert(MIN_FILEID > 0, "invalid MIN_FILEID");
 
-#define INVALID_OBJECTID	(0)
-#define MIN_OBJECTID		(INVALID_OBJECTID + 1)
-#define MAX_OBJECTID		(objectid_t(-1) - 1)		//64bit
+#define INVALID_OBJECTID			(0)
+#define MIN_OBJECTID				(INVALID_OBJECTID + 1)
+#define MAX_OBJECTID				(objectid_t(-1) - 1)		//64bit
 static_assert(MIN_OBJECTID > 0, "invalid MIN_OBJECTID");
 
-#define INVALID_BUCKETID	(0)
-#define MIN_BUCKETID		(INVALID_BUCKETID + 1)
-#define MAX_BUCKETID		(bucketid_t(-1) - 1)		//32bit
+#define INVALID_BUCKETID			(0)
+#define MIN_BUCKETID				(INVALID_BUCKETID + 1)
+#define MAX_BUCKETID				(bucketid_t(-1) - 1)		//32bit
 static_assert(MIN_BUCKETID > 0, "invalid MIN_BUCKETID");
 
-#define MAX_KEY_SIZE		(64*1024)
-#define MAX_VALUE_SIZE		(64*1024)
+#define MAX_KEY_SIZE				(64*1024)
+#define MAX_VALUE_SIZE				(64*1024)
 static_assert(MAX_KEY_SIZE <= 64*1024, "invalid MAX_KEY_SIZE");				//不能超16bit大小
 static_assert(MAX_VALUE_SIZE <= 64*1024, "invalid MAX_VALUE_SIZE");			//待支持kv分离时，可支持大value
 
 #define EXTRA_OBJECT_SIZE			(128)
 #define MAX_OBJECT_SIZE				(MAX_KEY_SIZE + MAX_VALUE_SIZE + EXTRA_OBJECT_SIZE)
-#define MAX_COMPRESS_BLOCK_SIZE		(128*1024)
-#define MAX_UNCOMPRESS_BLOCK_SIZE	(64*1024)
+#define MAX_COMPRESS_BLOCK_SIZE		(96*1024)	//启用压缩时的块大小
+#define MAX_UNCOMPRESS_BLOCK_SIZE	(32*1024)	//未启用压缩时的块大小
 #define MAX_BUFFER_SIZE				(MAX_COMPRESS_BLOCK_SIZE + MAX_OBJECT_SIZE)
-//static_assert(MAX_OBJECT_SIZE < MAX_COMPRESS_BLOCK_SIZE, "large object");
 
 #define MEM_BLOCK_SIZE				(256*1024)
 
 #ifndef MAX_FILENAME_LEN
-#define MAX_FILENAME_LEN		(64)	//包括结束符'\0'
+#define MAX_FILENAME_LEN			(64)	//包括结束符'\0'
 #endif
 
 #ifndef MIN_BUCKET_NAME_LEN
-#define MIN_BUCKET_NAME_LEN		(3)		//不包含结束符'\0'
+#define MIN_BUCKET_NAME_LEN			(3)		//不包含结束符'\0'
 #endif
 
 #ifndef MAX_BUCKET_NAME_LEN
-#define MAX_BUCKET_NAME_LEN		(64)	//包含结束符'\0'
+#define MAX_BUCKET_NAME_LEN			(64)	//包含结束符'\0'
 #endif
 
 //NOTE:值必须小于32
@@ -205,9 +204,9 @@ struct SegmentFileIndex
 	uint32_t L2index_meta_size;	//L2层索引+meta大小，包含2*4Byte
 };
 
-#define MAX_GROUP_OBJECT_NUM	(10)
-#define MAX_CHUNK_GROUP_NUM		(10)
-#define MAX_BLOCK_CHUNK_NUM		(10)
+#define MAX_GROUP_OBJECT_NUM	(8)
+#define MAX_CHUNK_GROUP_NUM		(8)
+#define MAX_BLOCK_CHUNK_NUM		(8)
 
 #define MAX_BLOCK_OBJECT_NUM	(MAX_BLOCK_CHUNK_NUM*MAX_CHUNK_GROUP_NUM*MAX_GROUP_OBJECT_NUM)
 
@@ -216,12 +215,23 @@ struct ChunkIndex
 	StrView start_key;
 	uint32_t chunk_size;
 	uint32_t index_size;
+
+	ChunkIndex()
+	{
+		chunk_size = 0;
+		index_size = 0;
+	}
 };
 
 struct GroupIndex
 {
 	StrView start_key;
 	uint32_t group_size;
+
+	GroupIndex()
+	{
+		group_size = 0;
+	}
 };
 
 class ReadOnlyEngine;
@@ -298,11 +308,11 @@ class SegmentWriter;
 typedef std::shared_ptr<SegmentWriter> SegmentWriterPtr;
 #define NewSegmentWriter 	std::make_shared<SegmentWriter>
 
-struct MergeSegmentInfo
+struct MergingSegmentInfo
 {
-	fileid_t new_fileid;
-	SegmentReaderPtr new_segment;
-	std::map<fileid_t, SegmentReaderPtr> merging_segments;
+	fileid_t new_segment_fileid;
+	SegmentReaderPtr new_segment_reader;
+	std::map<fileid_t, SegmentReaderPtr> merging_segment_readers;
 };
 
 class TableReader;

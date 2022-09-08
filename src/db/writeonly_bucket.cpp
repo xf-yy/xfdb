@@ -361,12 +361,12 @@ void WriteOnlyBucket::UpdateReaderSnapshot(std::map<fileid_t, TableReaderPtr>& r
 
 
 ///////////////////////////////////////////////////////////////////////////////
-fileid_t WriteOnlyBucket::SelectNewSegmentFileId(MergeSegmentInfo& msinfo)
+fileid_t WriteOnlyBucket::SelectNewSegmentFileID(MergingSegmentInfo& msinfo)
 {
 	//TODO:合并前先计算有没有可复用的segid，如果没有则重新选用segment集
 	//     如果全部都没有，则选用未使用的最小segment id
 	//原则：选用最小的seqid，将其level+1，如果level+1已是最大level，则选第2个seqid...
-	for(auto it : msinfo.merging_segments)
+	for(auto it : msinfo.merging_segment_readers)
 	{
 	}
 	assert(false);
@@ -379,18 +379,18 @@ Status WriteOnlyBucket::Merge()
 	return OK;
 }
 
-void WriteOnlyBucket::UpdateReaderSnapshot(MergeSegmentInfo& msinfo)
+void WriteOnlyBucket::UpdateReaderSnapshot(MergingSegmentInfo& msinfo)
 {
 	m_segment_rwlock.ReadLock();
 	TableReaderSnapshotPtr rs_ptr = m_reader_snapshot;
 	m_segment_rwlock.ReadUnlock();
 	
 	std::map<fileid_t, TableReaderPtr> new_readers = rs_ptr->Readers();
-	for(auto it = msinfo.merging_segments.begin(); it != msinfo.merging_segments.end(); ++it)
+	for(auto it = msinfo.merging_segment_readers.begin(); it != msinfo.merging_segment_readers.end(); ++it)
 	{
 		new_readers.erase(it->first);
 	}
-	new_readers[msinfo.new_fileid] = msinfo.new_segment;
+	new_readers[msinfo.new_segment_fileid] = msinfo.new_segment_reader;
 
 	TableReaderSnapshotPtr new_segment_snapshot = NewTableReaderSnapshot(new_readers);
 
@@ -399,27 +399,27 @@ void WriteOnlyBucket::UpdateReaderSnapshot(MergeSegmentInfo& msinfo)
 	m_segment_rwlock.WriteUnlock();
 }
 
-Status WriteOnlyBucket::Merge(MergeSegmentInfo& msinfo)
+Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 {		
-	msinfo.new_fileid = SelectNewSegmentFileId(msinfo);
+	msinfo.new_segment_fileid = SelectNewSegmentFileID(msinfo);
 
 	DBImplPtr db = m_db.lock();
 	SegmentWriter segment_writer(db->GetConfig(), m_engine->m_pool);
-	Status s = segment_writer.Create(m_bucket_path.c_str(), msinfo.new_fileid);
+	Status s = segment_writer.Create(m_bucket_path.c_str(), msinfo.new_segment_fileid);
 	if(s != OK)
 	{
 		return s;
 	}
 	
 	SegmentFileIndex seginfo;
-	s = segment_writer.Merge(msinfo.merging_segments, seginfo);
+	s = segment_writer.Merge(msinfo.merging_segment_readers, seginfo);
 	if(s != OK)
 	{
 		return s;
 	}
 
 	//更新segment snapshot，然后通知写segment list
-	s = OpenSegment(m_bucket_path.c_str(), seginfo, msinfo.new_segment);
+	s = OpenSegment(m_bucket_path.c_str(), seginfo, msinfo.new_segment_reader);
 	if(s == OK)
 	{
 		return s;
@@ -428,8 +428,8 @@ Status WriteOnlyBucket::Merge(MergeSegmentInfo& msinfo)
 
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
-		m_merged_segment_fileids.reserve(m_merged_segment_fileids.size()+msinfo.merging_segments.size());
-		for(auto it = msinfo.merging_segments.begin(); it != msinfo.merging_segments.end(); ++it)
+		m_merged_segment_fileids.reserve(m_merged_segment_fileids.size()+msinfo.merging_segment_readers.size());
+		for(auto it = msinfo.merging_segment_readers.begin(); it != msinfo.merging_segment_readers.end(); ++it)
 		{
 			m_merged_segment_fileids.push_back(it->first);
 			//m_merging_segment_fileids.erase(it->first);
@@ -448,7 +448,7 @@ Status WriteOnlyBucket::FullMerge()
 	m_segment_rwlock.ReadUnlock();
 
 	//TODO:以超过阈值的segment为分割点，找到待合并的segment集
-	std::vector<MergeSegmentInfo> msinfo;
+	std::vector<MergingSegmentInfo> msinfo;
 	
 	for(auto& seg_info : msinfo)
 	{
@@ -469,7 +469,7 @@ Status WriteOnlyBucket::PartMerge()
 	m_segment_rwlock.ReadUnlock();
 
 	//TODO:从低层开始，按id升序找出待合并的segment集
-	MergeSegmentInfo msinfo;
+	MergingSegmentInfo msinfo;
 	//...
 
 	//相差很大的segment不要合并？比如10GB，100MB，即不超过10倍
@@ -551,7 +551,7 @@ Status WriteOnlyBucket::WriteBucketMeta()
 	if(bucket_meta_file)
 	{
 		FileName filename;
-		MakeBucketMetaFileName(bucket_meta_file->FileId(), filename.str);
+		MakeBucketMetaFileName(bucket_meta_file->FileID(), filename.str);
 		m_deleting_bucket_meta_names.push_back(filename);
 
 		m_engine->NotifyClean(db);

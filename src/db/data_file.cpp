@@ -26,7 +26,7 @@ using namespace xfutil;
 namespace xfdb 
 {
 
-DataReader::DataReader()
+DataReader::DataReader(BlockPool& pool) : m_pool(pool)
 {
 }
 DataReader::~DataReader()
@@ -53,6 +53,7 @@ StrView DataReader::ClonePrevKey(const StrView& str)
 
 Status DataReader::SearchGroup(const byte_t* group, uint32_t chunk_size, const GroupIndex& group_index, const StrView& key, ObjectType& type, String& value) const
 {
+	assert(chunk_size != 0);
 	const byte_t* group_end = group + chunk_size;
 	const byte_t* data_ptr = group;
 
@@ -86,6 +87,7 @@ Status DataReader::SearchGroup(const byte_t* group, uint32_t chunk_size, const G
 
 Status DataReader::SearchChunk(const byte_t* chunk, uint32_t chunk_size, const ChunkIndex& chunk_index, const StrView& key, ObjectType& type, String& value) const
 {
+	assert(chunk_size != 0);
 	const byte_t* chunk_end = chunk + chunk_size;
 	const byte_t* index_ptr = chunk_end - chunk_index.index_size;
 	const byte_t* group_ptr = chunk;
@@ -123,6 +125,7 @@ Status DataReader::SearchChunk(const byte_t* chunk, uint32_t chunk_size, const C
 
 Status DataReader::SearchBlock(const byte_t* block, uint32_t block_size, const SegmentL0Index& L0_index, const StrView& key, ObjectType& type, String& value) const
 {
+	assert(block_size != 0);
 	const byte_t* block_end = block + block_size;
 	const byte_t* index_ptr = block_end - L0_index.L0index_size;
 	const byte_t* chunk_ptr = block;
@@ -165,16 +168,20 @@ Status DataReader::Search(const SegmentL0Index& L0_index, const StrView& key, Ob
 	//TODO: 读cache
 	
 	//从文件中读取数据块
-	K4Buffer buf;
-	Status s = ReadFile(m_file, L0_index.L0offset, (int64_t)(uint64_t)L0_index.L0compress_size, buf);
-	if(s != OK)
+	//printf("L0_index.L0compress_size:%u\n", L0_index.L0compress_size);
+	byte_t* buf = m_pool.Alloc();
+	int64_t r_size = m_file.Read(L0_index.L0offset, buf, L0_index.L0compress_size);
+	if((uint64_t)r_size != L0_index.L0compress_size)
 	{
-		return s;
+		m_pool.Free(buf);
+		return ERR_FILE_READ;
 	}
 	//TODO: 是否要解压
 	//TODO: 存cache
 	
-	return SearchBlock((byte_t*)buf.Data(), buf.Size(), L0_index, key, type, value);
+	Status s = SearchBlock(buf, r_size, L0_index, key, type, value);
+	m_pool.Free(buf);
+	return s;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -280,7 +287,7 @@ Status DataWriter::FillGroup(Iterator& iter, GroupIndex& gi)
 		iter.Next();
 		
 		//当block超过一定大小时，结束该block
-		if(m_block_ptr - m_block_start > MAX_COMPRESS_BLOCK_SIZE)
+		if(m_block_ptr - m_block_start > MAX_UNCOMPRESS_BLOCK_SIZE)
 		{
 			s = ERR_BUFFER_FULL;
 			break;

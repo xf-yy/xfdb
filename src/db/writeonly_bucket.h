@@ -67,17 +67,17 @@ private:
 	Status WriteBucketMeta();		//同步刷盘
 	void FlushMemWriter();
 
-	Status Merge(MergeSegmentInfo& msinfo);
+	Status Merge(MergingSegmentInfo& msinfo);
 	Status FullMerge();		//同步merge
 	Status PartMerge();		//同步merge，写入时合并降低速度？
 	
 	Status Clean();
 
 private:
-	fileid_t SelectNewSegmentFileId(MergeSegmentInfo& msinfo);
+	fileid_t SelectNewSegmentFileID(MergingSegmentInfo& msinfo);
 	void FillAliveSegmentInfos(TableReaderSnapshotPtr& trs_ptr, std::vector<fileid_t>& writed_segment_fileids, BucketMetaData& md);
 	void UpdateReaderSnapshot(std::map<fileid_t, TableReaderPtr>& readers, TableReaderSnapshotPtr& prev_reader_snapshot);
-	void UpdateReaderSnapshot(MergeSegmentInfo& msinfo);
+	void UpdateReaderSnapshot(MergingSegmentInfo& msinfo);
 
 protected:
 	friend class WritableDB;

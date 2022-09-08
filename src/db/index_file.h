@@ -26,6 +26,7 @@ limitations under the License.
 #include "xfdb/strutil.h"
 #include "path.h"
 
+using namespace xfutil;
 namespace xfdb 
 {
 
@@ -71,6 +72,7 @@ private:
 
 private:
 	File m_file;
+	BlockPool& m_pool;
 	WriteBuffer m_buf;
 	std::vector<SegmentL1Index> m_L1indexs;
 	SegmentMeta m_meta;

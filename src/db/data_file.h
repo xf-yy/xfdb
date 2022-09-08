@@ -33,7 +33,7 @@ namespace xfdb
 class DataReader
 {
 public:
-	DataReader();
+	DataReader(BlockPool& pool);
 	~DataReader();
 	
 public:	
@@ -49,6 +49,7 @@ private:
 
 private:
 	File m_file;
+	BlockPool& m_pool;
 	String m_prev_key;
 	
 private:
