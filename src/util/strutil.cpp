@@ -95,7 +95,7 @@ int StrView::Compare(const StrView& dst) const
 	}
 }
 
-uint32_t StrView::PrefixLength(const StrView& str) const
+uint32_t StrView::GetPrefixLength(const StrView& str) const
 {
 	uint32_t min_len = (size < str.size) ? size : str.size;
 	for(uint32_t i = 0; i < min_len; ++i)

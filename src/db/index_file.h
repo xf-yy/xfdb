@@ -141,6 +141,7 @@ private:
 	WriteBuffer m_L0key_buf;
 
 	byte_t* m_block_start;	//256KB-buffer
+	byte_t* m_block_end;
 	byte_t* m_block_ptr;
 	
 private:

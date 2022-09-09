@@ -192,6 +192,7 @@ DataWriter::DataWriter(const DBConfig& db_conf, BlockPool& pool, IndexWriter& in
 {	
 	m_offset = 0;
 	m_block_start = m_pool.Alloc();
+	m_block_end = m_block_start + m_pool.BlockSize();
 	m_block_ptr = m_block_start;
 }
 
@@ -249,13 +250,11 @@ Status DataWriter::FillGroup(Iterator& iter, GroupIndex& gi)
 {
 	if(!iter.Valid())
 	{
-		gi.group_size = 0;
 		return ERR_NOMORE_DATA;
 	}
 	
 	Status s = OK;
 	byte_t* group_start = m_block_ptr;
-	byte_t* block_end = m_block_start + m_pool.BlockSize();
 
 	gi.start_key = CloneKey(iter.Key());
 	StrView prev_key = gi.start_key;
@@ -267,13 +266,13 @@ Status DataWriter::FillGroup(Iterator& iter, GroupIndex& gi)
 		
 		//当剩余空间不足时，结束掉该block
 		uint32_t need_size = key.size + value.size + EXTRA_OBJECT_SIZE;
-		if(block_end - m_block_ptr <= need_size)
+		if(m_block_end - m_block_ptr <= need_size)
 		{
 			s = ERR_BUFFER_FULL;
 			break;
 		}
 		
-		uint32_t shared_keysize = prev_key.PrefixLength(key);
+		uint32_t shared_keysize = prev_key.GetPrefixLength(key);
 		m_block_ptr = EncodeV32(m_block_ptr, shared_keysize);
 
 		uint32_t nonshared_size = key.size - shared_keysize;
@@ -306,7 +305,7 @@ Status DataWriter::FillGroupIndex(const GroupIndex* group_indexs, int index_cnt)
 	{
 		StrView key = group_indexs[i].start_key;
 		
-		uint32_t shared_keysize = prev_key.PrefixLength(key);
+		uint32_t shared_keysize = prev_key.GetPrefixLength(key);
 		m_block_ptr = EncodeV32(m_block_ptr, shared_keysize);
 		
 		uint32_t nonshared_size = key.size - shared_keysize;
@@ -323,8 +322,6 @@ Status DataWriter::FillChunk(Iterator& iter, ChunkIndex& ci)
 {
 	if(!iter.Valid())
 	{
-		ci.chunk_size = 0;
-		ci.index_size = 0;
 		return ERR_NOMORE_DATA;
 	}
 
@@ -335,22 +332,22 @@ Status DataWriter::FillChunk(Iterator& iter, ChunkIndex& ci)
 	Status s = ERR_BUFFER_FULL;
 	
 	GroupIndex gis[MAX_CHUNK_GROUP_NUM];
-	int gi_idx = 0;
-	for(; gi_idx < MAX_CHUNK_GROUP_NUM && iter.Valid(); ++gi_idx)
+	int gi_cnt = 0;
+	for(; gi_cnt < MAX_CHUNK_GROUP_NUM && iter.Valid(); ++gi_cnt)
 	{
-		s = FillGroup(iter, gis[gi_idx]);
+		s = FillGroup(iter, gis[gi_cnt]);
 		if(s != OK)
 		{
-			if(gis[gi_idx].group_size != 0)
+			if(gis[gi_cnt].group_size != 0)
 			{
-				++gi_idx;
+				++gi_cnt;
 			}
 			break;
 		}
 	}
 	byte_t* chunk_index_start = m_block_ptr;
 	
-	FillGroupIndex(gis, gi_idx);
+	FillGroupIndex(gis, gi_cnt);
 
 	ci.chunk_size = m_block_ptr - chunk_start;
 	ci.index_size = m_block_ptr - chunk_index_start;
@@ -364,7 +361,7 @@ Status DataWriter::FillChunkIndex(const ChunkIndex* chunk_indexs, int index_cnt)
 	{
 		StrView key = chunk_indexs[i].start_key;
 		
-		uint32_t shared_keysize = prev_key.PrefixLength(key);
+		uint32_t shared_keysize = prev_key.GetPrefixLength(key);
 		m_block_ptr = EncodeV32(m_block_ptr, shared_keysize);
 		
 		uint32_t nonshared_size = key.size - shared_keysize;
@@ -386,22 +383,22 @@ Status DataWriter::FillBlock(Iterator& iter, uint32_t& index_size)
 	Status s = ERR_BUFFER_FULL;
 	
 	ChunkIndex cis[MAX_BLOCK_CHUNK_NUM];
-	int ci_idx = 0;
-	for(; ci_idx < MAX_BLOCK_CHUNK_NUM && iter.Valid(); ++ci_idx)
+	int ci_cnt = 0;
+	for(; ci_cnt < MAX_BLOCK_CHUNK_NUM && iter.Valid(); ++ci_cnt)
 	{
-		s = FillChunk(iter, cis[ci_idx]);
+		s = FillChunk(iter, cis[ci_cnt]);
 		if(s != OK)
 		{
-			if(cis[ci_idx].chunk_size != 0)
+			if(cis[ci_cnt].chunk_size != 0)
 			{
-				++ci_idx;
+				++ci_cnt;
 			}
 			break;
 		}
 	}
 	byte_t* index_start = m_block_ptr;
 	
-	FillChunkIndex(cis, ci_idx);
+	FillChunkIndex(cis, ci_cnt);
 
 	index_size = m_block_ptr - index_start;
 
@@ -410,7 +407,6 @@ Status DataWriter::FillBlock(Iterator& iter, uint32_t& index_size)
 
 Status DataWriter::Write(Iterator& iter)
 {
-	uint32_t index_size;
 	while(iter.Valid())
 	{
 		m_block_ptr = m_block_start;
@@ -420,6 +416,7 @@ Status DataWriter::Write(Iterator& iter)
 		L0_index.start_key = CloneKey(iter.Key());
 		L0_index.L0offset = m_offset;
 		
+		uint32_t index_size;
 		FillBlock(iter, index_size);
 
 		uint32_t block_size = m_block_ptr - m_block_start;
@@ -434,9 +431,9 @@ Status DataWriter::Write(Iterator& iter)
 		{
 			return ERR_FILE_WRITE;
 		}
-		m_offset += block_size;
-		
 		m_index_writer.Write(L0_index);
+		
+		m_offset += block_size;
 	}
 
 	return OK;	

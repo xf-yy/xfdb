@@ -97,6 +97,7 @@ private:
 	uint64_t m_offset;
 
 	byte_t* m_block_start;
+	byte_t* m_block_end;
 	byte_t* m_block_ptr;
 	
 	WriteBuffer m_key_buf;

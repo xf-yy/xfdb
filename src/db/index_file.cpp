@@ -418,6 +418,7 @@ IndexWriter::IndexWriter(const DBConfig& db_conf, BlockPool& pool)
 	m_L2offset_start = 0;
 	
 	m_block_start = pool.Alloc();
+	m_block_end = m_block_start + m_pool.BlockSize();
 	m_block_ptr = m_block_start;
 	m_L0indexs = (SegmentL0Index*)pool.Alloc();
 	m_L0index_cnt = 0;
@@ -481,7 +482,6 @@ Status IndexWriter::FillGroup(uint32_t& L0_idx, GroupIndex& gi)
 {	
 	if(L0_idx >= m_L0index_cnt)
 	{
-		gi.group_size = 0;
 		return ERR_NOMORE_DATA;
 	}
 	Status s = OK;
@@ -496,7 +496,7 @@ Status IndexWriter::FillGroup(uint32_t& L0_idx, GroupIndex& gi)
 	for(int i = 0; i < MAX_GROUP_OBJECT_NUM && L0_idx < m_L0index_cnt; ++i)
 	{
 		StrView key = m_L0indexs[L0_idx].start_key;
-		uint32_t shared_keysize = prev_key.PrefixLength(key);
+		uint32_t shared_keysize = prev_key.GetPrefixLength(key);
 		m_block_ptr = EncodeV32(m_block_ptr, shared_keysize);
 		uint32_t nonshared_size = key.size - shared_keysize;
 		m_block_ptr = EncodeString(m_block_ptr, &key.data[shared_keysize], nonshared_size);
@@ -519,7 +519,7 @@ Status IndexWriter::FillGroupIndex(const GroupIndex* group_indexs, int index_cnt
 	{
 		StrView key = group_indexs[i].start_key;
 		
-		uint32_t shared_keysize = prev_key.PrefixLength(key);
+		uint32_t shared_keysize = prev_key.GetPrefixLength(key);
 		m_block_ptr = EncodeV32(m_block_ptr, shared_keysize);
 		
 		uint32_t nonshared_size = key.size - shared_keysize;
@@ -536,8 +536,6 @@ Status IndexWriter::FillChunk(uint32_t& L0_idx, ChunkIndex& ci)
 {
 	if(L0_idx >= m_L0index_cnt)
 	{
-		ci.chunk_size = 0;
-		ci.index_size = 0;
 		return ERR_NOMORE_DATA;
 	}
 	
@@ -547,22 +545,22 @@ Status IndexWriter::FillChunk(uint32_t& L0_idx, ChunkIndex& ci)
 	ci.start_key = CloneKey(m_L0indexs[L0_idx].start_key, m_L1key_buf);
 
 	GroupIndex gis[MAX_CHUNK_GROUP_NUM];
-	int gi_idx = 0;
-	for(; gi_idx < MAX_CHUNK_GROUP_NUM && L0_idx < m_L0index_cnt; ++gi_idx)
+	int gi_cnt = 0;
+	for(; gi_cnt < MAX_CHUNK_GROUP_NUM && L0_idx < m_L0index_cnt; ++gi_cnt)
 	{
-		s = FillGroup(L0_idx, gis[gi_idx]);
+		s = FillGroup(L0_idx, gis[gi_cnt]);
 		if(s != OK)
 		{
-			if(gis[gi_idx].group_size != 0)
+			if(gis[gi_cnt].group_size != 0)
 			{
-				++gi_idx;
+				++gi_cnt;
 			}
 			break;
 		}
 	}
 	byte_t* chunk_index_start = m_block_ptr;
 	
-	FillGroupIndex(gis, gi_idx);
+	FillGroupIndex(gis, gi_cnt);
 
 	ci.chunk_size = m_block_ptr - chunk_start;
 	ci.index_size = m_block_ptr - chunk_index_start;
@@ -576,7 +574,7 @@ Status IndexWriter::FillChunkIndex(const ChunkIndex* chunk_indexs, int index_cnt
 	{
 		StrView key = chunk_indexs[i].start_key;
 		
-		uint32_t shared_keysize = prev_key.PrefixLength(key);
+		uint32_t shared_keysize = prev_key.GetPrefixLength(key);
 		m_block_ptr = EncodeV32(m_block_ptr, shared_keysize);
 		
 		uint32_t nonshared_size = key.size - shared_keysize;
@@ -600,22 +598,22 @@ Status IndexWriter::FillBlock(uint32_t& index_size)
 	Status s = ERR_BUFFER_FULL;
 	
 	ChunkIndex cis[MAX_BLOCK_CHUNK_NUM];
-	int ci_idx = 0;
-	for(; ci_idx < MAX_BLOCK_CHUNK_NUM && L0_idx < m_L0index_cnt; ++ci_idx)
+	int ci_cnt = 0;
+	for(; ci_cnt < MAX_BLOCK_CHUNK_NUM && L0_idx < m_L0index_cnt; ++ci_cnt)
 	{
-		s = FillChunk(L0_idx, cis[ci_idx]);
+		s = FillChunk(L0_idx, cis[ci_cnt]);
 		if(s != OK)
 		{
-			if(cis[ci_idx].chunk_size != 0)
+			if(cis[ci_cnt].chunk_size != 0)
 			{
-				++ci_idx;
+				++ci_cnt;
 			}
 			break;
 		}
 	}
 	byte_t* index_start = m_block_ptr;
 	
-	FillChunkIndex(cis, ci_idx);
+	FillChunkIndex(cis, ci_cnt);
 
 	index_size = m_block_ptr - index_start;
 	return s;
@@ -646,9 +644,9 @@ Status IndexWriter::WriteBlock()
 	{
 		return ERR_FILE_WRITE;
 	}
-	m_offset += block_size;
-	
 	m_L1indexs.push_back(L1_index);
+	
+	m_offset += block_size;
 	
 	return OK;
 }
