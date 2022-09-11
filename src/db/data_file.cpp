@@ -259,7 +259,7 @@ Status DataWriter::FillGroup(Iterator& iter, GroupIndex& gi)
 	gi.start_key = CloneKey(iter.Key());
 	StrView prev_key = gi.start_key;
 
-	for(int i = 0; i < MAX_GROUP_OBJECT_NUM && iter.Valid(); ++i)
+	for(int i = 0; i < MAX_OBJECT_NUM_OF_GROUP && iter.Valid(); ++i)
 	{
 		const StrView key = iter.Key();
 		const StrView value = iter.Value();
@@ -331,9 +331,9 @@ Status DataWriter::FillChunk(Iterator& iter, ChunkIndex& ci)
 
 	Status s = ERR_BUFFER_FULL;
 	
-	GroupIndex gis[MAX_CHUNK_GROUP_NUM];
+	GroupIndex gis[MAX_GROUP_NUM_OF_CHUNK];
 	int gi_cnt = 0;
-	for(; gi_cnt < MAX_CHUNK_GROUP_NUM && iter.Valid(); ++gi_cnt)
+	for(; gi_cnt < MAX_GROUP_NUM_OF_CHUNK && iter.Valid(); ++gi_cnt)
 	{
 		s = FillGroup(iter, gis[gi_cnt]);
 		if(s != OK)
@@ -382,9 +382,9 @@ Status DataWriter::FillBlock(Iterator& iter, uint32_t& index_size)
 	
 	Status s = ERR_BUFFER_FULL;
 	
-	ChunkIndex cis[MAX_BLOCK_CHUNK_NUM];
+	ChunkIndex cis[MAX_CHUNK_NUM_OF_BLOCK];
 	int ci_cnt = 0;
-	for(; ci_cnt < MAX_BLOCK_CHUNK_NUM && iter.Valid(); ++ci_cnt)
+	for(; ci_cnt < MAX_CHUNK_NUM_OF_BLOCK && iter.Valid(); ++ci_cnt)
 	{
 		s = FillChunk(iter, cis[ci_cnt]);
 		if(s != OK)

@@ -76,7 +76,7 @@ enum Status
 
 	//object
 	ERR_OBJECT_NOT_EXIST = 70,
-	ERR_OBJECT_DELETED,
+	ERR_OBJECT_TOO_LARGE,
 
 	
 };
@@ -119,7 +119,7 @@ struct GlobalConfig
 	
 	//uint64_t memwriter_limit_size = GB(2);	//总大小，超过时，阻塞写
 	uint32_t max_memwriter_size = MB(64);		//1~1024
-	uint32_t max_memwriter_object_num = 50*10000;//1000~100*10000
+	uint32_t max_object_num_of_memwriter = 50*10000;//1000~100*10000
 	uint16_t memwriter_ttl_s = 30;				//1~600
 	uint16_t tryflush_interval_s = 15;			//检测flush时间间隔，单位秒
 
@@ -239,11 +239,13 @@ struct BucketStat
 	TableStat segment_stat;			//内存文件大小
 };
 
+#ifdef DEBUG
 union test
 {
 	BucketStat stat;
 	int a;
 };
+#endif
 
 class DB;
 typedef std::shared_ptr<DB> DBPtr;

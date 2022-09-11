@@ -101,6 +101,19 @@ struct Object
 	StrView key;
 	StrView value;
 	objectid_t id;
+	
+	Object(ObjectType type_ = SetType)
+	{
+		type = type_;
+	}
+	Object(ObjectType type_, StrView key_) : key(key_)
+	{
+		type = type_;
+	}
+	Object(ObjectType type_, StrView key_, StrView value_) : key(key_), value(value_)
+	{
+		type = type_;
+	}	
 };
 
 struct ObjectCmp
@@ -204,11 +217,11 @@ struct SegmentFileIndex
 	uint32_t L2index_meta_size;	//L2层索引+meta大小，包含2*4Byte
 };
 
-#define MAX_GROUP_OBJECT_NUM	(8)
-#define MAX_CHUNK_GROUP_NUM		(8)
-#define MAX_BLOCK_CHUNK_NUM		(8)
+#define MAX_OBJECT_NUM_OF_GROUP	(8)
+#define MAX_GROUP_NUM_OF_CHUNK	(8)
+#define MAX_CHUNK_NUM_OF_BLOCK	(8)
 
-#define MAX_BLOCK_OBJECT_NUM	(MAX_BLOCK_CHUNK_NUM*MAX_CHUNK_GROUP_NUM*MAX_GROUP_OBJECT_NUM)
+#define MAX_OBJECT_NUM_OF_BLOCK	(MAX_CHUNK_NUM_OF_BLOCK*MAX_GROUP_NUM_OF_CHUNK*MAX_OBJECT_NUM_OF_GROUP)
 
 struct ChunkIndex
 {

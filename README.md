@@ -46,8 +46,8 @@
 		return;
 	}
 
-    DBConfig dbconf;
-    DBPtr db;
+	DBConfig dbconf;
+	DBPtr db;
 	s = DB::Open(dbconf, "test_db_path", db);
 	if(s != OK)
 	{
@@ -80,8 +80,8 @@
 		return;
 	}
 
-    DBConfig dbconf;
-    DBPtr db;
+	DBConfig dbconf;
+	DBPtr db;
 	s = DB::Open(dbconf, "test_db_path", db);
 	if(s != OK)
 	{

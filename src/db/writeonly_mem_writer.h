@@ -30,7 +30,7 @@ class WriteOnlyMemWriter : public TableWriter
 {
 public:
 	explicit WriteOnlyMemWriter(BlockPool& pool, uint32_t max_object_num);
-	~WriteOnlyMemWriter(){}
+	~WriteOnlyMemWriter();
 
 public:	
 	virtual Status Write(objectid_t start_seqid, const Object* object) override;

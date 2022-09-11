@@ -47,7 +47,7 @@ public:
 
 private:
 	friend class ReadWriteMemWriterIterator;
-	std::map<StrView, Object*> m_object_map;
+	std::map<StrView, Object*> m_objects;
 	
 private:
 	ReadWriteMemWriter(const ReadWriteMemWriter&) = delete;

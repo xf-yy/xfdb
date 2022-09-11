@@ -40,7 +40,7 @@ static bool LowerCmp(const SegmentL1Index index, const StrView key)
 	return index.start_key.Compare(key) < 0;
 }
 #endif
-static bool UpperCmp(const StrView key, const SegmentL1Index index)
+static bool UpperCmp(const StrView& key, const SegmentL1Index& index)
 {
 	return key.Compare(index.start_key) < 0;
 }
@@ -493,20 +493,37 @@ Status IndexWriter::FillGroup(uint32_t& L0_idx, GroupIndex& gi)
 	StrView prev_key = gi.start_key;
 	
 	m_block_ptr = EncodeV64(m_block_ptr, m_L0indexs[L0_idx].L0offset);
-	for(int i = 0; i < MAX_GROUP_OBJECT_NUM && L0_idx < m_L0index_cnt; ++i)
+	for(int i = 0; i < MAX_OBJECT_NUM_OF_GROUP && L0_idx < m_L0index_cnt; ++i)
 	{
-		StrView key = m_L0indexs[L0_idx].start_key;
+		const SegmentL0Index& L0indexs = m_L0indexs[L0_idx];
+		
+		//当剩余空间不足时，结束掉该block
+		uint32_t need_size = L0indexs.start_key.size + EXTRA_OBJECT_SIZE;
+		if(m_block_end - m_block_ptr <= need_size)
+		{
+			s = ERR_BUFFER_FULL;
+			break;
+		}
+		
+		StrView key = L0indexs.start_key;
 		uint32_t shared_keysize = prev_key.GetPrefixLength(key);
 		m_block_ptr = EncodeV32(m_block_ptr, shared_keysize);
 		uint32_t nonshared_size = key.size - shared_keysize;
 		m_block_ptr = EncodeString(m_block_ptr, &key.data[shared_keysize], nonshared_size);
 		
-		m_block_ptr = EncodeV32(m_block_ptr, m_L0indexs[L0_idx].L0compress_size);
-		m_block_ptr = EncodeV32(m_block_ptr, m_L0indexs[L0_idx].L0origin_size - m_L0indexs[L0_idx].L0compress_size);
-		m_block_ptr = EncodeV32(m_block_ptr, m_L0indexs[L0_idx].L0index_size);
+		m_block_ptr = EncodeV32(m_block_ptr, L0indexs.L0compress_size);
+		m_block_ptr = EncodeV32(m_block_ptr, L0indexs.L0origin_size - L0indexs.L0compress_size);
+		m_block_ptr = EncodeV32(m_block_ptr, L0indexs.L0index_size);
 		
 		prev_key = ClonePrevKey(key);
 		++L0_idx;
+
+		//当block超过一定大小时，结束该block
+		if(m_block_ptr - m_block_start > MAX_UNCOMPRESS_BLOCK_SIZE)
+		{
+			s = ERR_BUFFER_FULL;
+			break;
+		}
 	}
 	gi.group_size = m_block_ptr - group_start;
 	return s;	
@@ -544,9 +561,9 @@ Status IndexWriter::FillChunk(uint32_t& L0_idx, ChunkIndex& ci)
 	
 	ci.start_key = CloneKey(m_L0indexs[L0_idx].start_key, m_L1key_buf);
 
-	GroupIndex gis[MAX_CHUNK_GROUP_NUM];
+	GroupIndex gis[MAX_GROUP_NUM_OF_CHUNK];
 	int gi_cnt = 0;
-	for(; gi_cnt < MAX_CHUNK_GROUP_NUM && L0_idx < m_L0index_cnt; ++gi_cnt)
+	for(; gi_cnt < MAX_GROUP_NUM_OF_CHUNK && L0_idx < m_L0index_cnt; ++gi_cnt)
 	{
 		s = FillGroup(L0_idx, gis[gi_cnt]);
 		if(s != OK)
@@ -597,9 +614,9 @@ Status IndexWriter::FillBlock(uint32_t& index_size)
 	uint32_t L0_idx = 0;
 	Status s = ERR_BUFFER_FULL;
 	
-	ChunkIndex cis[MAX_BLOCK_CHUNK_NUM];
+	ChunkIndex cis[MAX_CHUNK_NUM_OF_BLOCK];
 	int ci_cnt = 0;
-	for(; ci_cnt < MAX_BLOCK_CHUNK_NUM && L0_idx < m_L0index_cnt; ++ci_cnt)
+	for(; ci_cnt < MAX_CHUNK_NUM_OF_BLOCK && L0_idx < m_L0index_cnt; ++ci_cnt)
 	{
 		s = FillChunk(L0_idx, cis[ci_cnt]);
 		if(s != OK)
@@ -661,7 +678,7 @@ Status IndexWriter::Write(const SegmentL0Index& L0_index)
 	
 	//则限制1024个+128KB(压缩时，如果不压缩，则为64KB)
 	//TODO:如果有布隆，则限制元素数量？
-	if(m_L0index_cnt >= MAX_BLOCK_OBJECT_NUM || m_writing_size >= MAX_UNCOMPRESS_BLOCK_SIZE)
+	if(m_L0index_cnt >= MAX_OBJECT_NUM_OF_BLOCK || m_writing_size >= MAX_UNCOMPRESS_BLOCK_SIZE)
 	{
 		WriteBlock();
 		

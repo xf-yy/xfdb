@@ -43,7 +43,7 @@ WriteOnlyBucket::~WriteOnlyBucket()
 TableWriterPtr WriteOnlyBucket::NewTableWriter(WritableEngine* engine)
 {
 	assert(!(engine->m_conf.mode & MODE_READONLY));
-	return NewWriteOnlyMemWriter(engine->m_pool, engine->m_conf.max_memwriter_object_num);
+	return NewWriteOnlyMemWriter(engine->m_pool, engine->m_conf.max_object_num_of_memwriter);
 }
 
 Status WriteOnlyBucket::Create()
@@ -156,7 +156,7 @@ Status WriteOnlyBucket::Write(const Object* object)
 	}
 	++m_next_objectid;
 	
-	if(m_memwriter->Size() >= m_engine->GetConfig().max_memwriter_size || m_memwriter->GetObjectStat().Count() >= m_engine->GetConfig().max_memwriter_object_num)
+	if(m_memwriter->Size() >= m_engine->GetConfig().max_memwriter_size || m_memwriter->GetObjectStat().Count() >= m_engine->GetConfig().max_object_num_of_memwriter)
 	{
 		FlushMemWriter();
 	}

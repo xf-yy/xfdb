@@ -44,13 +44,18 @@ Object* TableWriter::CloneObject(objectid_t seqid, const Object* object)
 	ObjectStatItem* stat = (object->type == SetType) ? &m_object_stat.set_stat : &m_object_stat.delete_stat;
 	stat->Add(object->key.size, object->value.size);
 	
-	Object* new_r = (Object*)m_buf.Write(sizeof(Object));
-	new_r->type = object->type;
-	new_r->key = CloneString(object->key);
-	new_r->value = CloneString(object->value);
-	new_r->id = seqid;
+	byte_t* obj_buf = m_buf.Write(sizeof(Object));
+	Object* new_obj = new (obj_buf)Object;
 	
-	return new_r;
+	new_obj->type = object->type;
+	new_obj->key = CloneString(object->key);
+	if(!object->value.Empty())
+	{
+		new_obj->value = CloneString(object->value);
+	}
+	new_obj->id = seqid;
+	
+	return new_obj;
 }
 
 

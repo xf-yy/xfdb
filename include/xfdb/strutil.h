@@ -30,14 +30,6 @@ static inline void StrCpy(char* dst, size_t dst_len, const char* src)
 	memccpy(dst, src, '\0', dst_len);
 	dst[dst_len-1] = '\0';
 }
-static inline void StrCat(char* dst, size_t dst_len, const char* src)
-{
-	size_t org_len = strlen(dst);
-	dst += org_len;
-	dst_len -= org_len;
-	StrCpy(dst, dst_len, src);
-}
-
 #else
 static inline void StrCpy(char* dst, size_t dst_len, const char* src)
 {
@@ -88,7 +80,7 @@ public:
 
 	bool Reserve(size_t size);
 	
-	bool ReSize(size_t size);
+	bool Resize(size_t size);
 		
 	bool Assign(const char* data, size_t size)
 	{
@@ -199,7 +191,7 @@ public:
 	{
 		return ((size >= str.size) && (memcmp(data+(size-str.size), str.data, str.size) == 0));
 	}
-	uint32_t PrefixLength(const StrView& str) const;
+	uint32_t GetPrefixLength(const StrView& str) const;
 
 };
 

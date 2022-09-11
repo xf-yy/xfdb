@@ -62,7 +62,7 @@ Status ReadOnlyBucket::Get(const StrView& key, String& value)
 	{
 		return s;
 	}
-	return (type == DeleteType) ? ERR_OBJECT_DELETED : OK;
+	return (type == DeleteType) ? ERR_OBJECT_NOT_EXIST : OK;
 }
 
 void ReadOnlyBucket::GetStat(BucketStat& stat) const

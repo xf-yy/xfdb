@@ -66,14 +66,14 @@ StrView WriteOnlyMemWriterIterator::Value()
 ReadWriteMemWriterIterator::ReadWriteMemWriterIterator(ReadWriteMemWriterPtr& table)
 	: m_table(table)
 {
-	m_iter = m_table->m_object_map.begin();
+	m_iter = m_table->m_objects.begin();
 }
 
 
 /**移到第1个元素处*/
 void ReadWriteMemWriterIterator::First()
 {
-	m_iter = m_table->m_object_map.begin();
+	m_iter = m_table->m_objects.begin();
 }
 /**移到最后1个元素处*/
 //virtual void Last() = 0;
@@ -86,7 +86,7 @@ void ReadWriteMemWriterIterator::Seek(const StrView& key)
 /**向后移到一个元素*/
 void ReadWriteMemWriterIterator::Next()
 {
-	if(m_iter != m_table->m_object_map.end())
+	if(m_iter != m_table->m_objects.end())
 	{
 		++m_iter;
 	}
@@ -96,7 +96,7 @@ void ReadWriteMemWriterIterator::Next()
 /**是否还有下一个元素*/
 bool ReadWriteMemWriterIterator::Valid()
 {
-	return (m_iter != m_table->m_object_map.end());
+	return (m_iter != m_table->m_objects.end());
 }
 
 ObjectType ReadWriteMemWriterIterator::Type()

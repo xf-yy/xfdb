@@ -39,7 +39,7 @@ ReadWriteBucket::~ReadWriteBucket()
 TableWriterPtr ReadWriteBucket::NewTableWriter(WritableEngine* engine)
 {
 	assert(engine->m_conf.mode & MODE_READONLY);
-	return NewReadWriteMemWriter(engine->m_pool, engine->m_conf.max_memwriter_object_num);
+	return NewReadWriteMemWriter(engine->m_pool, engine->m_conf.max_object_num_of_memwriter);
 }
 
 Status ReadWriteBucket::Get(const StrView& key, String& value)
@@ -53,15 +53,15 @@ Status ReadWriteBucket::Get(const StrView& key, String& value)
 	ObjectType type;
 	if(memwriter_ptr && memwriter_ptr->Get(key, type, value) == OK) 
 	{
-		return (type == SetType) ? OK : ERR_OBJECT_DELETED;
+		return (type == SetType) ? OK : ERR_OBJECT_NOT_EXIST;
 	}
 	if(mts_ptr && mts_ptr->Get(key, type, value) == OK)
 	{
-		return (type == SetType) ? OK : ERR_OBJECT_DELETED;
+		return (type == SetType) ? OK : ERR_OBJECT_NOT_EXIST;
 	}
 	if(trs_ptr && trs_ptr->Get(key, type, value) == OK) 
 	{
-		return (type == SetType) ? OK : ERR_OBJECT_DELETED;
+		return (type == SetType) ? OK : ERR_OBJECT_NOT_EXIST;
 	}
 	return ERR_OBJECT_NOT_EXIST;
 }

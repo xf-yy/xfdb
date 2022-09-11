@@ -28,10 +28,10 @@ ReadWriteMemWriter::ReadWriteMemWriter(BlockPool& pool, uint32_t max_object_num)
 
 Status ReadWriteMemWriter::Write(objectid_t start_seqid, const Object* object)
 {
-	Object* r = CloneObject(start_seqid, object);
+	Object* obj = CloneObject(start_seqid, object);
 
 	//FIXME:目前覆盖旧值(如果是append类型，则连接起来)
-	m_object_map[r->key] = r;
+	m_objects[obj->key] = obj;
 	return OK;
 }
 
@@ -42,8 +42,8 @@ void ReadWriteMemWriter::Sort()
 
 Status ReadWriteMemWriter::Get(const StrView& key, ObjectType& type, String& value) const
 {
-	auto it = m_object_map.find(key);
-	if(it == m_object_map.end())
+	auto it = m_objects.find(key);
+	if(it == m_objects.end())
 	{
 		return ERR_OBJECT_NOT_EXIST;
 	}
@@ -62,13 +62,13 @@ IteratorPtr ReadWriteMemWriter::NewIterator()
 //大于最大key的key
 StrView ReadWriteMemWriter::UpmostKey() const
 {
-	return m_object_map.empty() ? StrView() : m_object_map.rbegin()->first;
+	return m_objects.empty() ? StrView() : m_objects.rbegin()->first;
 }
 
 //小于最小key的key
 StrView ReadWriteMemWriter::LowestKey() const
 {
-	return m_object_map.empty() ? StrView() : m_object_map.begin()->first;
+	return m_objects.empty() ? StrView() : m_objects.begin()->first;
 }
 
 }  

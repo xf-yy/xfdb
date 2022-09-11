@@ -34,10 +34,19 @@ WriteOnlyMemWriter::WriteOnlyMemWriter(BlockPool& pool, uint32_t max_object_num)
 #endif
 }
 
+WriteOnlyMemWriter::~WriteOnlyMemWriter()
+{
+	for(size_t i = 0; i < m_objects.size(); ++i)
+	{
+		m_objects[i]->~Object();
+	}
+}
+
+
 Status WriteOnlyMemWriter::Write(objectid_t start_seqid, const Object* object)
 {
-	Object* r = CloneObject(start_seqid, object);
-	m_objects.push_back(r);
+	Object* obj = CloneObject(start_seqid, object);
+	m_objects.push_back(obj);
 	return OK;
 }
 

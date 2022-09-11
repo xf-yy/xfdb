@@ -40,7 +40,7 @@ bool String::Reserve(size_t size)
 	return true;
 }
 
-bool String::ReSize(size_t size)
+bool String::Resize(size_t size)
 {
 	if(!Reserve(size))
 	{
@@ -79,25 +79,25 @@ void String::Clear()
 
 int StrView::Compare(const StrView& dst) const
 {
-	if(size == dst.size)
+	const size_t min_size = MIN(size, dst.size);
+	int ret = memcmp(data, dst.data, min_size);
+	if(ret == 0)
 	{
-		return memcmp(data, dst.data, size);
+		if(size < dst.size)
+		{
+			ret = -1;
+		}
+		else if(size > dst.size)
+		{
+			ret = 1;
+		}
 	}
-	else if(size < dst.size)
-	{
-		int res = memcmp(data, dst.data, size);
-		return (res == 0 ? -1 : res);
-	}
-	else
-	{
-		int res = memcmp(data, dst.data, dst.size);
-		return (res == 0 ? 1 : res);
-	}
+	return ret;
 }
 
 uint32_t StrView::GetPrefixLength(const StrView& str) const
 {
-	uint32_t min_len = (size < str.size) ? size : str.size;
+	uint32_t min_len = MIN(size, str.size);
 	for(uint32_t i = 0; i < min_len; ++i)
 	{
 		if(data[i] != str.data[i])

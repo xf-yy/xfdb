@@ -416,16 +416,28 @@ Status WritableDB::Write(const std::string& bucket_name, const Object* object)
 
 Status WritableDB::Set(const std::string& bucket_name, const StrView& key, const StrView& value)
 {
-	Object r = {SetType, key, value};
+	assert(key.size > 0 && key.size <= MAX_KEY_SIZE);
+	assert(value.size <= MAX_VALUE_SIZE);
+	
+	if(key.size == 0 || key.size > MAX_KEY_SIZE || value.size > MAX_VALUE_SIZE)
+	{
+		return ERR_OBJECT_TOO_LARGE;
+	}
+	Object obj = {SetType, key, value};
 
-	return Write(bucket_name, &r);
+	return Write(bucket_name, &obj);
 }
 
 Status WritableDB::Delete(const std::string& bucket_name, const StrView& key)
 {
-	Object r = {DeleteType, key};
+	assert(key.size > 0 && key.size <= MAX_KEY_SIZE);
+	if(key.size == 0 || key.size > MAX_KEY_SIZE)
+	{
+		return ERR_OBJECT_TOO_LARGE;
+	}
+	Object obj = {DeleteType, key};
 
-	return Write(bucket_name, &r);
+	return Write(bucket_name, &obj);
 }
 
 
