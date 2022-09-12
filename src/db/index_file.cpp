@@ -75,23 +75,23 @@ Status IndexReader::Open(const char* bucket_path, const SegmentFileIndex& info)
 	{
 		return ERR_FILE_READ;
 	}
-	K4Buffer buf;	
+	String str;	
 	uint64_t offset = info.index_filesize - info.L2index_meta_size;
-	Status s = ReadFile(m_file, offset, info.L2index_meta_size, buf);
+	Status s = ReadFile(m_file, offset, info.L2index_meta_size, str);
 	if(s != OK)
 	{
 		return s;
 	}
-	const byte_t* ptr = (byte_t*)buf.Data() + info.L2index_meta_size - sizeof(uint32_t)*2;
+	const byte_t* ptr = (byte_t*)str.Data() + info.L2index_meta_size - sizeof(uint32_t)*2;
 	uint32_t L2index_size = Decode32(ptr);
 	uint32_t meta_size = Decode32(ptr);
 	
-	s = ParseMeta((byte_t*)buf.Data()+L2index_size, meta_size);
+	s = ParseMeta((byte_t*)str.Data()+L2index_size, meta_size);
 	if(s != OK)
 	{
 		return s;
 	}
-	s = ParseL2Index((byte_t*)buf.Data(), L2index_size);
+	s = ParseL2Index((byte_t*)str.Data(), L2index_size);
 	if(s != OK)
 	{
 		return s;

@@ -41,21 +41,25 @@ Status DbInfoFile::Read(const char* db_path, const char* file_name, DbInfoData& 
 	char full_path[MAX_PATH_LEN];
 	Path::Combine(full_path, sizeof(full_path), db_path, file_name);
 
-	K4Buffer buf;
-	Status s = ReadFile(full_path, buf);
+	String str;
+	Status s = ReadFile(full_path, str);
 	if(s != OK)
 	{
 		return s;
 	}
-	return Parse((byte_t*)buf.Data(), buf.Size(), bd);
+	return Parse((byte_t*)str.Data(), str.Size(), bd);
 }
 
 Status DbInfoFile::Write(const char* db_path, const char* file_name, DbInfoData& bd)
 {
-	K4Buffer buf;
-	uint32_t size = Serialize(bd, buf);
+	String str;
+	Status s = Serialize(bd, str);
+	if(s != OK)
+	{
+		return s;
+	}
 
-	return WriteFile(db_path, file_name, buf.Data(), size);
+	return WriteFile(db_path, file_name, str.Data(), str.Size());
 }
 
 static const bool ParseBucketInfo(const byte_t*& data, const byte_t* data_end, BucketInfo& info)
@@ -138,13 +142,16 @@ Status DbInfoFile::Parse(const byte_t* data, uint32_t size, DbInfoData& bd)
 	return ParseBucketData(data, data_end, bd) ? OK : ERR_FILE_FORMAT;
 }
 
-uint32_t DbInfoFile::Serialize(const DbInfoData& bd, K4Buffer& buf)
+Status DbInfoFile::Serialize(const DbInfoData& bd, String& str)
 {
 	uint32_t esize = EstimateSize(bd);
-	buf.Alloc(esize);
+	if(!str.Reserve(esize))
+	{
+		return ERR_MEMORY_NOT_ENOUGH;
+	}
 	
-	byte_t* ptr = FillDbInfoFileHeader((byte_t*)buf.Data());
-	assert(ptr - (byte_t*)buf.Data() == FILE_HEAD_SIZE);
+	byte_t* ptr = FillDbInfoFileHeader((byte_t*)str.Data());
+	assert(ptr - (byte_t*)str.Data() == FILE_HEAD_SIZE);
 		
 	uint32_t bucket_cnt = bd.alive_buckets.size();
 	ptr = EncodeV32(ptr, bucket_cnt);
@@ -172,8 +179,9 @@ uint32_t DbInfoFile::Serialize(const DbInfoData& bd, K4Buffer& buf)
 
 	ptr = Encode32(ptr, 0);//FIXME: crc填0
 	
-	assert(ptr - (byte_t*)buf.Data() <= esize);
-	return (ptr - (byte_t*)buf.Data());
+	assert(ptr - (byte_t*)str.Data() <= esize);
+	str.Resize(ptr - (byte_t*)str.Data());
+	return OK;
 }
 
 static constexpr uint32_t EstimateBucketInfoSize()

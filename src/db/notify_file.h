@@ -40,7 +40,7 @@ public:
 
 private:
 	static Status Parse(const byte_t* data, uint32_t size, NotifyData& nd);
-	static uint32_t Serialize(const NotifyData& nd, K4Buffer& buf);
+	static Status Serialize(const NotifyData& nd, String& str);
 	static constexpr uint32_t EstimateSize(const NotifyData& bd);
 
 private:

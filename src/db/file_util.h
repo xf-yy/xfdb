@@ -186,9 +186,9 @@ static inline bool ParseNotifyFileHeader(const byte_t* &data, size_t size, FileH
 	return ParseHeader(data, size, NOTIFY_FILE_MAGIC, NOTIFY_FILE_VERSION, header);
 }
 
-Status ReadFile(const char* file_path, K4Buffer& buf);
-Status ReadFile(const File& file, K4Buffer& buf);
-Status ReadFile(const File& file, uint64_t offset, int64_t size, K4Buffer& buf);
+Status ReadFile(const char* file_path, String& str);
+Status ReadFile(const File& file, String& str);
+Status ReadFile(const File& file, uint64_t offset, int64_t size, String& str);
 
 Status WriteFile(const char* file_path, void* data, int64_t size);
 //先写临时文件，再重命名为正式文件

@@ -37,14 +37,14 @@ const tid_t NotifyFile::ms_pid = Process::GetPid();
 
 Status NotifyFile::Read(const char* file_path, NotifyData& nd)
 {
-	K4Buffer buf;
-	Status s = ReadFile(file_path, buf);
+	String str;
+	Status s = ReadFile(file_path, str);
 	if(s != OK)
 	{
 		return s;
 	}
 
-	return Parse((byte_t*)buf.Data(), buf.Size(), nd);
+	return Parse((byte_t*)str.Data(), str.Size(), nd);
 }
 
 static const bool ParseNotifyData(const byte_t* data, const byte_t* data_end, NotifyData& nd)
@@ -93,12 +93,15 @@ Status NotifyFile::Parse(const byte_t* data, uint32_t size, NotifyData& nd)
 	return ParseNotifyData(data, data_end, nd) ? OK : ERR_FILE_FORMAT;
 }
 
-uint32_t NotifyFile::Serialize(const NotifyData& nd, K4Buffer& buf)
+Status NotifyFile::Serialize(const NotifyData& nd, String& str)
 {
 	uint32_t esize = EstimateSize(nd);
-	buf.Alloc(esize);
+	if(!str.Reserve(esize))
+	{
+		return ERR_MEMORY_NOT_ENOUGH;
+	}
 
-	byte_t* ptr = FillNotifyFileHeader((byte_t*)buf.Data());
+	byte_t* ptr = FillNotifyFileHeader((byte_t*)str.Data());
 
 	ptr = EncodeV32(ptr, MID_FILE_TYPE, nd.type);
 	ptr = EncodeString(ptr, MID_DB_PATH, nd.db_path.data(), nd.db_path.size());
@@ -108,17 +111,23 @@ uint32_t NotifyFile::Serialize(const NotifyData& nd, K4Buffer& buf)
 
 	ptr = Encode32(ptr, 0);	//FIXME:crc填0
 	
-	assert(ptr - (byte_t*)buf.Data() <= esize);
-	return (ptr - (byte_t*)buf.Data());
+	assert(ptr - (byte_t*)str.Data() <= esize);
+	str.Resize(ptr - (byte_t*)str.Data());
+
+	return OK;
 }
 
 Status NotifyFile::Write(const char* file_dir, const NotifyData& nd, FileName& filename)
 {
-	K4Buffer buf;
-	uint32_t size = Serialize(nd, buf);
+	String str;
+	Status s = Serialize(nd, str);
+	if(s != OK)
+	{
+		return s;
+	}
 	
 	MakeNotifyFileName(ms_pid, ms_id++, filename.str);
-	return WriteFile(file_dir, filename.str, buf.Data(), size);
+	return WriteFile(file_dir, filename.str, str.Data(), str.Size());
 }
 	
 uint32_t constexpr NotifyFile::EstimateSize(const NotifyData& bd)

@@ -85,35 +85,5 @@ byte_t* WriteBuffer::Write(uint32_t size)
 	return ptr;
 }
 
-bool K4Buffer::Alloc(size_t size)
-{
-	if(size <= m_size)
-	{
-		return true;
-	}
-	char* ptr = (char*)xmalloc(size);
-	if(ptr == nullptr)
-	{
-		return false;
-	}
-	if(m_buf != m_cache)
-	{
-		xfree(m_buf);
-	}
-	m_buf = (char*)ptr;
-	m_size = size;
-	return true;
-}
-
-void K4Buffer::Clear()
-{
-	if(m_buf != m_cache)
-	{
-		xfree(m_buf);
-		m_buf = m_cache;
-	}
-	m_size = CACHE_SIZE;
-}
-
 } 
 

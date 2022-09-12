@@ -79,31 +79,31 @@ Status ListFile(const char* path, const char* pattern, std::vector<FileName>& na
 	return OK;
 }
 
-Status ReadFile(const char* file_path, K4Buffer& buf)
+Status ReadFile(const char* file_path, String& str)
 {
 	File file;
 	if(!file.Open(file_path, OF_READONLY))
 	{
 		return ERR_PATH_NOT_EXIST;
 	}
-	return ReadFile(file, buf);
+	return ReadFile(file, str);
 }
 
-Status ReadFile(const File& file, K4Buffer& buf)
+Status ReadFile(const File& file, String& str)
 {
 	int64_t file_size = file.Size();
 	assert(file_size < 1024*1024*1024);
 
-	return ReadFile(file, 0, file_size, buf);
+	return ReadFile(file, 0, file_size, str);
 }
 
-Status ReadFile(const File& file, uint64_t offset, int64_t size, K4Buffer& buf)
+Status ReadFile(const File& file, uint64_t offset, int64_t size, String& str)
 {
-	if(!buf.Alloc(size))
+	if(!str.Resize(size))
 	{
 		return ERR_MEMORY_NOT_ENOUGH;
 	}
-	int64_t read_size = file.Read(offset, buf.Data(), size);
+	int64_t read_size = file.Read(offset, str.Data(), size);
 	return (read_size == size) ? OK : ERR_FILE_READ;
 }
 

@@ -67,49 +67,6 @@ private:
 	WriteBuffer& operator=(const WriteBuffer&) = delete;
 };
 
-///////////////////////////////////////////////////////////
-class K4Buffer
-{	
-public:
-	K4Buffer()
-	{
-		m_buf = m_cache;
-		m_size = 0;
-	}
-
-	~K4Buffer()
-	{
-		if(m_buf != m_cache)
-		{
-			xfree(m_buf);
-		}
-	}
-	
-public:
-	inline char* Data() const 
-	{
-		return m_buf;
-	}
-	inline size_t Size() const
-	{
-		return m_size;
-	}
-
-	bool Alloc(size_t size);
-
-	void Clear();
-		
-private:
-	enum{CACHE_SIZE=4096};
-	char m_cache[CACHE_SIZE];
-	char* m_buf;
-	size_t m_size;
-
-private:
-	K4Buffer(const K4Buffer&) = delete;
-	void operator=(const K4Buffer&) = delete;
-};
-
 }
 
 #endif

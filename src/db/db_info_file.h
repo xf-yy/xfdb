@@ -43,7 +43,7 @@ public:
 	
 private:
 	static Status Parse(const byte_t* data, uint32_t size, DbInfoData& bd);
-	static uint32_t Serialize(const DbInfoData& bd, K4Buffer& buf);
+	static Status Serialize(const DbInfoData& bd, String& str);
 	static uint32_t EstimateSize(const DbInfoData& bd);
 	static Status Check(const byte_t* data, uint32_t size);
 

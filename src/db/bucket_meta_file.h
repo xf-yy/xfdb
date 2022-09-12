@@ -57,7 +57,7 @@ public:
 
 private:
 	static Status Parse(const byte_t* data, uint32_t size, BucketMetaData& md);
-	static uint32_t Serialize(const BucketMetaData& md, K4Buffer& buf);
+	static Status Serialize(const BucketMetaData& md, String& str);
 	static uint32_t EstimateSize(const BucketMetaData& md);
 
 private:

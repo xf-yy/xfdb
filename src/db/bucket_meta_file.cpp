@@ -155,33 +155,40 @@ Status BucketMetaFile::Parse(const byte_t* data, uint32_t size, BucketMetaData& 
 
 Status BucketMetaFile::Read(BucketMetaData& md)
 {
-	K4Buffer buf;
-	Status s = ReadFile(m_file, buf);
+	String str;
+	Status s = ReadFile(m_file, str);
 	if(s != OK)
 	{
 		return s;
 	}
 	
-	return Parse((byte_t*)buf.Data(), buf.Size(), md);
+	return Parse((byte_t*)str.Data(), str.Size(), md);
 }
 
 Status BucketMetaFile::Write(const char* bucket_path, fileid_t fileid, BucketMetaData& md)
 {
-	K4Buffer buf;
-	uint32_t size = Serialize(md, buf);
+	String str;
+	Status s = Serialize(md, str);
+	if(s != OK)
+	{
+		return s;
+	}
 
 	char name[MAX_FILENAME_LEN];
 	MakeBucketMetaFileName(fileid, name);
 
-	return WriteFile(bucket_path, name, buf.Data(), size);
+	return WriteFile(bucket_path, name, str.Data(), str.Size());
 }
 
-uint32_t BucketMetaFile::Serialize(const BucketMetaData& md, K4Buffer& buf)
+Status BucketMetaFile::Serialize(const BucketMetaData& md, String& str)
 {
 	uint32_t esize = EstimateSize(md);
-	buf.Alloc(esize);
+	if(!str.Reserve(esize))
+	{
+		return ERR_MEMORY_NOT_ENOUGH;
+	}
 	
-	byte_t* ptr = FillBucketMetaFileHeader((byte_t*)buf.Data());
+	byte_t* ptr = FillBucketMetaFileHeader((byte_t*)str.Data());
 	
 	assert(md.alive_segment_infos.size() < 0xFFFFFFFF);
 	uint32_t cnt = (uint32_t)md.alive_segment_infos.size();
@@ -209,8 +216,9 @@ uint32_t BucketMetaFile::Serialize(const BucketMetaData& md, K4Buffer& buf)
 
 	ptr = Encode32(ptr, 0);	//FIXME:crc填0
 	
-	assert(ptr < esize + (byte_t*)buf.Data());
-	return (ptr - (byte_t*)buf.Data());
+	assert(ptr < esize + (byte_t*)str.Data());
+	str.Resize(ptr - (byte_t*)str.Data());
+	return OK;
 }
 
 static constexpr uint32_t EstimateSegmentFileInfoSize()
