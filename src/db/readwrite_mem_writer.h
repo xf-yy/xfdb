@@ -30,7 +30,7 @@ class ReadWriteMemWriter : public TableWriter
 {
 public:
 	explicit ReadWriteMemWriter(BlockPool& pool, uint32_t max_object_num);
-	virtual ~ReadWriteMemWriter(){}
+	virtual ~ReadWriteMemWriter();
 
 public:	
 	virtual Status Get(const StrView& key, ObjectType& type, String& value) const override;

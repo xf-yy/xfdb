@@ -110,14 +110,14 @@ private:
 	Status FillChunkIndex(const ChunkIndex* chunk_indexs, int index_cnt);
 	Status FillBlock(uint32_t& index_size);
 	Status WriteBlock();
-	void FillL2Index();
+	Status WriteL2Index(uint32_t& L2index_size);
+	Status WriteMeta(uint32_t L2index_size, const SegmentMeta& meta);
 	void FillMeta(const SegmentMeta& meta);
 	void FillObjectStat(ObjectType type, const ObjectStatItem& stat);
 	
 	Status WriteL2IndexMeta(const SegmentMeta& meta);
 	
 	StrView CloneKey(const StrView& str, WriteBuffer& buf);
-	StrView ClonePrevKey(const StrView& str);
 
 private:
 	const DBConfig& m_db_conf;

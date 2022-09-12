@@ -390,6 +390,10 @@ Status IndexReader::Search(const StrView& key, SegmentL0Index& L0_index) const
 	//读取L1索引
 	//printf("L1Index->L1compress_size:%u\n", L1Index->L1compress_size);
 	byte_t* buf = m_pool.Alloc();
+	if(buf == nullptr)
+	{
+		return ERR_MEMORY_NOT_ENOUGH;
+	}
 	int64_t r_size = m_file.Read(L1Index->L1offset, buf, L1Index->L1compress_size);
 	if((uint64_t)r_size != L1Index->L1compress_size)
 	{
@@ -420,7 +424,7 @@ IndexWriter::IndexWriter(const DBConfig& db_conf, BlockPool& pool)
 	m_block_start = pool.Alloc();
 	m_block_end = m_block_start + m_pool.BlockSize();
 	m_block_ptr = m_block_start;
-	m_L0indexs = (SegmentL0Index*)pool.Alloc();
+	m_L0indexs = new SegmentL0Index[MAX_OBJECT_NUM_OF_BLOCK];
 	m_L0index_cnt = 0;
 	
 	m_writing_size = 0;
@@ -437,7 +441,7 @@ IndexWriter::~IndexWriter()
 	File::Rename(tmp_file_path, file_path);
 
 	m_pool.Free(m_block_start);
-	m_pool.Free((byte_t*)m_L0indexs);
+	delete[] m_L0indexs;
 }
 
 Status IndexWriter::Create(const char* bucket_path, fileid_t fileid)
@@ -472,26 +476,18 @@ StrView IndexWriter::CloneKey(const StrView& str, WriteBuffer& buf)
 	return StrView((char*)p, str.size);
 }
 
-StrView IndexWriter::ClonePrevKey(const StrView& str)
-{
-	m_prev_key.Assign(str.data, str.size);
-	return StrView(m_prev_key.Data(), m_prev_key.Size());
-}
-
 Status IndexWriter::FillGroup(uint32_t& L0_idx, GroupIndex& gi)
 {	
 	if(L0_idx >= m_L0index_cnt)
 	{
 		return ERR_NOMORE_DATA;
 	}
-	Status s = OK;
-	//byte_t* block_end = m_block_start + m_pool.BlockSize();
-	
-	byte_t* group_start = m_block_ptr;
-
 	gi.start_key = CloneKey(m_L0indexs[L0_idx].start_key, m_L1key_buf);	
 	StrView prev_key = gi.start_key;
 	
+	Status s = OK;
+	byte_t* group_start = m_block_ptr;
+
 	m_block_ptr = EncodeV64(m_block_ptr, m_L0indexs[L0_idx].L0offset);
 	for(int i = 0; i < MAX_OBJECT_NUM_OF_GROUP && L0_idx < m_L0index_cnt; ++i)
 	{
@@ -514,8 +510,9 @@ Status IndexWriter::FillGroup(uint32_t& L0_idx, GroupIndex& gi)
 		m_block_ptr = EncodeV32(m_block_ptr, L0indexs.L0compress_size);
 		m_block_ptr = EncodeV32(m_block_ptr, L0indexs.L0origin_size - L0indexs.L0compress_size);
 		m_block_ptr = EncodeV32(m_block_ptr, L0indexs.L0index_size);
-		
-		prev_key = ClonePrevKey(key);
+
+		//此key非临时key，无需clone
+		prev_key = key;
 		++L0_idx;
 
 		//当block超过一定大小时，结束该block
@@ -555,11 +552,10 @@ Status IndexWriter::FillChunk(uint32_t& L0_idx, ChunkIndex& ci)
 	{
 		return ERR_NOMORE_DATA;
 	}
+	ci.start_key = CloneKey(m_L0indexs[L0_idx].start_key, m_L1key_buf);
 	
 	Status s = ERR_BUFFER_FULL;
 	byte_t* chunk_start = m_block_ptr;
-	
-	ci.start_key = CloneKey(m_L0indexs[L0_idx].start_key, m_L1key_buf);
 
 	GroupIndex gis[MAX_GROUP_NUM_OF_CHUNK];
 	int gi_cnt = 0;
@@ -670,10 +666,11 @@ Status IndexWriter::WriteBlock()
 
 Status IndexWriter::Write(const SegmentL0Index& L0_index)
 {
-	m_L0indexs[m_L0index_cnt] = L0_index;
 	//TODO:构建最短key
-	m_L0indexs[m_L0index_cnt++].start_key = CloneKey(L0_index.start_key, m_L0key_buf);
-	
+	m_L0indexs[m_L0index_cnt] = L0_index;
+	m_L0indexs[m_L0index_cnt].start_key = CloneKey(L0_index.start_key, m_L0key_buf);
+
+	++m_L0index_cnt;
 	m_writing_size += L0_index.start_key.size + MAX_V32_SIZE*3;
 	
 	//则限制1024个+128KB(压缩时，如果不压缩，则为64KB)
@@ -683,29 +680,58 @@ Status IndexWriter::Write(const SegmentL0Index& L0_index)
 		WriteBlock();
 		
 		m_L0index_cnt = 0;
-		m_L0key_buf.Clear();
 		m_writing_size = 0;
+		m_L0key_buf.Clear();
 	}
 	return OK;
 }
 
-void IndexWriter::FillL2Index()
+Status IndexWriter::WriteL2Index(uint32_t& L2index_size)
 {
+	L2index_size = 0;
+
+	m_block_ptr = m_block_start;
+
 	m_block_ptr = EncodeV64(m_block_ptr, m_L1offset_start);
 	
 	m_block_ptr = EncodeV32(m_block_ptr, m_L1indexs.size());
 	for(auto it = m_L1indexs.begin(); it != m_L1indexs.end(); ++it)
 	{
+		//剩余空间不足时刷盘
+		if(m_block_ptr - m_block_start <= (ssize_t)it->start_key.size + EXTRA_OBJECT_SIZE)
+		{
+			uint32_t size = m_block_ptr - m_block_start;
+			if(m_file.Write(m_block_start, size) != size)
+			{
+				return ERR_FILE_WRITE;
+			}
+			m_offset += size;
+			L2index_size += size;
+
+			m_block_ptr = m_block_start;
+		}
+		
 		m_block_ptr = EncodeString(m_block_ptr, it->start_key.data, it->start_key.size);
 		//如果bloom_len不为空
 		//m_block_ptr = EncodeV32(m_block_ptr, it->bloom_size);
 		m_block_ptr = EncodeV32(m_block_ptr, it->L1compress_size);
 		m_block_ptr = EncodeV32(m_block_ptr, it->L1origin_size - it->L1compress_size);
 		m_block_ptr = EncodeV32(m_block_ptr, it->L1index_size);
+
 	}
 	m_L1indexs.clear();
 	
 	m_block_ptr = Encode32(m_block_ptr, 0);//FIXME:crc填0
+
+	uint32_t size = m_block_ptr - m_block_start;
+	if(m_file.Write(m_block_start, size) != size)
+	{
+		return ERR_FILE_WRITE;
+	}
+	m_offset += size;
+	L2index_size += size;
+	
+	return OK;
 }
 
 void IndexWriter::FillObjectStat(ObjectType type, const ObjectStatItem& stat)
@@ -735,18 +761,14 @@ void IndexWriter::FillMeta(const SegmentMeta& meta)
 	m_block_ptr = Encode32(m_block_ptr, 0);//FIXME:crc填0
 }
 
-Status IndexWriter::WriteL2IndexMeta(const SegmentMeta& meta)
+Status IndexWriter::WriteMeta(uint32_t L2index_size, const SegmentMeta& meta)
 {
-	m_L2offset_start = m_offset;
-
 	m_block_ptr = m_block_start;
 
-	FillL2Index();
-	uint32_t L2index_size = m_block_ptr - m_block_start;
-
 	FillMeta(meta);
-	uint32_t meta_size = m_block_ptr - m_block_start - L2index_size;
-
+	
+	uint32_t meta_size = m_block_ptr - m_block_start;
+	
 	m_block_ptr = Encode32(m_block_ptr, L2index_size);
 	m_block_ptr = Encode32(m_block_ptr, meta_size);
 
@@ -758,6 +780,20 @@ Status IndexWriter::WriteL2IndexMeta(const SegmentMeta& meta)
 	m_offset += size;
 
 	return OK;
+}
+
+Status IndexWriter::WriteL2IndexMeta(const SegmentMeta& meta)
+{
+	m_L2offset_start = m_offset;
+
+	uint32_t L2index_size;
+	Status s = WriteL2Index(L2index_size);
+	if(s != OK)
+	{
+		return s;
+	}
+
+	return WriteMeta(L2index_size, meta);
 }
 
 Status IndexWriter::Finish(const SegmentMeta& meta)

@@ -45,12 +45,6 @@ Status DataReader::Open(const char* bucket_path, fileid_t fileid)
 	return OK;
 }
 
-StrView DataReader::ClonePrevKey(const StrView& str)
-{
-	m_prev_key.Assign(str.data, str.size);
-	return StrView(m_prev_key.Data(), m_prev_key.Size());
-}
-
 Status DataReader::SearchGroup(const byte_t* group, uint32_t chunk_size, const GroupIndex& group_index, const StrView& key, ObjectType& type, String& value) const
 {
 	assert(chunk_size != 0);
@@ -170,6 +164,10 @@ Status DataReader::Search(const SegmentL0Index& L0_index, const StrView& key, Ob
 	//从文件中读取数据块
 	//printf("L0_index.L0compress_size:%u\n", L0_index.L0compress_size);
 	byte_t* buf = m_pool.Alloc();
+	if(buf == nullptr)
+	{
+		return ERR_MEMORY_NOT_ENOUGH;
+	}
 	int64_t r_size = m_file.Read(L0_index.L0offset, buf, L0_index.L0compress_size);
 	if((uint64_t)r_size != L0_index.L0compress_size)
 	{
@@ -252,12 +250,11 @@ Status DataWriter::FillGroup(Iterator& iter, GroupIndex& gi)
 	{
 		return ERR_NOMORE_DATA;
 	}
+	gi.start_key = CloneKey(iter.Key());
+	StrView prev_key = gi.start_key;
 	
 	Status s = OK;
 	byte_t* group_start = m_block_ptr;
-
-	gi.start_key = CloneKey(iter.Key());
-	StrView prev_key = gi.start_key;
 
 	for(int i = 0; i < MAX_OBJECT_NUM_OF_GROUP && iter.Valid(); ++i)
 	{
@@ -282,6 +279,7 @@ Status DataWriter::FillGroup(Iterator& iter, GroupIndex& gi)
 
 		m_block_ptr = EncodeString(m_block_ptr, value.data, value.size);
 
+		//key可能是临时的key，需要clone下
 		prev_key = ClonePrevKey(key);
 		iter.Next();
 		
@@ -324,12 +322,10 @@ Status DataWriter::FillChunk(Iterator& iter, ChunkIndex& ci)
 	{
 		return ERR_NOMORE_DATA;
 	}
-
-	byte_t* chunk_start = m_block_ptr;
-	
 	ci.start_key = CloneKey(iter.Key());
-
+	
 	Status s = ERR_BUFFER_FULL;
+	byte_t* chunk_start = m_block_ptr;
 	
 	GroupIndex gis[MAX_GROUP_NUM_OF_CHUNK];
 	int gi_cnt = 0;

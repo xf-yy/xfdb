@@ -64,7 +64,7 @@ static_assert(MIN_BUCKETID > 0, "invalid MIN_BUCKETID");
 static_assert(MAX_KEY_SIZE <= 64*1024, "invalid MAX_KEY_SIZE");				//不能超16bit大小
 static_assert(MAX_VALUE_SIZE <= 64*1024, "invalid MAX_VALUE_SIZE");			//待支持kv分离时，可支持大value
 
-#define EXTRA_OBJECT_SIZE			(128)
+#define EXTRA_OBJECT_SIZE			(256)		//object相关属性估值
 #define MAX_OBJECT_SIZE				(MAX_KEY_SIZE + MAX_VALUE_SIZE + EXTRA_OBJECT_SIZE)
 #define MAX_COMPRESS_BLOCK_SIZE		(96*1024)	//启用压缩时的块大小
 #define MAX_UNCOMPRESS_BLOCK_SIZE	(32*1024)	//未启用压缩时的块大小
@@ -217,11 +217,11 @@ struct SegmentFileIndex
 	uint32_t L2index_meta_size;	//L2层索引+meta大小，包含2*4Byte
 };
 
-#define MAX_OBJECT_NUM_OF_GROUP	(8)
-#define MAX_GROUP_NUM_OF_CHUNK	(8)
-#define MAX_CHUNK_NUM_OF_BLOCK	(8)
+#define MAX_OBJECT_NUM_OF_GROUP		(8)
+#define MAX_GROUP_NUM_OF_CHUNK		(8)
+#define MAX_CHUNK_NUM_OF_BLOCK		(8)
 
-#define MAX_OBJECT_NUM_OF_BLOCK	(MAX_CHUNK_NUM_OF_BLOCK*MAX_GROUP_NUM_OF_CHUNK*MAX_OBJECT_NUM_OF_GROUP)
+#define MAX_OBJECT_NUM_OF_BLOCK		(MAX_CHUNK_NUM_OF_BLOCK*MAX_GROUP_NUM_OF_CHUNK*MAX_OBJECT_NUM_OF_GROUP)
 
 struct ChunkIndex
 {

@@ -45,12 +45,9 @@ private:
 	Status SearchChunk(const byte_t* chunk, uint32_t chunk_size, const ChunkIndex& chunk_index, const StrView& key, ObjectType& type, String& value) const;
 	Status SearchGroup(const byte_t* group, uint32_t chunk_size, const GroupIndex& group_index, const StrView& key, ObjectType& type, String& value) const;
 
-	StrView ClonePrevKey(const StrView& str);
-
 private:
 	File m_file;
 	BlockPool& m_pool;
-	String m_prev_key;
 	
 private:
 	DataReader(const DataReader&) = delete;

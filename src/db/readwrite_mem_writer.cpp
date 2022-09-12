@@ -26,6 +26,14 @@ ReadWriteMemWriter::ReadWriteMemWriter(BlockPool& pool, uint32_t max_object_num)
 {
 }
 
+ReadWriteMemWriter::~ReadWriteMemWriter()
+{
+	for(auto it = m_objects.begin(); it != m_objects.end(); ++it)
+	{
+		it->second->~Object();
+	}
+}
+
 Status ReadWriteMemWriter::Write(objectid_t start_seqid, const Object* object)
 {
 	Object* obj = CloneObject(start_seqid, object);
