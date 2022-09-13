@@ -77,6 +77,11 @@ public:
 	{
 		return (m_size == 0);
 	}
+	char& operator[](size_t idx) 
+	{
+		assert(idx < m_size);
+		return m_buf[idx];
+	}
 
 	bool Reserve(size_t size);
 	
@@ -144,6 +149,11 @@ public:
 	inline bool Empty() const 
 	{ 
 		return size == 0; 
+	}
+	char operator[](size_t idx) const
+	{
+		assert(idx < size);
+		return data[idx];
 	}
 
 	inline void Clear() 

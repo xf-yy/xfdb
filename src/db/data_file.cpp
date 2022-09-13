@@ -409,7 +409,7 @@ Status DataWriter::Write(Iterator& iter)
 		m_key_buf.Clear();
 		
 		SegmentL0Index L0_index;
-		L0_index.start_key = CloneKey(iter.Key());
+		L0_index.start_key = CloneKey(iter.Key());	//iter.Key可能是临时key
 		L0_index.L0offset = m_offset;
 		
 		uint32_t index_size;

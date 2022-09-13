@@ -26,6 +26,8 @@ using namespace xfutil;
 namespace xfdb 
 {
 
+#define MIN_SHORT_KEY_LEN	16
+
 enum
 {
 	MID_UPMOST_KEY = MID_START,
@@ -43,6 +45,80 @@ static bool LowerCmp(const SegmentL1Index index, const StrView key)
 static bool UpperCmp(const StrView& key, const SegmentL1Index& index)
 {
 	return key.Compare(index.start_key) < 0;
+}
+
+//找>=key的短串
+void GetMaxShortKey(const StrView& key, String& str) 
+{
+	str.Assign(key.data, key.size);
+	if(key.size <= MIN_SHORT_KEY_LEN)
+	{
+		return;
+	}
+	for(size_t i = MIN_SHORT_KEY_LEN; i < key.size; ++i)
+	{
+		if(str[i] != (char)0xFF)
+		{
+			++str[i];
+			str.Resize(i+1);
+			return;
+		}
+	}
+}
+
+//找<=key的短串
+static void GetMinShortKey(String& str, uint32_t start_off) 
+{
+	for(size_t i = start_off; i < str.Size(); ++i)
+	{
+		if(str[i] != (char)0)
+		{
+			--str[i];
+			str.Resize(i+1);
+			return;
+		}
+	}
+}
+
+void GetMinShortKey(const StrView& key, String& str) 
+{
+	str.Assign(key.data, key.size);
+	if(key.size <= MIN_SHORT_KEY_LEN)
+	{
+		return;
+	}
+
+	GetMinShortKey(str, MIN_SHORT_KEY_LEN);
+}
+
+//找比<=key且>prev_key的短串
+void GetMidShortKey(const StrView& prev_key, const StrView& key, String& str)
+{
+	str.Assign(key.data, key.size);
+	if(key.size <= MIN_SHORT_KEY_LEN)
+	{
+		return;
+	}
+	assert(prev_key.Compare(key) <= 0);
+	
+	uint32_t prefix_len = prev_key.GetPrefixLength(key);
+	uint32_t min_len = MIN(prev_key.size, key.size);
+	
+	if(prefix_len < min_len)
+	{
+		if(str[prefix_len]-1 > prev_key[prefix_len])
+		{
+			--str[prefix_len];
+			str.Resize(prefix_len+1);
+			return;
+		}
+		++prefix_len;
+	}
+	if(prefix_len == 0)
+	{
+		prefix_len = MIN_SHORT_KEY_LEN;
+	}
+	return GetMinShortKey(str, prefix_len);
 }
 
 StrView MakeKey(StrView& prev_key, uint32_t shared_keysize, StrView& nonshared_key, String& prev_str1, String& prev_str2)
@@ -421,13 +497,13 @@ IndexWriter::IndexWriter(const DBConfig& db_conf, BlockPool& pool)
 	m_L1offset_start = 0;
 	m_L2offset_start = 0;
 	
+	m_L0indexs = new SegmentL0Index[MAX_OBJECT_NUM_OF_BLOCK];
+	m_L0index_cnt = 0;
+	m_writing_size = 0;
+	
 	m_block_start = pool.Alloc();
 	m_block_end = m_block_start + m_pool.BlockSize();
 	m_block_ptr = m_block_start;
-	m_L0indexs = new SegmentL0Index[MAX_OBJECT_NUM_OF_BLOCK];
-	m_L0index_cnt = 0;
-	
-	m_writing_size = 0;
 }
 
 IndexWriter::~IndexWriter()
@@ -753,8 +829,11 @@ void IndexWriter::FillMeta(const SegmentMeta& meta)
 	m_block_ptr = EncodeV32(m_block_ptr, 2);//set+delete
 	FillObjectStat(SetType, meta.object_stat.set_stat);
 	FillObjectStat(DeleteType, meta.object_stat.delete_stat);
-	
-	m_block_ptr = EncodeString(m_block_ptr, MID_UPMOST_KEY, meta.upmost_key.data, meta.upmost_key.size);
+
+	//计算最短最大key
+	String key;
+	GetMaxShortKey(meta.upmost_key, key);
+	m_block_ptr = EncodeString(m_block_ptr, MID_UPMOST_KEY, key.Data(), key.Size());
 	m_block_ptr = EncodeV64(m_block_ptr, MID_MAX_OBJECTID, meta.max_objectid);
 	m_block_ptr = EncodeV32(m_block_ptr, MID_END);
 	

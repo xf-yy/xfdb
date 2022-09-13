@@ -31,6 +31,9 @@ namespace xfdb
 {
 
 StrView MakeKey(StrView& prev_key, uint32_t shared_keysize, StrView& nonshared_key, String& prev_str1, String& prev_str2);
+void GetMaxShortKey(const StrView& key, String& str); 
+void GetMinShortKey(const StrView& key, String& str);
+void GetMidShortKey(const StrView& key1, const StrView& key2, String& str);
 
 class IndexReader
 {
@@ -136,8 +139,8 @@ private:
 	SegmentL0Index* m_L0indexs;
 	uint32_t m_L0index_cnt;
 	uint32_t m_writing_size;
-
 	String m_prev_key;
+
 	WriteBuffer m_L0key_buf;
 
 	byte_t* m_block_start;	//256KB-buffer
