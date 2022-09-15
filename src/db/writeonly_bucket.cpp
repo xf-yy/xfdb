@@ -118,25 +118,15 @@ void WriteOnlyBucket::GetStat(BucketStat& stat) const
 
 	if(memwriter_ptr)
 	{
-		++stat.memwriter_stat.count;
-		stat.memwriter_stat.size += memwriter_ptr->Size();
-
-		stat.object_stat.Add(memwriter_ptr->GetObjectStat());
+		memwriter_ptr->GetStat(stat);
 	}
 	if(mts_ptr)
 	{
-		const std::vector<TableWriterPtr>& writers = mts_ptr->TableWriters();
-		
-		stat.memwriter_stat.count += writers.size();
-		for(auto writer : writers)
-		{
-			stat.memwriter_stat.size += writer->Size();
-			stat.object_stat.Add(writer->GetObjectStat());
-		}
+		mts_ptr->GetStat(stat);
 	}
 	if(trs_ptr)
 	{
-		trs_ptr->GetBucketStat(stat);
+		trs_ptr->GetStat(stat);
 	}
 }
 
@@ -156,7 +146,7 @@ Status WriteOnlyBucket::Write(const Object* object)
 	}
 	++m_next_objectid;
 	
-	if(m_memwriter->Size() >= m_engine->GetConfig().max_memwriter_size || m_memwriter->GetObjectStat().Count() >= m_engine->GetConfig().max_object_num_of_memwriter)
+	if(m_memwriter->Size() >= m_engine->GetConfig().max_memwriter_size || m_memwriter->GetObjectCount() >= m_engine->GetConfig().max_object_num_of_memwriter)
 	{
 		FlushMemWriter();
 	}
@@ -235,56 +225,40 @@ Status WriteOnlyBucket::Clean()
 	return OK;
 }
 
-Status WriteOnlyBucket::WriteSegment(TableReaderPtr& reader, fileid_t new_segment_fileid, SegmentFileIndex& seginfo)
+Status WriteOnlyBucket::WriteSegment(TableWriterSnapshotPtr& memwriter_snapshot, fileid_t fileid, SegmentReaderPtr& new_segment_reader)
 {
-	TableWriterPtr table_writer = std::dynamic_pointer_cast<TableWriter>(reader);
-	table_writer->Sort();
-
-	DBImplPtr db = m_db.lock();
+	memwriter_snapshot->Sort();
 	
-	SegmentWriter segment_writer(db->GetConfig(), m_engine->m_pool);
-	Status s = segment_writer.Create(m_bucket_path.c_str(), new_segment_fileid);
-	if(s != OK)
-	{
-		return s;
-	}
-	return segment_writer.Write(table_writer, seginfo);
-}
+	SegmentFileIndex seginfo;
+	seginfo.segment_fileid = fileid;
 
-Status WriteOnlyBucket::WriteSegment(std::map<fileid_t, TableReaderPtr>& readers)
-{
-	//FIXME: 暂时一个table生成一个segment
-	for(auto it = readers.begin(); it != readers.end(); ++it)
 	{
-		SegmentFileIndex seginfo;
-		seginfo.segment_fileid = it->first;
-
-		Status s = WriteSegment(it->second, it->first, seginfo);
+		DBImplPtr db = m_db.lock();
+		assert(db);
+		
+		SegmentWriter segment_writer(db->GetConfig(), m_engine->m_pool);
+		Status s = segment_writer.Create(m_bucket_path.c_str(), fileid);
 		if(s != OK)
 		{
-			continue;
+			return s;
 		}
-		SegmentReaderPtr new_segment_reader;
-		s = OpenSegment(m_bucket_path.c_str(), seginfo, new_segment_reader);
-		if(s == OK)
+		s = segment_writer.Write(memwriter_snapshot, seginfo);
+		if(s != OK)
 		{
-			it->second = new_segment_reader;
-		}
-		else
-		{
-			assert(false);
+			return s;
 		}
 	}
-	return OK;
+
+	return OpenSegment(m_bucket_path.c_str(), seginfo, new_segment_reader);
 }
 
 //多线程同时执行
 Status WriteOnlyBucket::WriteSegment()
 {	
-	std::map<fileid_t, TableReaderPtr> readers;
+	TableWriterSnapshotPtr memwriter_snapshot;
+	fileid_t fileid;
 	
 	{
-		TableReaderSnapshotPtr prev_reader_snapshot;
 		std::lock_guard<std::mutex> lock(m_mutex);
 
 		WriteLockGuard lock_guard(m_segment_rwlock);
@@ -292,31 +266,23 @@ Status WriteOnlyBucket::WriteSegment()
 		{
 			return ERR_NOMORE_DATA;
 		}
-		//FIXME:这里暂时一个table生成一个segment
-		const std::vector<TableWriterPtr>& memwriters = m_memwriter_snapshot->TableWriters();
-		for(size_t i = 0; i < memwriters.size(); ++i)
-		{
-			fileid_t fileid = (m_next_segment_id++ << LEVEL_BITNUM);
-			assert(memwriters[i]);
-			
-			readers[fileid] = memwriters[i];
-			m_writing_segment_fileids[fileid] = false;
-		}
-		m_memwriter_snapshot.reset();
+		
+		memwriter_snapshot.swap(m_memwriter_snapshot);
+		fileid = (m_next_segment_id++ << LEVEL_BITNUM);
+		m_writing_segment_fileids[fileid] = false;
 
-		UpdateReaderSnapshot(readers, prev_reader_snapshot);
+		TableReaderSnapshotPtr reader_snapshot = NewTableReaderSnapshot(memwriter_snapshot, fileid, m_reader_snapshot.get());
+		m_reader_snapshot = reader_snapshot;
 	}
-	
-	WriteSegment(readers);
+
+	SegmentReaderPtr new_segment_reader;
+	WriteSegment(memwriter_snapshot, fileid, new_segment_reader);
 	
 	bool need_write_bucket_meta;
 	{
-		TableReaderSnapshotPtr prev_reader_snapshot;
 		std::lock_guard<std::mutex> lock(m_mutex);
-		for(auto it = readers.begin(); it != readers.end(); ++it)
-		{
-			m_writing_segment_fileids[it->first] = true;
-		}
+		m_writing_segment_fileids[fileid] = true;
+		
 		//判断m_writing_segments已经确认的segment
 		for(auto it = m_writing_segment_fileids.begin(); it != m_writing_segment_fileids.end(); )
 		{
@@ -330,7 +296,8 @@ Status WriteOnlyBucket::WriteSegment()
 		need_write_bucket_meta = !m_writed_segment_fileids.empty();
 		
 		WriteLockGuard lock_guard(m_segment_rwlock);
-		UpdateReaderSnapshot(readers, prev_reader_snapshot);
+		TableReaderSnapshotPtr reader_snapshot = NewTableReaderSnapshot(new_segment_reader, fileid, m_reader_snapshot.get());
+		m_reader_snapshot = reader_snapshot;
 	}
 	
 	//判断是否有可写的段信息
@@ -341,24 +308,6 @@ Status WriteOnlyBucket::WriteSegment()
 	//TODO: 判断是否需要merge
 	return OK;
 }
-
-void WriteOnlyBucket::UpdateReaderSnapshot(std::map<fileid_t, TableReaderPtr>& readers, TableReaderSnapshotPtr& prev_reader_snapshot)
-{	
-	std::map<fileid_t, TableReaderPtr> new_readers;
-	if(m_reader_snapshot)
-	{
-		new_readers = m_reader_snapshot->Readers();
-	}
-	for(auto it = readers.begin(); it != readers.end(); ++it)
-	{
-		new_readers[it->first] = it->second;
-	}
-
-	prev_reader_snapshot = NewTableReaderSnapshot(new_readers);
-
-	m_reader_snapshot.swap(prev_reader_snapshot);
-}
-
 
 ///////////////////////////////////////////////////////////////////////////////
 fileid_t WriteOnlyBucket::SelectNewSegmentFileID(MergingSegmentInfo& msinfo)

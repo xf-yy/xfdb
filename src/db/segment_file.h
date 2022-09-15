@@ -54,7 +54,7 @@ public:
 	/**返回segment文件总大小*/
 	uint64_t Size() const override;
 	
-	const ObjectStat& GetObjectStat() const override;	
+	void GetStat(BucketStat& stat) const override;	
 	
 private:
 	SegmentFileIndex m_fileinfo;
@@ -76,7 +76,6 @@ public:
 public:	
 	Status Create(const char* bucket_path, fileid_t fileid);
 	
-	Status Write(const TableWriterPtr& table_writer, SegmentFileIndex& seginfo);
 	Status Write(const TableWriterSnapshotPtr& table_writer_snapshot, SegmentFileIndex& seginfo);
 	Status Merge(const std::map<fileid_t, SegmentReaderPtr>& segment_readers, SegmentFileIndex& seginfo);
 

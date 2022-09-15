@@ -20,13 +20,13 @@ limitations under the License.
 #include <set>
 #include "xfdb/strutil.h"
 #include "types.h"
-#include "write_db.h"
 #include "notify_msg.h"
 #include "file_util.h"
 #include "thread.h"
 #include "queue.h"
 #include "file_notify.h"
 #include "engine.h"
+#include "db_impl.h"
 
 namespace xfdb 
 {
@@ -94,10 +94,7 @@ public:
 	void WriteNotifyFile(const NotifyData& nd);
 
 protected:
-	virtual DBImplPtr NewDB(const DBConfig& conf, const std::string& db_path)
-	{
-		return std::dynamic_pointer_cast<DBImpl>(NewWritableDB(this, conf, db_path));
-	}
+	virtual DBImplPtr NewDB(const DBConfig& conf, const std::string& db_path);
 
 private:
 	static void WriteSegmentThread(size_t index, void* arg);

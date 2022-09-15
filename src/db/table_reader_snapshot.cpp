@@ -22,8 +22,16 @@ limitations under the License.
 namespace xfdb 
 {
 
-TableReaderSnapshot::TableReaderSnapshot(std::map<fileid_t, TableReaderPtr>& readers)
-	: m_readers(readers)
+static const std::map<fileid_t, TableReaderPtr> s_empty_readers;
+
+TableReaderSnapshot::TableReaderSnapshot(TableReaderPtr reader, fileid_t fileid, TableReaderSnapshot* prev_snapshot/* = nullptr*/)
+	: m_readers(prev_snapshot != nullptr ? prev_snapshot->m_readers : s_empty_readers)
+{
+	m_readers[fileid] = reader;
+}
+
+TableReaderSnapshot::TableReaderSnapshot(const std::map<fileid_t, TableReaderPtr>& new_readers) 
+	: m_readers(new_readers)
 {
 }
 
@@ -44,14 +52,14 @@ Status TableReaderSnapshot::Get(const StrView& key, ObjectType& type, String& va
 	return ERR_OBJECT_NOT_EXIST;
 }
 
-void TableReaderSnapshot::GetBucketStat(BucketStat& stat) const
+void TableReaderSnapshot::GetStat(BucketStat& stat) const
 {	
-	stat.segment_stat.count += m_readers.size();
 	for(auto it = m_readers.begin(); it != m_readers.end(); ++it)
 	{
-		stat.segment_stat.size += it->second->Size();
+		//FIXME: 识别segment类型
 		
-		stat.object_stat.Add(it->second->GetObjectStat());
+		stat.segment_stat.Add(it->second->Size());
+		it->second->GetStat(stat);
 	}
 }
 

@@ -129,6 +129,12 @@ public:
 		size = size_;
 	}
 	
+	StrView(const String& str)
+	{
+		data = str.Data();
+		size = str.Size();
+	}
+	
 	explicit StrView(const char* data_)
 	{
 		data = data_;
@@ -156,7 +162,7 @@ public:
 		return data[idx];
 	}
 
-	inline void Clear() 
+	inline void Reset() 
 	{
 		data = "";
 		size = 0;
@@ -165,6 +171,11 @@ public:
 	{
 		data = data_;
 		size = size_;
+	}
+	inline void Set(const String& str)
+	{
+		data = str.Data();
+		size = str.Size();
 	}
 	inline void Set(const char* data_)
 	{

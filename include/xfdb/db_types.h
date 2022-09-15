@@ -225,6 +225,12 @@ struct TableStat
 	uint64_t count;			//内存文件大小
 	uint64_t size;
 
+	inline void Add(uint64_t size_)
+	{
+		++count;
+		size += size_;
+	}
+
 	inline void Add(const TableStat& stat)
 	{
 		count += stat.count;
@@ -236,7 +242,7 @@ struct BucketStat
 {
 	ObjectStat object_stat;
 	TableStat memwriter_stat;		//内存文件大小
-	TableStat segment_stat;			//内存文件大小
+	TableStat segment_stat;			//segment文件大小
 };
 
 #ifdef DEBUG

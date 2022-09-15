@@ -76,9 +76,10 @@ uint64_t SegmentReader::Size() const
 	return m_fileinfo.index_filesize + m_fileinfo.data_filesize;
 }
 
-const ObjectStat& SegmentReader::GetObjectStat() const
+void SegmentReader::GetStat(BucketStat& stat) const
 {
-	return m_index_reader.GetMeta().object_stat;
+	stat.segment_stat.Add(Size());
+	stat.object_stat.Add(m_index_reader.GetMeta().object_stat);
 }
 
 
@@ -101,9 +102,9 @@ Status SegmentWriter::Create(const char* bucket_path, fileid_t fileid)
 	return m_data_writer.Create(bucket_path, fileid);
 }
 
-Status SegmentWriter::Write(const TableWriterPtr& table_writer, SegmentFileIndex& seginfo)
-{
-	IteratorPtr iter = table_writer->NewIterator();
+Status SegmentWriter::Write(const TableWriterSnapshotPtr& table_writer_snapshot, SegmentFileIndex& seginfo)
+{	
+	IteratorPtr iter = table_writer_snapshot->NewIterator();
 	Status s = m_data_writer.Write(*iter);
 	if(s != OK)
 	{
@@ -116,10 +117,13 @@ Status SegmentWriter::Write(const TableWriterPtr& table_writer, SegmentFileIndex
 	}
 
 	SegmentMeta meta;
-	meta.max_objectid = table_writer->GetMaxObjectID();
-	meta.lowest_key = table_writer->LowestKey();
-	meta.upmost_key = table_writer->UpmostKey();
-	meta.object_stat = table_writer->GetObjectStat();
+	meta.max_objectid = table_writer_snapshot->GetMaxObjectID();
+	meta.lowest_key = table_writer_snapshot->LowestKey();
+	meta.upmost_key = table_writer_snapshot->UpmostKey();
+
+	BucketStat stat = {0};
+	table_writer_snapshot->GetStat(stat);
+	meta.object_stat = stat.object_stat;
 	
 	s = m_index_writer.Finish(meta);
 	if(s != OK)
@@ -130,19 +134,6 @@ Status SegmentWriter::Write(const TableWriterPtr& table_writer, SegmentFileIndex
 	seginfo.index_filesize = m_index_writer.FileSize();
 	seginfo.L2index_meta_size = m_index_writer.L2IndexMetaSize();
 	return OK;
-}
-
-Status SegmentWriter::Write(const TableWriterSnapshotPtr& table_writer_snapshot, SegmentFileIndex& seginfo)
-{	
-	//TODO: 待实现
-	assert(false);
-	//IteratorPtr iter = table_writer_snapshot->NewIterator();
-	//m_data_writer.Write(*iter);
-	//m_data_writer.Finish();
-
-	//m_index_writer.Finish(table_writer_snapshot->);
-
-	return ERR_INVALID_MODE;
 }
 	
 Status SegmentWriter::Merge(const std::map<fileid_t, SegmentReaderPtr>& segment_readers, SegmentFileIndex& seginfo)

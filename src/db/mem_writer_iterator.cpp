@@ -112,18 +112,6 @@ StrView ReadWriteMemWriterIterator::Value()
 	return m_iter->second->value;
 }
 
-TableWriterSnapshotIterator::TableWriterSnapshotIterator(const TableWriterSnapshotPtr& table_writer_snapshot)
-	: m_memwriter_snapshot(table_writer_snapshot)
-{
-	//TODO: 如果只有1个memwriter，则退换成1个memwriter iterator
-	m_iters.reserve(table_writer_snapshot->m_memwriters.size());
-	for(size_t i = 0; i < table_writer_snapshot->m_memwriters.size(); ++i)
-	{
-		IteratorPtr iter = table_writer_snapshot->m_memwriters[i]->NewIterator();
-		m_iters.push_back(iter);
-	}
-}
-
 } 
 
 

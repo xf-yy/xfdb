@@ -104,6 +104,10 @@ Status ReadOnlyEngine::Close()
 	return OK;
 }
 
+DBImplPtr ReadOnlyEngine::NewDB(const DBConfig& conf, const std::string& db_path)
+{
+	return NewReadOnlyDB(this, conf, db_path);
+}
 
 ////////////////////////////////////////////////////////////////////////////////////
 void ReadOnlyEngine::PostNotifyData(const NotifyData& nd)

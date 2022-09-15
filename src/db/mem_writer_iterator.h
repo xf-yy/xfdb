@@ -102,56 +102,6 @@ private:
 	ReadWriteMemWriterIterator& operator=(const ReadWriteMemWriterIterator&) = delete;
 };
 
-class TableWriterSnapshotIterator : public Iterator 
-{
-public:
-	TableWriterSnapshotIterator(const TableWriterSnapshotPtr& table_writer_snapshot);
-	virtual ~TableWriterSnapshotIterator(){}
-
-public:
-	/**移到第1个元素处*/
-	virtual void First() override
-	{
-		for(size_t i = 0; i < m_iters.size(); ++i)
-		{
-			m_iters[i]->First();
-		}
-	}
-	/**移到最后1个元素处*/
-	//virtual void Last() = 0;
-	
-	/**移到到>=key的地方*/
-	virtual void Seek(const StrView& key) override {};
-	
-	/**向后移到一个元素*/
-	virtual void Next() override
-	{
-		//找最小key
-	}
-	//virtual void Prev() = 0;
-
-	/**是否还有下一个元素*/
-	virtual bool Valid()   override
-	{
-		//如果所有结束了，才返回true
-		assert(false);
-		return false;
-	}
-	
-	/**获取key和value*/
-	virtual ObjectType Type() override{assert(false);return DeleteType;};
-	virtual StrView Key() override{assert(false); return StrView();};
-	virtual StrView Value() override{assert(false); return StrView();};
-
-private:
-	TableWriterSnapshotPtr m_memwriter_snapshot;
-	std::vector<IteratorPtr> m_iters;
-
-private:
-	TableWriterSnapshotIterator(const TableWriterSnapshotIterator&) = delete;
-	TableWriterSnapshotIterator& operator=(const TableWriterSnapshotIterator&) = delete;
-};
-
 
 } 
 

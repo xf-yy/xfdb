@@ -75,7 +75,7 @@ void ReadOnlyBucket::GetStat(BucketStat& stat) const
 
 	if(trs_ptr)
 	{
-		trs_ptr->GetBucketStat(stat);
+		trs_ptr->GetStat(stat);
 	}
 }
 

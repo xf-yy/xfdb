@@ -338,9 +338,9 @@ typedef std::shared_ptr<TableReaderSnapshot> TableReaderSnapshotPtr;
 class Iterator;
 typedef std::shared_ptr<Iterator> IteratorPtr;
 
-class TableWriterSnapshotIterator;
-typedef std::shared_ptr<TableWriterSnapshotIterator> TableWriterSnapshotIteratorPtr;
-#define NewTableWriterSnapshotIterator 	std::make_shared<TableWriterSnapshotIterator>
+class TableReadersIterator;
+typedef std::shared_ptr<TableReadersIterator> TableReadersIteratorPtr;
+#define NewTableReadersIterator 	std::make_shared<TableReadersIterator>
 
 class WriteOnlyMemWriterIterator;
 typedef std::shared_ptr<WriteOnlyMemWriterIterator> WriteOnlyMemWriterIteratorPtr;

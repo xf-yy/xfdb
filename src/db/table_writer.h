@@ -46,9 +46,16 @@ public:
 		return m_buf.Usage();
 	}
 	
-	const ObjectStat& GetObjectStat() const
+	void GetStat(BucketStat& stat) const
 	{
-		return m_object_stat;
+		stat.memwriter_stat.Add(Size());
+		stat.object_stat.Add(m_object_stat);
+	}
+
+	///////////////////////////////////////////////////////
+	inline uint64_t GetObjectCount()
+	{
+		return m_object_stat.Count();
 	}
 
 	/**最大object id*/

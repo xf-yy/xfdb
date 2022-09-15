@@ -19,7 +19,6 @@ limitations under the License.
 
 #include "xfdb/strutil.h"
 #include "types.h"
-#include "readonly_db.h"
 #include "notify_msg.h"
 #include "file_util.h"
 #include "thread.h"
@@ -44,10 +43,7 @@ public:
 	void PostNotifyData(const NotifyData& nd);
 
 protected:
-	virtual DBImplPtr NewDB(const DBConfig& conf, const std::string& db_path)
-	{
-		return std::dynamic_pointer_cast<DBImpl>(NewReadOnlyDB(this, conf, db_path));
-	}
+	virtual DBImplPtr NewDB(const DBConfig& conf, const std::string& db_path);
 	
 private:		
 	static void ProcessNotifyThread(size_t index, void* arg);

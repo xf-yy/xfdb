@@ -110,6 +110,11 @@ Status WritableEngine::Close()
 	return OK;
 }
 
+DBImplPtr WritableEngine::NewDB(const DBConfig& conf, const std::string& db_path)
+{
+	return NewWritableDB(this, conf, db_path);
+}
+
 Status WritableEngine::RemoveDB(const std::string& db_path)
 {
 	return WritableDB::Remove(db_path);

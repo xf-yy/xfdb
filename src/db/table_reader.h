@@ -46,7 +46,7 @@ public:
 	virtual uint64_t Size() const = 0;
 
 	/**获取统计*/
-	virtual const ObjectStat& GetObjectStat() const = 0;
+	virtual void GetStat(BucketStat& stat) const = 0;
 
 private:
 	TableReader(const TableReader&) = delete;

@@ -14,10 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#include "table_writer_snapshot.h"
-#include "table_writer.h"
-#include "mem_writer_iterator.h"
 #include "types.h"
+#include "table_writer.h"
+#include "table_reader_iterator.h"
+#include "table_writer_snapshot.h"
 
 namespace xfdb 
 {
@@ -27,15 +27,59 @@ TableWriterSnapshot::TableWriterSnapshot(TableWriterPtr& mem_table,        Table
 	if(last_snapshot != nullptr)
 	{
 		m_memwriters.reserve(last_snapshot->m_memwriters.size() + 1);
-		m_memwriters = last_snapshot->m_memwriters;
+		m_memwriters.insert(m_memwriters.end(), last_snapshot->m_memwriters.begin(), last_snapshot->m_memwriters.end());
 	}
 	m_memwriters.push_back(mem_table);
+
+	m_max_objectid = 0;
+}
+
+void TableWriterSnapshot::Sort()
+{
+	printf("TableWriterSnapshot size:%zd\n", m_memwriters.size());
+	//找最小，最大的key
+	for(size_t i = 0; i < m_memwriters.size(); ++i)
+	{
+		m_memwriters[i]->Sort();
+
+		if(m_upmost_key.Empty())
+		{
+			m_upmost_key = m_memwriters[i]->UpmostKey();
+		}
+		else if(m_upmost_key.Compare(m_memwriters[i]->UpmostKey()) < 0)
+		{
+			m_upmost_key = m_memwriters[i]->UpmostKey();
+		}
+		if(m_lowest_key.Empty())
+		{
+			m_lowest_key = m_memwriters[i]->LowestKey();
+		}
+		else if(m_lowest_key.Compare(m_memwriters[i]->LowestKey()) > 0)
+		{
+			m_lowest_key = m_memwriters[i]->LowestKey();
+		}
+		
+		if(m_max_objectid < m_memwriters[i]->GetMaxObjectID())
+		{
+			m_max_objectid = m_memwriters[i]->GetMaxObjectID();
+		}
+	}
 }
 
 IteratorPtr TableWriterSnapshot::NewIterator()
 {
-	TableWriterSnapshotPtr ptr = std::dynamic_pointer_cast<TableWriterSnapshot>(shared_from_this());
-	return NewTableWriterSnapshotIterator(ptr);
+	if(m_memwriters.size() == 1)
+	{
+		return m_memwriters[0]->NewIterator();
+	}
+	std::vector<IteratorPtr> iters;
+	iters.reserve(m_memwriters.size());
+
+	for(size_t i = 0; i < m_memwriters.size(); ++i)
+	{
+		iters.push_back(m_memwriters[i]->NewIterator());
+	}
+	return NewTableReadersIterator(iters);
 }
 
 Status TableWriterSnapshot::Get(const StrView& key, ObjectType& type, String& value) const
@@ -50,6 +94,28 @@ Status TableWriterSnapshot::Get(const StrView& key, ObjectType& type, String& va
 	return ERR_OBJECT_NOT_EXIST;
 }
 
+/**返回segment文件总大小*/
+uint64_t TableWriterSnapshot::Size() const
+{
+	uint64_t size = 0;
+	for(size_t i = 0; i < m_memwriters.size(); ++i)
+	{
+		size += m_memwriters[i]->Size();
+	}
+	return size;
+}
+
+/**获取统计*/
+void TableWriterSnapshot::GetStat(BucketStat& stat) const
+{
+	for(size_t i = 0; i < m_memwriters.size(); ++i)
+	{
+		//FIXME: 识别memwriter类型？
+		
+		stat.memwriter_stat.Add(m_memwriters[i]->Size());
+		m_memwriters[i]->GetStat(stat);
+	}
+}
 
 }  
 

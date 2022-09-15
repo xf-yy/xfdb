@@ -62,8 +62,7 @@ private:
 	Status Create();
 
 	Status WriteSegment();			//同步刷盘
-	Status WriteSegment(TableReaderPtr& reader, fileid_t new_segment_fileid, SegmentFileIndex& seginfo);
-	Status WriteSegment(std::map<fileid_t, TableReaderPtr>& readers);
+	Status WriteSegment(TableWriterSnapshotPtr& memwriter_snapshot, fileid_t fileid, SegmentReaderPtr& new_segment_reader);
 	Status WriteBucketMeta();		//同步刷盘
 	void FlushMemWriter();
 
@@ -76,7 +75,6 @@ private:
 private:
 	fileid_t SelectNewSegmentFileID(MergingSegmentInfo& msinfo);
 	void FillAliveSegmentInfos(TableReaderSnapshotPtr& trs_ptr, std::vector<fileid_t>& writed_segment_fileids, BucketMetaData& md);
-	void UpdateReaderSnapshot(std::map<fileid_t, TableReaderPtr>& readers, TableReaderSnapshotPtr& prev_reader_snapshot);
 	void UpdateReaderSnapshot(MergingSegmentInfo& msinfo);
 
 protected:

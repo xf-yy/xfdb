@@ -39,10 +39,11 @@ class SegmentLevelInfo
 };
 #endif
 
-class TableReaderSnapshot : public std::enable_shared_from_this<TableReaderSnapshot>
+class TableReaderSnapshot
 {
 public:
-	TableReaderSnapshot(std::map<fileid_t, TableReaderPtr>& readers);
+	TableReaderSnapshot(TableReaderPtr reader, fileid_t fileid, TableReaderSnapshot* prev_snapshot = nullptr);
+	TableReaderSnapshot(const std::map<fileid_t, TableReaderPtr>& new_readers);
 	~TableReaderSnapshot();
 
 public:	
@@ -50,7 +51,7 @@ public:
 	
 	IteratorPtr NewIterator();
 	
-	void GetBucketStat(BucketStat& stat) const;
+	void GetStat(BucketStat& stat) const;
 	
 	inline const std::map<fileid_t, TableReaderPtr>& Readers() const
 	{

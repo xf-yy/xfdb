@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_memwriter_snapshot_h__
-#define __xfdb_memwriter_snapshot_h__
+#ifndef __xfdb_table_writer_snapshot_h__
+#define __xfdb_table_writer_snapshot_h__
 
 #include <deque>
 #include <map>
@@ -26,25 +26,50 @@ limitations under the License.
 namespace xfdb 
 {
 
-class TableWriterSnapshot : public std::enable_shared_from_this<TableWriterSnapshot>
+class TableWriterSnapshot : public TableReader
 {
 public:
-	TableWriterSnapshot(TableWriterPtr& mem_table,        TableWriterSnapshot* last_snapshot = nullptr);
+	TableWriterSnapshot(TableWriterPtr& mem_table,         TableWriterSnapshot* last_snapshot = nullptr);
 	~TableWriterSnapshot(){}
 	
 public:	
-	Status Get(const StrView& key, ObjectType& type, String& value) const;
+	void Sort();
 	
-	IteratorPtr NewIterator();
+	Status Get(const StrView& key, ObjectType& type, String& value) const override;
 	
-	inline const std::vector<TableWriterPtr>& TableWriters() const
+	IteratorPtr NewIterator() override;
+
+	/**最大key*/
+	StrView UpmostKey() const override
 	{
-		return m_memwriters;
+		return m_upmost_key;
+	}
+	/**最小key*/
+	StrView LowestKey() const  override
+	{
+		return m_lowest_key;
+	}
+	
+	/**返回segment文件总大小*/
+	uint64_t Size() const override;
+
+	/**获取统计*/
+	void GetStat(BucketStat& stat) const override;
+
+	/////////////////////////////////////////////////////////
+	/**最大object id*/
+	inline objectid_t GetMaxObjectID()
+	{
+		return m_max_objectid;
 	}
 		
 private:
 	std::vector<TableWriterPtr> m_memwriters;
-	friend class TableWriterSnapshotIterator;
+	StrView m_upmost_key;
+	StrView m_lowest_key;
+	objectid_t m_max_objectid;
+	
+	friend class TableReadersIterator;
 	
 private:
 	TableWriterSnapshot(const TableWriterSnapshot&) = delete;
