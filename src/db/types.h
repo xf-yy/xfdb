@@ -59,15 +59,15 @@ static_assert(MIN_OBJECTID > 0, "invalid MIN_OBJECTID");
 #define MAX_BUCKETID				(bucketid_t(-1) - 1)		//32bit
 static_assert(MIN_BUCKETID > 0, "invalid MIN_BUCKETID");
 
-#define MAX_KEY_SIZE				(64*1024)
+#define MAX_KEY_SIZE				(16*1024)
 #define MAX_VALUE_SIZE				(64*1024)
 static_assert(MAX_KEY_SIZE <= 64*1024, "invalid MAX_KEY_SIZE");				//不能超16bit大小
 static_assert(MAX_VALUE_SIZE <= 64*1024, "invalid MAX_VALUE_SIZE");			//待支持kv分离时，可支持大value
 
 #define EXTRA_OBJECT_SIZE			(256)		//object相关属性估值
 #define MAX_OBJECT_SIZE				(MAX_KEY_SIZE + MAX_VALUE_SIZE + EXTRA_OBJECT_SIZE)
-#define MAX_COMPRESS_BLOCK_SIZE		(96*1024)	//启用压缩时的块大小
 #define MAX_UNCOMPRESS_BLOCK_SIZE	(32*1024)	//未启用压缩时的块大小
+#define MAX_COMPRESS_BLOCK_SIZE		(3*MAX_COMPRESS_BLOCK_SIZE)	//启用压缩时的块大小
 #define MAX_BUFFER_SIZE				(MAX_COMPRESS_BLOCK_SIZE + MAX_OBJECT_SIZE)
 
 #define MEM_BLOCK_SIZE				(256*1024)
@@ -218,30 +218,27 @@ struct SegmentFileIndex
 };
 
 #define MAX_OBJECT_NUM_OF_GROUP		(8)
-#define MAX_GROUP_NUM_OF_CHUNK		(8)
-#define MAX_CHUNK_NUM_OF_BLOCK		(8)
+#define MAX_OBJECT_NUM_OF_BLOCK		(MAX_OBJECT_NUM_OF_GROUP*MAX_OBJECT_NUM_OF_GROUP*MAX_OBJECT_NUM_OF_GROUP)
 
-#define MAX_OBJECT_NUM_OF_BLOCK		(MAX_CHUNK_NUM_OF_BLOCK*MAX_GROUP_NUM_OF_CHUNK*MAX_OBJECT_NUM_OF_GROUP)
-
-struct ChunkIndex
+struct LnGroupIndex
 {
 	StrView start_key;
-	uint32_t chunk_size;
+	uint32_t group_size;
 	uint32_t index_size;
 
-	ChunkIndex()
+	LnGroupIndex()
 	{
-		chunk_size = 0;
+		group_size = 0;
 		index_size = 0;
 	}
 };
 
-struct GroupIndex
+struct L0GroupIndex
 {
 	StrView start_key;
 	uint32_t group_size;
 
-	GroupIndex()
+	L0GroupIndex()
 	{
 		group_size = 0;
 	}

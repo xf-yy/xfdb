@@ -45,10 +45,10 @@ Status DataReader::Open(const char* bucket_path, fileid_t fileid)
 	return OK;
 }
 
-Status DataReader::SearchGroup(const byte_t* group, uint32_t chunk_size, const GroupIndex& group_index, const StrView& key, ObjectType& type, String& value) const
+Status DataReader::SearchGroup(const byte_t* group, uint32_t group_size, const L0GroupIndex& group_index, const StrView& key, ObjectType& type, String& value) const
 {
-	assert(chunk_size != 0);
-	const byte_t* group_end = group + chunk_size;
+	assert(group_size != 0);
+	const byte_t* group_end = group + group_size;
 	const byte_t* data_ptr = group;
 
 	String prev_str1, prev_str2;
@@ -79,15 +79,15 @@ Status DataReader::SearchGroup(const byte_t* group, uint32_t chunk_size, const G
 	return ERR_OBJECT_NOT_EXIST;
 }
 
-Status DataReader::SearchChunk(const byte_t* chunk, uint32_t chunk_size, const ChunkIndex& chunk_index, const StrView& key, ObjectType& type, String& value) const
+Status DataReader::SearchChunk(const byte_t* chunk, uint32_t group_size, const LnGroupIndex& chunk_index, const StrView& key, ObjectType& type, String& value) const
 {
-	assert(chunk_size != 0);
-	const byte_t* chunk_end = chunk + chunk_size;
+	assert(group_size != 0);
+	const byte_t* chunk_end = chunk + group_size;
 	const byte_t* index_ptr = chunk_end - chunk_index.index_size;
 	const byte_t* group_ptr = chunk;
 	
 	String prev_str1, prev_str2;
-	GroupIndex group_index;
+	L0GroupIndex group_index;
 	StrView prev_key = chunk_index.start_key;
 	
 	while(index_ptr < chunk_end)
@@ -126,7 +126,7 @@ Status DataReader::SearchBlock(const byte_t* block, uint32_t block_size, const S
 	
 	//找到第1个大于key的chunk
 	String prev_str1, prev_str2;
-	ChunkIndex chunk_index;
+	LnGroupIndex chunk_index;
 	StrView prev_key;
 
 	const byte_t* index_end = block_end - sizeof(uint32_t); //crc长度
@@ -143,18 +143,18 @@ Status DataReader::SearchBlock(const byte_t* block, uint32_t block_size, const S
 		}
 		
 		chunk_index.start_key = curr_key;
-		chunk_index.chunk_size = DecodeV32(index_ptr, index_end);
+		chunk_index.group_size = DecodeV32(index_ptr, index_end);
 		chunk_index.index_size = DecodeV32(index_ptr, index_end);
 
 		//前后key比较	
 		if(ret == 0)
 		{
-			return SearchChunk(chunk_ptr, chunk_index.chunk_size, chunk_index, key, type, value);
+			return SearchChunk(chunk_ptr, chunk_index.group_size, chunk_index, key, type, value);
 		}
-		chunk_ptr += chunk_index.chunk_size;
+		chunk_ptr += chunk_index.group_size;
 		prev_key = curr_key;
 	}
-	return SearchChunk(chunk_ptr-chunk_index.chunk_size, chunk_index.chunk_size, chunk_index, key, type, value);;
+	return SearchChunk(chunk_ptr-chunk_index.group_size, chunk_index.group_size, chunk_index, key, type, value);;
 }
 
 Status DataReader::Search(const SegmentL0Index& L0_index, const StrView& key, ObjectType& type, String& value) const
@@ -244,7 +244,7 @@ StrView DataWriter::ClonePrevKey(const StrView& str)
 	return StrView(m_prev_key.Data(), m_prev_key.Size());
 }
 
-Status DataWriter::FillGroup(Iterator& iter, GroupIndex& gi)
+Status DataWriter::FillGroup(Iterator& iter, L0GroupIndex& gi)
 {
 	if(!iter.Valid())
 	{
@@ -296,7 +296,7 @@ Status DataWriter::FillGroup(Iterator& iter, GroupIndex& gi)
 }
 
 
-Status DataWriter::FillGroupIndex(const GroupIndex* group_indexs, int index_cnt)
+Status DataWriter::FillGroupIndex(const L0GroupIndex* group_indexs, int index_cnt)
 {
 	StrView prev_key = group_indexs[0].start_key;
 	for(int i = 0; i < index_cnt; ++i)
@@ -316,7 +316,7 @@ Status DataWriter::FillGroupIndex(const GroupIndex* group_indexs, int index_cnt)
 	return OK;
 }
 
-Status DataWriter::FillChunk(Iterator& iter, ChunkIndex& ci)
+Status DataWriter::FillChunk(Iterator& iter, LnGroupIndex& ci)
 {
 	if(!iter.Valid())
 	{
@@ -327,9 +327,9 @@ Status DataWriter::FillChunk(Iterator& iter, ChunkIndex& ci)
 	Status s = ERR_BUFFER_FULL;
 	byte_t* chunk_start = m_block_ptr;
 	
-	GroupIndex gis[MAX_GROUP_NUM_OF_CHUNK];
+	L0GroupIndex gis[MAX_OBJECT_NUM_OF_GROUP];
 	int gi_cnt = 0;
-	for(; gi_cnt < MAX_GROUP_NUM_OF_CHUNK && iter.Valid(); ++gi_cnt)
+	for(; gi_cnt < MAX_OBJECT_NUM_OF_GROUP && iter.Valid(); ++gi_cnt)
 	{
 		s = FillGroup(iter, gis[gi_cnt]);
 		if(s != OK)
@@ -345,12 +345,12 @@ Status DataWriter::FillChunk(Iterator& iter, ChunkIndex& ci)
 	
 	FillGroupIndex(gis, gi_cnt);
 
-	ci.chunk_size = m_block_ptr - chunk_start;
+	ci.group_size = m_block_ptr - chunk_start;
 	ci.index_size = m_block_ptr - chunk_index_start;
 	return s;
 }
 
-Status DataWriter::FillChunkIndex(const ChunkIndex* chunk_indexs, int index_cnt)
+Status DataWriter::FillChunkIndex(const LnGroupIndex* chunk_indexs, int index_cnt)
 {
 	StrView prev_key;
 	for(int i = 0; i < index_cnt; ++i)
@@ -363,7 +363,7 @@ Status DataWriter::FillChunkIndex(const ChunkIndex* chunk_indexs, int index_cnt)
 		uint32_t nonshared_size = key.size - shared_keysize;
 		m_block_ptr = EncodeString(m_block_ptr, &key.data[shared_keysize], nonshared_size);
 
-		m_block_ptr = EncodeV32(m_block_ptr, chunk_indexs[i].chunk_size);
+		m_block_ptr = EncodeV32(m_block_ptr, chunk_indexs[i].group_size);
 		m_block_ptr = EncodeV32(m_block_ptr, chunk_indexs[i].index_size);
 
 		prev_key = key;
@@ -378,14 +378,14 @@ Status DataWriter::FillBlock(Iterator& iter, uint32_t& index_size)
 	
 	Status s = ERR_BUFFER_FULL;
 	
-	ChunkIndex cis[MAX_CHUNK_NUM_OF_BLOCK];
+	LnGroupIndex cis[MAX_OBJECT_NUM_OF_GROUP];
 	int ci_cnt = 0;
-	for(; ci_cnt < MAX_CHUNK_NUM_OF_BLOCK && iter.Valid(); ++ci_cnt)
+	for(; ci_cnt < MAX_OBJECT_NUM_OF_GROUP && iter.Valid(); ++ci_cnt)
 	{
 		s = FillChunk(iter, cis[ci_cnt]);
 		if(s != OK)
 		{
-			if(cis[ci_cnt].chunk_size != 0)
+			if(cis[ci_cnt].group_size != 0)
 			{
 				++ci_cnt;
 			}

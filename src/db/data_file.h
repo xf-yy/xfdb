@@ -42,8 +42,8 @@ public:
 
 private:
 	Status SearchBlock(const byte_t* block, uint32_t block_size, const SegmentL0Index& L0_index, const StrView& key, ObjectType& type, String& value) const;
-	Status SearchChunk(const byte_t* chunk, uint32_t chunk_size, const ChunkIndex& chunk_index, const StrView& key, ObjectType& type, String& value) const;
-	Status SearchGroup(const byte_t* group, uint32_t chunk_size, const GroupIndex& group_index, const StrView& key, ObjectType& type, String& value) const;
+	Status SearchChunk(const byte_t* chunk, uint32_t group_size, const LnGroupIndex& chunk_index, const StrView& key, ObjectType& type, String& value) const;
+	Status SearchGroup(const byte_t* group, uint32_t group_size, const L0GroupIndex& group_index, const StrView& key, ObjectType& type, String& value) const;
 
 private:
 	File m_file;
@@ -73,11 +73,11 @@ public:
 	static Status Remove(const char* bucket_path, fileid_t fileid);
 	
 private:
-	Status FillGroup(Iterator& iter, GroupIndex& gi);
-	Status FillChunk(Iterator& iter, ChunkIndex& ci);
+	Status FillGroup(Iterator& iter, L0GroupIndex& gi);
+	Status FillChunk(Iterator& iter, LnGroupIndex& ci);
 	Status FillBlock(Iterator& iter, uint32_t& index_size);
-	Status FillGroupIndex(const GroupIndex* group_indexs, int index_cnt);
-	Status FillChunkIndex(const ChunkIndex* chunk_indexs, int index_cnt);
+	Status FillGroupIndex(const L0GroupIndex* group_indexs, int index_cnt);
+	Status FillChunkIndex(const LnGroupIndex* chunk_indexs, int index_cnt);
 	
 	StrView ClonePrevKey(const StrView& str);
 	StrView CloneKey(const StrView& str);

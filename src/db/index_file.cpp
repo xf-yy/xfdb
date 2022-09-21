@@ -313,17 +313,16 @@ Status IndexReader::ParseMeta(const byte_t* data, uint32_t meta_size)
 	return OK;
 }
 
-Status IndexReader::SearchGroup(const byte_t* group, uint32_t group_size, const GroupIndex& group_index, const StrView& key, SegmentL0Index& L0_index) const
+Status IndexReader::SearchGroup(const byte_t* group, uint32_t group_size, const L0GroupIndex& group_index, const StrView& key, SegmentL0Index& L0_index) const
 {
 	assert(group_size != 0);
 	const byte_t* group_end = group + group_size;
 
 	String prev_str1, prev_str2;
 	StrView prev_key = group_index.start_key;
-
-	const byte_t* data_ptr = group;
+	uint64_t prev_offset = 0;
 	
-	L0_index.L0offset = DecodeV64(data_ptr, group_end);
+	const byte_t* data_ptr = group;
 
 	while(data_ptr < group_end)
 	{
@@ -338,6 +337,9 @@ Status IndexReader::SearchGroup(const byte_t* group, uint32_t group_size, const 
 			break;
 		}
 		
+		L0_index.L0offset = DecodeV64(data_ptr, group_end);
+		L0_index.L0offset += prev_offset;
+		
 		//L0_index.start_key = curr_key;
 		L0_index.L0compress_size = DecodeV32(data_ptr, group_end);
 		uint32_t diff_size = DecodeV32(data_ptr, group_end);
@@ -348,24 +350,23 @@ Status IndexReader::SearchGroup(const byte_t* group, uint32_t group_size, const 
 		{
 			return OK;
 		}
-		L0_index.L0offset += L0_index.L0compress_size;
 		
 		prev_key = curr_key;
+		prev_offset = L0_index.L0offset;
 		
 	}
-	L0_index.L0offset -= L0_index.L0compress_size;
 	return OK;
 }
 
-Status IndexReader::SearchChunk(const byte_t* chunk, uint32_t chunk_size, const ChunkIndex& chunk_index, const StrView& key, SegmentL0Index& L0_index) const
+Status IndexReader::SearchChunk(const byte_t* chunk, uint32_t group_size, const LnGroupIndex& chunk_index, const StrView& key, SegmentL0Index& L0_index) const
 {
-	assert(chunk_size != 0);
-	const byte_t* chunk_end = chunk + chunk_size;
+	assert(group_size != 0);
+	const byte_t* chunk_end = chunk + group_size;
 	const byte_t* index_ptr = chunk_end - chunk_index.index_size;
 	const byte_t* group_ptr = chunk;
 
 	String prev_str1, prev_str2;
-	GroupIndex group_index;
+	L0GroupIndex group_index;
 	StrView prev_key = chunk_index.start_key;
 	
 	while(index_ptr < chunk_end)
@@ -403,7 +404,7 @@ Status IndexReader::SearchBlock(const byte_t* block, uint32_t block_size, const 
 	const byte_t* chunk_ptr = block;
 	
 	//找到第1个大于key的chunk
-	ChunkIndex chunk_index;
+	LnGroupIndex chunk_index;
 
 	String prev_str1, prev_str2;
 	StrView prev_key = L1Index->start_key;
@@ -423,20 +424,20 @@ Status IndexReader::SearchBlock(const byte_t* block, uint32_t block_size, const 
 		}
 		
 		chunk_index.start_key = curr_key;
-		chunk_index.chunk_size = DecodeV32(index_ptr, index_end);
+		chunk_index.group_size = DecodeV32(index_ptr, index_end);
 		chunk_index.index_size = DecodeV32(index_ptr, index_end);
 
 		if(ret == 0)
 		{
-			return SearchChunk(chunk_ptr, chunk_index.chunk_size, chunk_index, key, L0_index);
+			return SearchChunk(chunk_ptr, chunk_index.group_size, chunk_index, key, L0_index);
 		}
 		
-		chunk_ptr += chunk_index.chunk_size;
+		chunk_ptr += chunk_index.group_size;
 
 		prev_key = curr_key;
 	}
 	
-	return SearchChunk(chunk_ptr-chunk_index.chunk_size, chunk_index.chunk_size, chunk_index, key, L0_index);
+	return SearchChunk(chunk_ptr-chunk_index.group_size, chunk_index.group_size, chunk_index, key, L0_index);
 }
 
 const SegmentL1Index* IndexReader::Search(const StrView& key) const
@@ -552,7 +553,7 @@ StrView IndexWriter::CloneKey(const StrView& str, WriteBuffer& buf)
 	return StrView((char*)p, str.size);
 }
 
-Status IndexWriter::FillGroup(uint32_t& L0_idx, GroupIndex& gi)
+Status IndexWriter::FillGroup(uint32_t& L0_idx, L0GroupIndex& gi)
 {	
 	if(L0_idx >= m_L0index_cnt)
 	{
@@ -560,11 +561,11 @@ Status IndexWriter::FillGroup(uint32_t& L0_idx, GroupIndex& gi)
 	}
 	gi.start_key = CloneKey(m_L0indexs[L0_idx].start_key, m_L1key_buf);	
 	StrView prev_key = gi.start_key;
+	uint64_t prev_offset = 0;
 	
 	Status s = OK;
 	byte_t* group_start = m_block_ptr;
-
-	m_block_ptr = EncodeV64(m_block_ptr, m_L0indexs[L0_idx].L0offset);
+	
 	for(int i = 0; i < MAX_OBJECT_NUM_OF_GROUP && L0_idx < m_L0index_cnt; ++i)
 	{
 		const SegmentL0Index& L0indexs = m_L0indexs[L0_idx];
@@ -582,6 +583,9 @@ Status IndexWriter::FillGroup(uint32_t& L0_idx, GroupIndex& gi)
 		m_block_ptr = EncodeV32(m_block_ptr, shared_keysize);
 		uint32_t nonshared_size = key.size - shared_keysize;
 		m_block_ptr = EncodeString(m_block_ptr, &key.data[shared_keysize], nonshared_size);
+
+		assert(L0indexs.L0offset > prev_offset);
+		m_block_ptr = EncodeV64(m_block_ptr, L0indexs.L0offset-prev_offset);
 		
 		m_block_ptr = EncodeV32(m_block_ptr, L0indexs.L0compress_size);
 		m_block_ptr = EncodeV32(m_block_ptr, L0indexs.L0origin_size - L0indexs.L0compress_size);
@@ -589,6 +593,7 @@ Status IndexWriter::FillGroup(uint32_t& L0_idx, GroupIndex& gi)
 
 		//此key非临时key，无需clone
 		prev_key = key;
+		prev_offset = L0indexs.L0offset;
 		++L0_idx;
 
 		//当block超过一定大小时，结束该block
@@ -602,7 +607,7 @@ Status IndexWriter::FillGroup(uint32_t& L0_idx, GroupIndex& gi)
 	return s;	
 }
 
-Status IndexWriter::FillGroupIndex(const GroupIndex* group_indexs, int index_cnt)
+Status IndexWriter::FillGroupIndex(const L0GroupIndex* group_indexs, int index_cnt)
 {
 	StrView prev_key = group_indexs[0].start_key;
 	for(int i = 0; i < index_cnt; ++i)
@@ -622,7 +627,7 @@ Status IndexWriter::FillGroupIndex(const GroupIndex* group_indexs, int index_cnt
 	return OK;
 }
 
-Status IndexWriter::FillChunk(uint32_t& L0_idx, ChunkIndex& ci)
+Status IndexWriter::FillChunk(uint32_t& L0_idx, LnGroupIndex& ci)
 {
 	if(L0_idx >= m_L0index_cnt)
 	{
@@ -633,9 +638,9 @@ Status IndexWriter::FillChunk(uint32_t& L0_idx, ChunkIndex& ci)
 	Status s = ERR_BUFFER_FULL;
 	byte_t* chunk_start = m_block_ptr;
 
-	GroupIndex gis[MAX_GROUP_NUM_OF_CHUNK];
+	L0GroupIndex gis[MAX_OBJECT_NUM_OF_GROUP];
 	int gi_cnt = 0;
-	for(; gi_cnt < MAX_GROUP_NUM_OF_CHUNK && L0_idx < m_L0index_cnt; ++gi_cnt)
+	for(; gi_cnt < MAX_OBJECT_NUM_OF_GROUP && L0_idx < m_L0index_cnt; ++gi_cnt)
 	{
 		s = FillGroup(L0_idx, gis[gi_cnt]);
 		if(s != OK)
@@ -651,12 +656,12 @@ Status IndexWriter::FillChunk(uint32_t& L0_idx, ChunkIndex& ci)
 	
 	FillGroupIndex(gis, gi_cnt);
 
-	ci.chunk_size = m_block_ptr - chunk_start;
+	ci.group_size = m_block_ptr - chunk_start;
 	ci.index_size = m_block_ptr - chunk_index_start;
 	return s;	
 }
 
-Status IndexWriter::FillChunkIndex(const ChunkIndex* chunk_indexs, int index_cnt)
+Status IndexWriter::FillChunkIndex(const LnGroupIndex* chunk_indexs, int index_cnt)
 {
 	StrView prev_key = chunk_indexs[0].start_key;
 	for(int i = 0; i < index_cnt; ++i)
@@ -669,7 +674,7 @@ Status IndexWriter::FillChunkIndex(const ChunkIndex* chunk_indexs, int index_cnt
 		uint32_t nonshared_size = key.size - shared_keysize;
 		m_block_ptr = EncodeString(m_block_ptr, &key.data[shared_keysize], nonshared_size);
 
-		m_block_ptr = EncodeV32(m_block_ptr, chunk_indexs[i].chunk_size);
+		m_block_ptr = EncodeV32(m_block_ptr, chunk_indexs[i].group_size);
 		m_block_ptr = EncodeV32(m_block_ptr, chunk_indexs[i].index_size);
 
 		prev_key = key;
@@ -686,14 +691,14 @@ Status IndexWriter::FillBlock(uint32_t& index_size)
 	uint32_t L0_idx = 0;
 	Status s = ERR_BUFFER_FULL;
 	
-	ChunkIndex cis[MAX_CHUNK_NUM_OF_BLOCK];
+	LnGroupIndex cis[MAX_OBJECT_NUM_OF_GROUP];
 	int ci_cnt = 0;
-	for(; ci_cnt < MAX_CHUNK_NUM_OF_BLOCK && L0_idx < m_L0index_cnt; ++ci_cnt)
+	for(; ci_cnt < MAX_OBJECT_NUM_OF_GROUP && L0_idx < m_L0index_cnt; ++ci_cnt)
 	{
 		s = FillChunk(L0_idx, cis[ci_cnt]);
 		if(s != OK)
 		{
-			if(cis[ci_cnt].chunk_size != 0)
+			if(cis[ci_cnt].group_size != 0)
 			{
 				++ci_cnt;
 			}

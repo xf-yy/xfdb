@@ -59,8 +59,8 @@ private:
 	const SegmentL1Index* Search(const StrView& key) const;
 
 	Status SearchBlock(const byte_t* block, uint32_t block_size, const SegmentL1Index* L1Index, const StrView& key, SegmentL0Index& L0_index) const;
-	Status SearchChunk(const byte_t* chunk, uint32_t chunk_size, const ChunkIndex& chunk_index, const StrView& key, SegmentL0Index& L0_index) const;
-	Status SearchGroup(const byte_t* group, uint32_t chunk_size, const GroupIndex& group_index, const StrView& key, SegmentL0Index& L0_index) const;
+	Status SearchChunk(const byte_t* chunk, uint32_t group_size, const LnGroupIndex& chunk_index, const StrView& key, SegmentL0Index& L0_index) const;
+	Status SearchGroup(const byte_t* group, uint32_t group_size, const L0GroupIndex& group_index, const StrView& key, SegmentL0Index& L0_index) const;
 
 	Status ParseL2Index(const byte_t* data, uint32_t L2index_meta_size);
 	Status ParseMeta(const byte_t* data, uint32_t metasize);
@@ -107,10 +107,10 @@ public:
 	static Status Remove(const char* bucket_path, fileid_t fileid);
 
 private:
-	Status FillGroup(uint32_t& L0_idx, GroupIndex& gi);
-	Status FillGroupIndex(const GroupIndex* group_indexs, int index_cnt);
-	Status FillChunk(uint32_t& L0_idx, ChunkIndex& ci);
-	Status FillChunkIndex(const ChunkIndex* chunk_indexs, int index_cnt);
+	Status FillGroup(uint32_t& L0_idx, L0GroupIndex& gi);
+	Status FillGroupIndex(const L0GroupIndex* group_indexs, int index_cnt);
+	Status FillChunk(uint32_t& L0_idx, LnGroupIndex& ci);
+	Status FillChunkIndex(const LnGroupIndex* chunk_indexs, int index_cnt);
 	Status FillBlock(uint32_t& index_size);
 	Status WriteBlock();
 	Status WriteL2Index(uint32_t& L2index_size);
