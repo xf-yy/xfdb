@@ -79,22 +79,22 @@ Status DataReader::SearchGroup(const byte_t* group, uint32_t group_size, const L
 	return ERR_OBJECT_NOT_EXIST;
 }
 
-Status DataReader::SearchChunk(const byte_t* chunk, uint32_t group_size, const LnGroupIndex& chunk_index, const StrView& key, ObjectType& type, String& value) const
+Status DataReader::SearchL2Group(const byte_t* group_start, uint32_t group_size, const LnGroupIndex& lngroup_index, const StrView& key, ObjectType& type, String& value) const
 {
 	assert(group_size != 0);
-	const byte_t* chunk_end = chunk + group_size;
-	const byte_t* index_ptr = chunk_end - chunk_index.index_size;
-	const byte_t* group_ptr = chunk;
+	const byte_t* group_end = group_start + group_size;
+	const byte_t* index_ptr = group_end - lngroup_index.index_size;
+	const byte_t* group_ptr = group_start;
 	
 	String prev_str1, prev_str2;
 	L0GroupIndex group_index;
-	StrView prev_key = chunk_index.start_key;
+	StrView prev_key = lngroup_index.start_key;
 	
-	while(index_ptr < chunk_end)
+	while(index_ptr < group_end)
 	{
 		//解group key
-		uint32_t shared_keysize = DecodeV32(index_ptr, chunk_end);
-		StrView nonshared_key = DecodeString(index_ptr, chunk_end);
+		uint32_t shared_keysize = DecodeV32(index_ptr, group_end);
+		StrView nonshared_key = DecodeString(index_ptr, group_end);
 		StrView curr_key = MakeKey(prev_key, shared_keysize, nonshared_key, prev_str1, prev_str2);
 		int ret = key.Compare(curr_key);
 		if(ret < 0)
@@ -103,7 +103,7 @@ Status DataReader::SearchChunk(const byte_t* chunk, uint32_t group_size, const L
 		}
 		
 		group_index.start_key = curr_key;
-		group_index.group_size = DecodeV32(index_ptr, chunk_end);
+		group_index.group_size = DecodeV32(index_ptr, group_end);
 		
 		if(ret == 0)
 		{
@@ -121,15 +121,15 @@ Status DataReader::SearchBlock(const byte_t* block, uint32_t block_size, const S
 {
 	assert(block_size != 0);
 	const byte_t* block_end = block + block_size;
-	const byte_t* index_ptr = block_end - L0_index.L0index_size;
-	const byte_t* chunk_ptr = block;
+	const byte_t* index_ptr = block_end - L0_index.L0index_size - sizeof(uint32_t)/*crc32*/;
+	const byte_t* group_ptr = block;
 	
-	//找到第1个大于key的chunk
+	//找到第1个大于key的group
 	String prev_str1, prev_str2;
-	LnGroupIndex chunk_index;
+	LnGroupIndex lngroup_index;
 	StrView prev_key;
 
-	const byte_t* index_end = block_end - sizeof(uint32_t); //crc长度
+	const byte_t* index_end = block_end - sizeof(uint32_t)/*crc32*/;
 	while(index_ptr < index_end)
 	{
 		uint32_t shared_keysize = DecodeV32(index_ptr, index_end);
@@ -142,19 +142,19 @@ Status DataReader::SearchBlock(const byte_t* block, uint32_t block_size, const S
 			break;
 		}
 		
-		chunk_index.start_key = curr_key;
-		chunk_index.group_size = DecodeV32(index_ptr, index_end);
-		chunk_index.index_size = DecodeV32(index_ptr, index_end);
+		lngroup_index.start_key = curr_key;
+		lngroup_index.group_size = DecodeV32(index_ptr, index_end);
+		lngroup_index.index_size = DecodeV32(index_ptr, index_end);
 
 		//前后key比较	
 		if(ret == 0)
 		{
-			return SearchChunk(chunk_ptr, chunk_index.group_size, chunk_index, key, type, value);
+			return SearchL2Group(group_ptr, lngroup_index.group_size, lngroup_index, key, type, value);
 		}
-		chunk_ptr += chunk_index.group_size;
+		group_ptr += lngroup_index.group_size;
 		prev_key = curr_key;
 	}
-	return SearchChunk(chunk_ptr-chunk_index.group_size, chunk_index.group_size, chunk_index, key, type, value);;
+	return SearchL2Group(group_ptr-lngroup_index.group_size, lngroup_index.group_size, lngroup_index, key, type, value);;
 }
 
 Status DataReader::Search(const SegmentL0Index& L0_index, const StrView& key, ObjectType& type, String& value) const
@@ -168,18 +168,17 @@ Status DataReader::Search(const SegmentL0Index& L0_index, const StrView& key, Ob
 	{
 		return ERR_MEMORY_NOT_ENOUGH;
 	}
+	BlockPoolGuard guard(m_pool, buf);
+	
 	int64_t r_size = m_file.Read(L0_index.L0offset, buf, L0_index.L0compress_size);
 	if((uint64_t)r_size != L0_index.L0compress_size)
 	{
-		m_pool.Free(buf);
 		return ERR_FILE_READ;
 	}
 	//TODO: 是否要解压
 	//TODO: 存cache
 	
-	Status s = SearchBlock(buf, r_size, L0_index, key, type, value);
-	m_pool.Free(buf);
-	return s;
+	return SearchBlock(buf, r_size, L0_index, key, type, value);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -244,7 +243,7 @@ StrView DataWriter::ClonePrevKey(const StrView& str)
 	return StrView(m_prev_key.Data(), m_prev_key.Size());
 }
 
-Status DataWriter::FillGroup(Iterator& iter, L0GroupIndex& gi)
+Status DataWriter::WriteGroup(Iterator& iter, L0GroupIndex& gi)
 {
 	if(!iter.Valid())
 	{
@@ -296,7 +295,7 @@ Status DataWriter::FillGroup(Iterator& iter, L0GroupIndex& gi)
 }
 
 
-Status DataWriter::FillGroupIndex(const L0GroupIndex* group_indexs, int index_cnt)
+Status DataWriter::WriteGroupIndex(const L0GroupIndex* group_indexs, int index_cnt)
 {
 	StrView prev_key = group_indexs[0].start_key;
 	for(int i = 0; i < index_cnt; ++i)
@@ -316,7 +315,7 @@ Status DataWriter::FillGroupIndex(const L0GroupIndex* group_indexs, int index_cn
 	return OK;
 }
 
-Status DataWriter::FillChunk(Iterator& iter, LnGroupIndex& ci)
+Status DataWriter::WriteL2Group(Iterator& iter, LnGroupIndex& ci)
 {
 	if(!iter.Valid())
 	{
@@ -325,13 +324,13 @@ Status DataWriter::FillChunk(Iterator& iter, LnGroupIndex& ci)
 	ci.start_key = CloneKey(iter.Key());
 	
 	Status s = ERR_BUFFER_FULL;
-	byte_t* chunk_start = m_block_ptr;
+	byte_t* group_start = m_block_ptr;
 	
 	L0GroupIndex gis[MAX_OBJECT_NUM_OF_GROUP];
 	int gi_cnt = 0;
 	for(; gi_cnt < MAX_OBJECT_NUM_OF_GROUP && iter.Valid(); ++gi_cnt)
 	{
-		s = FillGroup(iter, gis[gi_cnt]);
+		s = WriteGroup(iter, gis[gi_cnt]);
 		if(s != OK)
 		{
 			if(gis[gi_cnt].group_size != 0)
@@ -341,21 +340,21 @@ Status DataWriter::FillChunk(Iterator& iter, LnGroupIndex& ci)
 			break;
 		}
 	}
-	byte_t* chunk_index_start = m_block_ptr;
+	byte_t* group_index_start = m_block_ptr;
 	
-	FillGroupIndex(gis, gi_cnt);
+	WriteGroupIndex(gis, gi_cnt);
 
-	ci.group_size = m_block_ptr - chunk_start;
-	ci.index_size = m_block_ptr - chunk_index_start;
+	ci.group_size = m_block_ptr - group_start;
+	ci.index_size = m_block_ptr - group_index_start;
 	return s;
 }
 
-Status DataWriter::FillChunkIndex(const LnGroupIndex* chunk_indexs, int index_cnt)
+Status DataWriter::WriteL2GroupIndex(const LnGroupIndex* group_indexs, int index_cnt)
 {
 	StrView prev_key;
 	for(int i = 0; i < index_cnt; ++i)
 	{
-		StrView key = chunk_indexs[i].start_key;
+		StrView key = group_indexs[i].start_key;
 		
 		uint32_t shared_keysize = prev_key.GetPrefixLength(key);
 		m_block_ptr = EncodeV32(m_block_ptr, shared_keysize);
@@ -363,16 +362,15 @@ Status DataWriter::FillChunkIndex(const LnGroupIndex* chunk_indexs, int index_cn
 		uint32_t nonshared_size = key.size - shared_keysize;
 		m_block_ptr = EncodeString(m_block_ptr, &key.data[shared_keysize], nonshared_size);
 
-		m_block_ptr = EncodeV32(m_block_ptr, chunk_indexs[i].group_size);
-		m_block_ptr = EncodeV32(m_block_ptr, chunk_indexs[i].index_size);
+		m_block_ptr = EncodeV32(m_block_ptr, group_indexs[i].group_size);
+		m_block_ptr = EncodeV32(m_block_ptr, group_indexs[i].index_size);
 
 		prev_key = key;
 	}
-	m_block_ptr = Encode32(m_block_ptr, 0);	//FIXME: crc填0
 	return OK;
 }
 
-Status DataWriter::FillBlock(Iterator& iter, uint32_t& index_size)
+Status DataWriter::WriteBlock(Iterator& iter, uint32_t& index_size)
 {
 	assert(iter.Valid());
 	
@@ -382,7 +380,7 @@ Status DataWriter::FillBlock(Iterator& iter, uint32_t& index_size)
 	int ci_cnt = 0;
 	for(; ci_cnt < MAX_OBJECT_NUM_OF_GROUP && iter.Valid(); ++ci_cnt)
 	{
-		s = FillChunk(iter, cis[ci_cnt]);
+		s = WriteL2Group(iter, cis[ci_cnt]);
 		if(s != OK)
 		{
 			if(cis[ci_cnt].group_size != 0)
@@ -394,9 +392,11 @@ Status DataWriter::FillBlock(Iterator& iter, uint32_t& index_size)
 	}
 	byte_t* index_start = m_block_ptr;
 	
-	FillChunkIndex(cis, ci_cnt);
+	WriteL2GroupIndex(cis, ci_cnt);
 
 	index_size = m_block_ptr - index_start;
+	
+	m_block_ptr = Encode32(m_block_ptr, 0);	//FIXME: crc填0
 
 	return s;
 }
@@ -413,7 +413,7 @@ Status DataWriter::Write(Iterator& iter)
 		L0_index.L0offset = m_offset;
 		
 		uint32_t index_size;
-		FillBlock(iter, index_size);
+		WriteBlock(iter, index_size);
 
 		uint32_t block_size = m_block_ptr - m_block_start;
 		//TODO:压缩

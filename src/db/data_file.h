@@ -42,7 +42,7 @@ public:
 
 private:
 	Status SearchBlock(const byte_t* block, uint32_t block_size, const SegmentL0Index& L0_index, const StrView& key, ObjectType& type, String& value) const;
-	Status SearchChunk(const byte_t* chunk, uint32_t group_size, const LnGroupIndex& chunk_index, const StrView& key, ObjectType& type, String& value) const;
+	Status SearchL2Group(const byte_t* group_start, uint32_t group_size, const LnGroupIndex& group_index, const StrView& key, ObjectType& type, String& value) const;
 	Status SearchGroup(const byte_t* group, uint32_t group_size, const L0GroupIndex& group_index, const StrView& key, ObjectType& type, String& value) const;
 
 private:
@@ -73,11 +73,11 @@ public:
 	static Status Remove(const char* bucket_path, fileid_t fileid);
 	
 private:
-	Status FillGroup(Iterator& iter, L0GroupIndex& gi);
-	Status FillChunk(Iterator& iter, LnGroupIndex& ci);
-	Status FillBlock(Iterator& iter, uint32_t& index_size);
-	Status FillGroupIndex(const L0GroupIndex* group_indexs, int index_cnt);
-	Status FillChunkIndex(const LnGroupIndex* chunk_indexs, int index_cnt);
+	Status WriteGroup(Iterator& iter, L0GroupIndex& gi);
+	Status WriteL2Group(Iterator& iter, LnGroupIndex& ci);
+	Status WriteBlock(Iterator& iter, uint32_t& index_size);
+	Status WriteGroupIndex(const L0GroupIndex* group_indexs, int index_cnt);
+	Status WriteL2GroupIndex(const LnGroupIndex* group_indexs, int index_cnt);
 	
 	StrView ClonePrevKey(const StrView& str);
 	StrView CloneKey(const StrView& str);
