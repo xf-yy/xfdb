@@ -19,7 +19,7 @@ limitations under the License.
 #include "path.h"
 #include "coding.h"
 #include "file_util.h"
-#include "db_info_file.h"
+#include "db_meta_file.h"
 #include "writeonly_bucket.h"
 
 using namespace xfutil;
@@ -36,7 +36,7 @@ enum
 	MID_CREATE_TIME,
 };
 
-Status DbInfoFile::Read(const char* db_path, const char* file_name, DbInfoData& bd)
+Status DbMetaFile::Read(const char* db_path, const char* file_name, DbMetaData& bd)
 {
 	char full_path[MAX_PATH_LEN];
 	Path::Combine(full_path, sizeof(full_path), db_path, file_name);
@@ -50,7 +50,7 @@ Status DbInfoFile::Read(const char* db_path, const char* file_name, DbInfoData& 
 	return Parse((byte_t*)str.Data(), str.Size(), bd);
 }
 
-Status DbInfoFile::Write(const char* db_path, const char* file_name, DbInfoData& bd)
+Status DbMetaFile::Write(const char* db_path, const char* file_name, DbMetaData& bd)
 {
 	String str;
 	Status s = Serialize(bd, str);
@@ -91,7 +91,7 @@ static const bool ParseBucketInfo(const byte_t*& data, const byte_t* data_end, B
 	return false;
 }
 
-static const bool ParseBucketMeta(const byte_t*& data, const byte_t* data_end, DbInfoData& bd)
+static const bool ParseBucketMeta(const byte_t*& data, const byte_t* data_end, DbMetaData& bd)
 {
 	for(;;)
 	{
@@ -112,7 +112,7 @@ static const bool ParseBucketMeta(const byte_t*& data, const byte_t* data_end, D
 	return false;
 }
 
-static const bool ParseBucketData(const byte_t*& data, const byte_t* data_end, DbInfoData& bd)
+static const bool ParseBucketData(const byte_t*& data, const byte_t* data_end, DbMetaData& bd)
 {
 	uint32_t bucket_cnt = DecodeV32(data, data_end);
 	bd.alive_buckets.resize(bucket_cnt);
@@ -130,19 +130,19 @@ static const bool ParseBucketData(const byte_t*& data, const byte_t* data_end, D
 	return ParseBucketMeta(data, data_end, bd);
 }
 
-Status DbInfoFile::Parse(const byte_t* data, uint32_t size, DbInfoData& bd)
+Status DbMetaFile::Parse(const byte_t* data, uint32_t size, DbMetaData& bd)
 {
 	const byte_t* data_end = data + size;
 
 	FileHeader header;
-	if(!ParseDbInfoFileHeader(data, size, header))
+	if(!ParseDbMetaFileHeader(data, size, header))
 	{
 		return ERR_FILE_FORMAT;
 	}
 	return ParseBucketData(data, data_end, bd) ? OK : ERR_FILE_FORMAT;
 }
 
-Status DbInfoFile::Serialize(const DbInfoData& bd, String& str)
+Status DbMetaFile::Serialize(const DbMetaData& bd, String& str)
 {
 	uint32_t esize = EstimateSize(bd);
 	if(!str.Reserve(esize))
@@ -150,7 +150,7 @@ Status DbInfoFile::Serialize(const DbInfoData& bd, String& str)
 		return ERR_MEMORY_NOT_ENOUGH;
 	}
 	
-	byte_t* ptr = FillDbInfoFileHeader((byte_t*)str.Data());
+	byte_t* ptr = WriteDbMetaFileHeader((byte_t*)str.Data());
 	assert(ptr - (byte_t*)str.Data() == FILE_HEAD_SIZE);
 		
 	uint32_t bucket_cnt = bd.alive_buckets.size();
@@ -189,7 +189,7 @@ static constexpr uint32_t EstimateBucketInfoSize()
 	return MAX_BUCKET_NAME_LEN+(MAX_V32_SIZE + MAX_V64_SIZE)*4/*属性数*/;
 }
 
-uint32_t DbInfoFile::EstimateSize(const DbInfoData& bd)
+uint32_t DbMetaFile::EstimateSize(const DbMetaData& bd)
 {
 	//重新计算
 	return    FILE_HEAD_SIZE 
@@ -200,10 +200,10 @@ uint32_t DbInfoFile::EstimateSize(const DbInfoData& bd)
 			
 }
 
-Status DbInfoFile::Remove(const char* db_path, const char* file_name)
+Status DbMetaFile::Remove(const char* db_path, const char* file_name)
 {
-	DbInfoData bld;
-	Status s = DbInfoFile::Read(db_path, file_name, bld);
+	DbMetaData bld;
+	Status s = DbMetaFile::Read(db_path, file_name, bld);
 	if(s != OK)
 	{
 		assert(s != ERR_FILE_READ);
@@ -221,7 +221,7 @@ Status DbInfoFile::Remove(const char* db_path, const char* file_name)
 			return s;
 		}
 	}
-	MakeDbInfoFilePath(db_path, file_name, path);
+	MakeDbMetaFilePath(db_path, file_name, path);
 	return File::Remove(path) ? OK : ERR_PATH_DELETE;
 }
 

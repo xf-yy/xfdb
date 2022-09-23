@@ -46,8 +46,8 @@ Status WritableEngine::Start()
 	{
 	}
 	
-	m_part_merge_threadgroup.Start(m_conf.part_merge_db_thread_num, PartMergeThread, this);
-	m_full_merge_threadgroup.Start(m_conf.full_merge_db_thread_num, FullMergeThread, this);
+	m_part_merge_threadgroup.Start(m_conf.part_merge_thread_num, PartMergeThread, this);
+	m_full_merge_threadgroup.Start(m_conf.full_merge_thread_num, FullMergeThread, this);
 	
 	m_write_segment_threadgroup.Start(m_conf.write_segment_thread_num, WriteSegmentThread, this);
 	
@@ -198,11 +198,11 @@ void WritableEngine::WriteMetaThread(size_t index, void* arg)
 			assert(bucket);
 			bucket->WriteBucketMeta();
 		}
-		else if(msg.type == NOTIFY_WRITE_DB_INFO)
+		else if(msg.type == NOTIFY_WRITE_DB_META)
 		{
 			WritableDBPtr db = std::dynamic_pointer_cast<WritableDB>(msg.db);
 			assert(db);
-			db->WriteDbInfo();
+			db->WriteDbMeta();
 		}
 		else
 		{

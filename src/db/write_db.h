@@ -26,7 +26,7 @@ limitations under the License.
 #include "lock_file.h"
 #include "db_impl.h"
 #include "write_engine.h"
-#include "db_info_file.h"
+#include "db_meta_file.h"
 
 namespace xfdb 
 {
@@ -79,9 +79,9 @@ private:
 	Status CleanBucket();
 	Status CleanBucket(const std::string& bucket_name);
 
-	Status CleanDbInfo();
-	Status WriteDbInfo();
-	void FillDbInfoData(DbInfoData& bd);
+	Status CleanDbMeta();
+	Status WriteDbMeta();
+	void WriteDbMetaData(DbMetaData& bd);
 
 private:
 	//engine
@@ -91,7 +91,7 @@ private:
 	LockFile m_lock_file;
 
 	//待删除的dbinfo文件,如果有删除的bucket，则删除bucket后才能删除dbinfo文件
-	std::deque<FileName> m_delete_dbinfo_files; 
+	std::deque<FileName> m_delete_dbmeta_files; 
 	
 	//已删除但还未写入dbinfo中的bucket
 	std::map<bucketid_t, std::string> m_deleting_buckets;

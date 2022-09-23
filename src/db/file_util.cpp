@@ -166,7 +166,7 @@ bool ParseHeader(const byte_t* &data, size_t size, const char expect_magic[FILE_
 	return true;
 }
 
-byte_t* FillHeader(byte_t* data, const char magic[FILE_MAGIC_SIZE], uint16_t version)
+byte_t* WriteHeader(byte_t* data, const char magic[FILE_MAGIC_SIZE], uint16_t version)
 {
 	memcpy(data, magic, FILE_MAGIC_SIZE);
 	memset(data+FILE_MAGIC_SIZE, 0x00, FILE_HEAD_SIZE-FILE_MAGIC_SIZE);

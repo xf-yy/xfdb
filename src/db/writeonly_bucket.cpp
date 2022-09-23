@@ -43,7 +43,7 @@ WriteOnlyBucket::~WriteOnlyBucket()
 TableWriterPtr WriteOnlyBucket::NewTableWriter(WritableEngine* engine)
 {
 	assert(!(engine->m_conf.mode & MODE_READONLY));
-	return NewWriteOnlyMemWriter(engine->m_pool, engine->m_conf.max_object_num_of_memwriter);
+	return NewWriteOnlyMemWriter(engine->m_pool, engine->m_conf.max_object_num_of_memtable);
 }
 
 Status WriteOnlyBucket::Create()
@@ -146,7 +146,7 @@ Status WriteOnlyBucket::Write(const Object* object)
 	}
 	++m_next_objectid;
 	
-	if(m_memwriter->Size() >= m_engine->GetConfig().max_memwriter_size || m_memwriter->GetObjectCount() >= m_engine->GetConfig().max_object_num_of_memwriter)
+	if(m_memwriter->Size() >= m_engine->GetConfig().max_memtable_size || m_memwriter->GetObjectCount() >= m_engine->GetConfig().max_object_num_of_memtable)
 	{
 		FlushMemWriter();
 	}
@@ -427,7 +427,7 @@ Status WriteOnlyBucket::PartMerge()
 	//bool need_merge = new_segment_snapshot->NeedMerge();
 }
 
-void WriteOnlyBucket::FillAliveSegmentInfos(TableReaderSnapshotPtr& trs_ptr, std::vector<fileid_t>& writed_segment_fileids, BucketMetaData& md)
+void WriteOnlyBucket::WriteAliveSegmentInfos(TableReaderSnapshotPtr& trs_ptr, std::vector<fileid_t>& writed_segment_fileids, BucketMetaData& md)
 {
 	const std::map<fileid_t, TableReaderPtr>& readers = trs_ptr->Readers();
 	assert(!readers.empty());
@@ -478,7 +478,7 @@ Status WriteOnlyBucket::WriteBucketMeta()
 		trs_ptr = m_reader_snapshot;
 	}
 	
-	FillAliveSegmentInfos(trs_ptr, writed_segment_fileids, md);
+	WriteAliveSegmentInfos(trs_ptr, writed_segment_fileids, md);
 	Status s = BucketMetaFile::Write(m_bucket_path.c_str(), bucket_meta_fileid, md);
 	if(s != OK)
 	{
@@ -534,7 +534,7 @@ Status WriteOnlyBucket::Flush(bool force)
 	{
 		return OK;
 	}
-	if(force || m_memwriter->ElapsedTime() >= m_engine->GetConfig().memwriter_ttl_s)
+	if(force || m_memwriter->ElapsedTime() >= m_engine->GetConfig().memtable_ttl_s)
 	{
 		FlushMemWriter();
 	}

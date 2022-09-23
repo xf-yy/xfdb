@@ -17,7 +17,7 @@ limitations under the License.
 #include "db_impl.h"
 #include "types.h"
 #include "bucket.h"
-#include "db_info_file.h"
+#include "db_meta_file.h"
 #include "bucket_snapshot.h"
 #include "logger.h"
 #include "file_util.h"
@@ -30,7 +30,7 @@ DBImpl::DBImpl(Engine* engine, const DBConfig& conf, const std::string& db_path)
 	: m_engine(engine), m_conf(conf), m_path(db_path)
 {
 	m_next_bucket_id = MIN_BUCKETID;
-	m_next_dbinfo_fileid = MIN_FILEID;
+	m_next_dbmeta_fileid = MIN_FILEID;
 }
 
 DBImpl::~DBImpl()
@@ -100,7 +100,7 @@ Status DBImpl::OpenBucket(const BucketInfo& bi, BucketPtr& bptr)
 	return s;
 }
 
-void DBImpl::OpenBucket(const DbInfoData& bld, const BucketSnapshot* last_bucket_snapshot, std::map<std::string, BucketPtr>& buckets)
+void DBImpl::OpenBucket(const DbMetaData& bld, const BucketSnapshot* last_bucket_snapshot, std::map<std::string, BucketPtr>& buckets)
 {	
 	assert(last_bucket_snapshot != nullptr);
 	const auto& last_buckets = last_bucket_snapshot->Buckets();
@@ -120,7 +120,7 @@ void DBImpl::OpenBucket(const DbInfoData& bld, const BucketSnapshot* last_bucket
 	}
 }
 
-void DBImpl::OpenBucket(const DbInfoData& bld, std::map<std::string, BucketPtr>& buckets)
+void DBImpl::OpenBucket(const DbMetaData& bld, std::map<std::string, BucketPtr>& buckets)
 {	
 	BucketPtr bptr;
 	for(const auto& bi : bld.alive_buckets)
@@ -136,7 +136,7 @@ Status DBImpl::OpenBucket()
 {
 	//读取最新的bucket list
 	std::vector<FileName> file_names;
-	Status s = ListDbInfoFile(m_path.c_str(), file_names);
+	Status s = ListDbMetaFile(m_path.c_str(), file_names);
 	if(s != OK)
 	{
 		return s;
@@ -148,24 +148,24 @@ Status DBImpl::OpenBucket()
 	return OpenBucket(file_names.back().str);
 }
 
-Status DBImpl::OpenBucket(const char* dbinfo_filename)
+Status DBImpl::OpenBucket(const char* dbmeta_filename)
 {
-	assert(dbinfo_filename != nullptr);
-	DbInfoData bld;
-	Status s = DbInfoFile::Read(m_path.c_str(), dbinfo_filename, bld);
+	assert(dbmeta_filename != nullptr);
+	DbMetaData bld;
+	Status s = DbMetaFile::Read(m_path.c_str(), dbmeta_filename, bld);
 	if(s != OK)
 	{
 		return s;
 	}
-	return OpenBucket(dbinfo_filename, bld);
+	return OpenBucket(dbmeta_filename, bld);
 }
 
-Status DBImpl::OpenBucket(const char* dbinfo_filename, const DbInfoData& bld)
+Status DBImpl::OpenBucket(const char* dbmeta_filename, const DbMetaData& bld)
 {	
-	fileid_t fileid = strtoull(dbinfo_filename, nullptr, 10);
+	fileid_t fileid = strtoull(dbmeta_filename, nullptr, 10);
 	
 	std::lock_guard<std::mutex> lock(m_mutex);
-	if(fileid < m_next_dbinfo_fileid)
+	if(fileid < m_next_dbmeta_fileid)
 	{
 		return ERROR;
 	}
@@ -187,7 +187,7 @@ Status DBImpl::OpenBucket(const char* dbinfo_filename, const DbInfoData& bld)
 
 	m_bucket_rwlock.WriteLock();
 	m_bucket_snapshot.swap(new_bucket_snapshot);
-	m_next_dbinfo_fileid = fileid+1;
+	m_next_dbmeta_fileid = fileid+1;
 	m_next_bucket_id = bld.next_bucketid;
 	m_bucket_rwlock.WriteUnlock();
 	

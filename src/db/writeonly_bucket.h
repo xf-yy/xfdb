@@ -74,7 +74,7 @@ private:
 
 private:
 	fileid_t SelectNewSegmentFileID(MergingSegmentInfo& msinfo);
-	void FillAliveSegmentInfos(TableReaderSnapshotPtr& trs_ptr, std::vector<fileid_t>& writed_segment_fileids, BucketMetaData& md);
+	void WriteAliveSegmentInfos(TableReaderSnapshotPtr& trs_ptr, std::vector<fileid_t>& writed_segment_fileids, BucketMetaData& md);
 	void UpdateReaderSnapshot(MergingSegmentInfo& msinfo);
 
 protected:

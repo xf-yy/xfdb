@@ -101,7 +101,7 @@ Status NotifyFile::Serialize(const NotifyData& nd, String& str)
 		return ERR_MEMORY_NOT_ENOUGH;
 	}
 
-	byte_t* ptr = FillNotifyFileHeader((byte_t*)str.Data());
+	byte_t* ptr = WriteNotifyFileHeader((byte_t*)str.Data());
 
 	ptr = EncodeV32(ptr, MID_FILE_TYPE, nd.type);
 	ptr = EncodeString(ptr, MID_DB_PATH, nd.db_path.data(), nd.db_path.size());

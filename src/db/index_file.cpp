@@ -533,7 +533,7 @@ Status IndexWriter::Create(const char* bucket_path, fileid_t fileid)
 		return ERR_FILE_WRITE;
 	}
 	
-	m_block_ptr = FillIndexFileHeader(m_block_start);
+	m_block_ptr = WriteIndexFileHeader(m_block_start);
 	m_L1offset_start = m_block_ptr - m_block_start;
 	
 	//写head

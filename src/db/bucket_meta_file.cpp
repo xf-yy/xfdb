@@ -188,7 +188,7 @@ Status BucketMetaFile::Serialize(const BucketMetaData& md, String& str)
 		return ERR_MEMORY_NOT_ENOUGH;
 	}
 	
-	byte_t* ptr = FillBucketMetaFileHeader((byte_t*)str.Data());
+	byte_t* ptr = WriteBucketMetaFileHeader((byte_t*)str.Data());
 	
 	assert(md.alive_segment_infos.size() < 0xFFFFFFFF);
 	uint32_t cnt = (uint32_t)md.alive_segment_infos.size();

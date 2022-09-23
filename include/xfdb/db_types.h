@@ -112,17 +112,17 @@ struct GlobalConfig
 	uint16_t write_metadata_thread_num = 4;
 	
 	//uint8_t force_merge_deleted_percent = 1;	//百分比
-	uint16_t part_merge_db_thread_num = 4;
-	uint16_t full_merge_db_thread_num = 2;
-	//uint16_t merge_factor = 10;
-	//uint64_t max_segment_file_size = GB(32);	//segment超过此值时不参与merge
+	uint16_t part_merge_thread_num = 4;
+	uint16_t full_merge_thread_num = 2;
+	uint16_t merge_factor = 10;					//合并因子
+	uint64_t max_segment_file_size = GB(32);	//segment超过此值时不参与merge
 	
-	//uint64_t memwriter_limit_size = GB(2);	//总大小，超过时，阻塞写
-	uint32_t max_memwriter_size = MB(64);		//1~1024
-	uint32_t max_object_num_of_memwriter = 50*10000;//1000~100*10000
-	uint16_t memwriter_ttl_s = 30;				//1~600
+	//uint64_t total_memtable_size = GB(2);	//总大小，超过时，阻塞写
+	uint32_t max_memtable_size = MB(64);		//1~1024
+	uint32_t max_object_num_of_memtable = 50*10000;//1000~100*10000
+	uint16_t memtable_ttl_s = 30;				//1~600
 	uint16_t tryflush_interval_s = 15;			//检测flush时间间隔，单位秒
-
+	
 	uint16_t clean_interval_s = 30;				//检测clean时间间隔，单位秒
 	
 public:

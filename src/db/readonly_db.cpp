@@ -20,7 +20,7 @@ limitations under the License.
 #include "table_reader_snapshot.h"
 #include "bucket.h"
 #include "segment_file.h"
-#include "db_info_file.h"
+#include "db_meta_file.h"
 #include "bucket_meta_file.h"
 #include "lock_file.h"
 #include "file.h"
@@ -56,7 +56,7 @@ Status ReadOnlyDB::Open()
 	//再尝试重新加载一次，以防有所遗漏
 	if(m_engine->GetConfig().auto_reload_db)
 	{
-		NotifyData nd(NOTIFY_UPDATE_DB_INFO, m_path, MIN_FILEID);
+		NotifyData nd(NOTIFY_UPDATE_DB_META, m_path, MIN_FILEID);
 		((ReadOnlyEngine*)m_engine)->PostNotifyData(nd);
 	}
 	

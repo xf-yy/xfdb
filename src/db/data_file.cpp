@@ -219,7 +219,7 @@ Status DataWriter::Create(const char* bucket_path, fileid_t fileid)
 		return ERR_FILE_WRITE;
 	}
 	
-	m_block_ptr = FillDataFileHeader(m_block_start);
+	m_block_ptr = WriteDataFileHeader(m_block_start);
 	m_offset = m_block_ptr - m_block_start;
 	
 	//写header

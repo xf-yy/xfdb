@@ -28,21 +28,21 @@ namespace xfutil
 namespace xfdb 
 {
 
-#define DB_INFO_FILE_VERSION		1
+#define DB_META_FILE_VERSION		1
 #define BUCKET_META_FILE_VERSION	1
 #define INDEX_FILE_VERSION			1
 #define DATA_FILE_VERSION			1
 #define NOTIFY_FILE_VERSION			1
 
-#define DB_INFO_FILE_MAGIC			"INFO"
-#define BUCKET_META_FILE_MAGIC 		"META"
-#define INDEX_FILE_MAGIC			"INDX"
+#define DB_META_FILE_MAGIC			"DBMF"
+#define BUCKET_META_FILE_MAGIC 		"BKTM"
+#define INDEX_FILE_MAGIC			"IDXF"
 #define DATA_FILE_MAGIC				"DATA"
 #define NOTIFY_FILE_MAGIC			"MSGF"
 
-#define DB_INFO_FILE_EXT			".info"
-#define BUCKET_META_FILE_EXT 		".meta"
-#define INDEX_FILE_EXT				".index"
+#define DB_META_FILE_EXT			".dbm"
+#define BUCKET_META_FILE_EXT 		".bktm"
+#define INDEX_FILE_EXT				".idx"
 #define DATA_FILE_EXT				".data"
 #define NOTIFY_FILE_EXT				".msg"
 
@@ -78,11 +78,11 @@ static inline void MakeBucketPath(const char* db_path, const char* bucket_name, 
 	snprintf(path, MAX_PATH_LEN, "%s/%s.%u", db_path, bucket_name, bucket_id);
 }
 
-static inline void MakeDbInfoFileName(fileid_t seqid, char name[MAX_FILENAME_LEN])
+static inline void MakeDbMetaFileName(fileid_t seqid, char name[MAX_FILENAME_LEN])
 {
-	snprintf(name, MAX_FILENAME_LEN, "%lu" DB_INFO_FILE_EXT, seqid);
+	snprintf(name, MAX_FILENAME_LEN, "%lu" DB_META_FILE_EXT, seqid);
 }
-static inline void MakeDbInfoFilePath(const char* db_path, const char* filename, char path[MAX_PATH_LEN])
+static inline void MakeDbMetaFilePath(const char* db_path, const char* filename, char path[MAX_PATH_LEN])
 {
 	snprintf(path, MAX_PATH_LEN, "%s/%s", db_path, filename);
 }
@@ -125,9 +125,9 @@ static inline void MakeNotifyFilePath(const char* notify_path, tid_t pid, fileid
 }
 
 Status ListFile(const char* path, const char* pattern, std::vector<FileName>& names, bool sort = false);	
-static inline Status ListDbInfoFile(const char* path, std::vector<FileName>& names)
+static inline Status ListDbMetaFile(const char* path, std::vector<FileName>& names)
 {
-	return ListFile(path, "*" DB_INFO_FILE_EXT, names, true);
+	return ListFile(path, "*" DB_META_FILE_EXT, names, true);
 }
 static inline Status ListBucketMetaFile(const char* path, std::vector<FileName>& names)
 {
@@ -139,47 +139,47 @@ static inline Status ListNotifyFile(const char* path, std::vector<FileName>& nam
 	return ListFile(path, "*" NOTIFY_FILE_EXT, names);
 }
 
-byte_t* FillHeader(byte_t* data, const char magic[FILE_MAGIC_SIZE], uint16_t version);
+byte_t* WriteHeader(byte_t* data, const char magic[FILE_MAGIC_SIZE], uint16_t version);
 bool ParseHeader(const byte_t* &data, size_t size, const char expect_magic[FILE_MAGIC_SIZE], uint16_t max_version, FileHeader& header);
 
-static inline byte_t* FillDbInfoFileHeader(byte_t* buf)
+static inline byte_t* WriteDbMetaFileHeader(byte_t* buf)
 {
-	return FillHeader(buf, DB_INFO_FILE_MAGIC, DB_INFO_FILE_VERSION);
+	return WriteHeader(buf, DB_META_FILE_MAGIC, DB_META_FILE_VERSION);
 }
-static inline bool ParseDbInfoFileHeader(const byte_t* &data, size_t size, FileHeader& header)
+static inline bool ParseDbMetaFileHeader(const byte_t* &data, size_t size, FileHeader& header)
 {
-	return ParseHeader(data, size, DB_INFO_FILE_MAGIC, DB_INFO_FILE_VERSION, header);
+	return ParseHeader(data, size, DB_META_FILE_MAGIC, DB_META_FILE_VERSION, header);
 }
 
-static inline byte_t* FillBucketMetaFileHeader(byte_t* buf)
+static inline byte_t* WriteBucketMetaFileHeader(byte_t* buf)
 {
-	return FillHeader(buf, BUCKET_META_FILE_MAGIC, BUCKET_META_FILE_VERSION);
+	return WriteHeader(buf, BUCKET_META_FILE_MAGIC, BUCKET_META_FILE_VERSION);
 }
 static inline bool ParseBucketMetaFileHeader(const byte_t* &data, size_t size, FileHeader& header)
 {
 	return ParseHeader(data, size, BUCKET_META_FILE_MAGIC, BUCKET_META_FILE_VERSION, header);
 }
 
-static inline byte_t* FillIndexFileHeader(byte_t* buf)
+static inline byte_t* WriteIndexFileHeader(byte_t* buf)
 {
-	return FillHeader(buf, INDEX_FILE_MAGIC, INDEX_FILE_VERSION);
+	return WriteHeader(buf, INDEX_FILE_MAGIC, INDEX_FILE_VERSION);
 }
 static inline bool ParseIndexFileHeader(const byte_t* &data, size_t size, FileHeader& header)
 {
 	return ParseHeader(data, size, INDEX_FILE_MAGIC, INDEX_FILE_VERSION, header);
 }
 
-static inline byte_t* FillDataFileHeader(byte_t* buf)
+static inline byte_t* WriteDataFileHeader(byte_t* buf)
 {
-	return FillHeader(buf, DATA_FILE_MAGIC, DATA_FILE_VERSION);
+	return WriteHeader(buf, DATA_FILE_MAGIC, DATA_FILE_VERSION);
 }
 static inline bool ParseDataFileHeader(const byte_t* &data, size_t size, FileHeader& header)
 {
 	return ParseHeader(data, size, DATA_FILE_MAGIC, DATA_FILE_VERSION, header);
 }
-static inline byte_t* FillNotifyFileHeader(byte_t* buf)
+static inline byte_t* WriteNotifyFileHeader(byte_t* buf)
 {
-	return FillHeader(buf, NOTIFY_FILE_MAGIC, NOTIFY_FILE_VERSION);
+	return WriteHeader(buf, NOTIFY_FILE_MAGIC, NOTIFY_FILE_VERSION);
 }
 static inline bool ParseNotifyFileHeader(const byte_t* &data, size_t size, FileHeader& header)
 {
