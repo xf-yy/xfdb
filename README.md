@@ -5,23 +5,25 @@
    
 # ●特性   
 ***   
-    已实现(V0.1.0)：   
-        1、支持多种模式：只读，只写，读写   
-        2、支持桶的创建、删除、列举、统计值   
-        3、支持对象的创建、删除、读取   
-        4、key、value值的最大长度为64KB   
+    当前版本(V0.1.0)：   
+        已实现：  
+          1、支持多种模式：只读，只写，读写   
+          2、支持桶的创建、删除、列举、统计值   
+          3、支持KV值的设置、删除、读取   
+          4、key的最大长度为16KB，value的最大长度为64KB  
+        实现中：  
+          1、自动merge
    
     待实现：   
-        1、批量写   
-        2、Merge   
-        3、Scan   
-        4、Cache   
-        5、BloomFilter   
-        6、Compress   
-        7、Append，Modify   
-        8、WAL+Log   
-        9、Backup   
-        10、Windows support   
+        1、批量写      
+        2、Cache   
+        3、BloomFilter   
+        4、Scan   
+        5、Compress   
+        6、Append，Modify   
+        7、WAL+Log   
+        8、Backup   
+        9、Windows support   
    
 # ●编译方法   
 ***   
