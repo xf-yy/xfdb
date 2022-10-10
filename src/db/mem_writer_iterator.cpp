@@ -26,12 +26,17 @@ namespace xfdb
 WriteOnlyMemWriterIterator::WriteOnlyMemWriterIterator(WriteOnlyMemWriterPtr& table)
 	: m_table(table)
 {
-	m_index = 0;
 	m_max_num = table->m_objects.size();
+	First();
 }
 
-void WriteOnlyMemWriterIterator::Seek(const StrView& key)
-{};
+StrView WriteOnlyMemWriterIterator::UpmostKey()    const
+{
+	return m_table->UpmostKey();
+}
+
+//void WriteOnlyMemWriterIterator::Seek(const StrView& key)
+//{};
 
 void WriteOnlyMemWriterIterator::Next()
 {
@@ -49,26 +54,21 @@ void WriteOnlyMemWriterIterator::Next()
 	}
 };
 
-ObjectType WriteOnlyMemWriterIterator::Type()
+const Object& WriteOnlyMemWriterIterator::object() const
 {
-	return m_table->m_objects[m_index]->type;
-}
-/**获取key和value*/
-StrView WriteOnlyMemWriterIterator::Key()
-{
-	return m_table->m_objects[m_index]->key;
-}
-StrView WriteOnlyMemWriterIterator::Value()
-{
-	return m_table->m_objects[m_index]->value;
+	return *m_table->m_objects[m_index];
 }
 
 ReadWriteMemWriterIterator::ReadWriteMemWriterIterator(ReadWriteMemWriterPtr& table)
 	: m_table(table)
 {
-	m_iter = m_table->m_objects.begin();
+	First();
 }
 
+StrView ReadWriteMemWriterIterator::UpmostKey()    const
+{
+	return m_table->UpmostKey();
+}
 
 /**移到第1个元素处*/
 void ReadWriteMemWriterIterator::First()
@@ -79,9 +79,9 @@ void ReadWriteMemWriterIterator::First()
 //virtual void Last() = 0;
 
 /**移到到>=key的地方*/
-void ReadWriteMemWriterIterator::Seek(const StrView& key)
-{
-}
+//void ReadWriteMemWriterIterator::Seek(const StrView& key)
+//{
+//}
 
 /**向后移到一个元素*/
 void ReadWriteMemWriterIterator::Next()
@@ -94,23 +94,16 @@ void ReadWriteMemWriterIterator::Next()
 //virtual void Prev() = 0;
 
 /**是否还有下一个元素*/
-bool ReadWriteMemWriterIterator::Valid()
+bool ReadWriteMemWriterIterator::Valid() const
 {
 	return (m_iter != m_table->m_objects.end());
 }
 
-ObjectType ReadWriteMemWriterIterator::Type()
+const Object& ReadWriteMemWriterIterator::object() const
 {
-	return m_iter->second->type;
+	return *m_iter->second;
 }
-StrView ReadWriteMemWriterIterator::Key()
-{
-	return m_iter->second->key;
-}
-StrView ReadWriteMemWriterIterator::Value()
-{
-	return m_iter->second->value;
-}
+
 
 } 
 

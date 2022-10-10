@@ -104,7 +104,7 @@ int FileNotify::Read(NotifyEvent* event)
 		ssize_t n = read(m_ifd, m_buf, FW_BUF_SIZE);
 		if(n <= 0)
 		{
-			return (ErrorNo == EBADF) ? - 1 : 0;
+			return (LastError == EBADF) ? - 1 : 0;
 		}
 		m_read_off = 0;
 		m_data_size = n;

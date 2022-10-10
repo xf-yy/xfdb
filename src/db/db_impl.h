@@ -24,7 +24,7 @@ limitations under the License.
 #include "types.h"
 #include "xfdb/strutil.h"
 #include "rwlock.h"
-#include "db_meta_file.h"
+#include "db_info_file.h"
 
 namespace xfdb 
 {
@@ -101,11 +101,11 @@ public:
 
 protected:	
 	Status OpenBucket();
-	Status OpenBucket(const char* dbmeta_filename);
-	Status OpenBucket(const char* dbmeta_filename, const DbMetaData& bld);
+	Status OpenBucket(const char* dbinfo_filename);
+	Status OpenBucket(const char* dbinfo_filename, const DbInfoData& bld);
 
-	void OpenBucket(const DbMetaData& bld, const BucketSnapshot* last_bucket_snapshot, std::map<std::string, BucketPtr>& buckets);
-	void OpenBucket(const DbMetaData& bld, std::map<std::string, BucketPtr>& buckets);
+	void OpenBucket(const DbInfoData& bld, const BucketSnapshot* last_bucket_snapshot, std::map<std::string, BucketPtr>& buckets);
+	void OpenBucket(const DbInfoData& bld, std::map<std::string, BucketPtr>& buckets);
 
 	Status OpenBucket(const BucketInfo& bi, BucketPtr& bptr);
 	bool GetBucket(const std::string& bucket_name, BucketPtr& ptr) const;
@@ -123,7 +123,7 @@ protected:
 	
 	std::mutex m_mutex;						//互斥锁
 	bucketid_t m_next_bucket_id;
-	fileid_t m_next_dbmeta_fileid;
+	fileid_t m_next_dbinfo_fileid;
 	
 	mutable ReadWriteLock m_bucket_rwlock;	//bucket读写锁
 	BucketSnapshotPtr m_bucket_snapshot;	//bucket集

@@ -52,8 +52,9 @@ static void Usage()
 	printf("    4. flush <bucket_name>\n");
 	printf("    5. stat <bucket_name>\n");
 	printf("    6. list_bucket\n");
-	printf("    7. quit\n");
-	printf("    8. usage\n");
+	printf("    7. loop_set <loop_count> <bucket_name>\n");
+	printf("    8. quit\n");
+	printf("    9. usage\n");
 }
 
 int main(int argc, char* argv[])
@@ -69,6 +70,8 @@ int main(int argc, char* argv[])
 	GlobalConfig gconf;
 	gconf.mode = MODE_WRITEONLY;
 	gconf.notify_dir = "./notify";
+	gconf.max_object_num_of_memtable = 5000;
+	gconf.merge_factor = 4;
 	Status s = XfdbStart(gconf);
 	if(s != OK)
 	{
@@ -113,16 +116,37 @@ int main(int argc, char* argv[])
 				const StrView key_view(strs[2].data(), strs[2].size());
 				const StrView value_view(strs[3].data(), strs[3].size());
 				s = db->Set(strs[1], key_view, value_view);
-				if(s == OK)
-				{
-					printf("set succeed\n");
-				}
-				else
+				if(s != OK)
 				{
 					printf("set failed: %d\n", s);
 				}
 			}
 		}
+		else if(strs[0] == "loop_set")
+		{
+			if(strs.size() < 3)
+			{
+				printf("invalid loop_set command: %s\n", input_line.c_str());
+			}
+			else
+			{
+				char key[128], value[128];
+				long max_cnt = atoll(strs[1].c_str());
+				for(long i = 0; i < max_cnt; ++i)
+				{
+					snprintf(key, sizeof(key), "test_key_%ld", i);
+					snprintf(value, sizeof(value), "test_value_%ld_%ld", i, i);
+
+					const StrView key_view(key);
+					const StrView value_view(value);
+					s = db->Set(strs[2], key_view, value_view);
+					if(s != OK)
+					{
+						printf("set failed: %d\n", s);
+					}
+				}
+			}
+		}		
 		else if(strs[0] == "get")
 		{
 			if(strs.size() < 3)
@@ -154,11 +178,7 @@ int main(int argc, char* argv[])
 			{
 				const StrView key_view(strs[2].data(), strs[2].size());
 				s = db->Delete(strs[1], key_view);
-				if(s == OK)
-				{
-					printf("delete succeed\n");
-				}
-				else
+				if(s != OK)
 				{
 					printf("delete failed: %d\n", s);
 				}
@@ -167,11 +187,7 @@ int main(int argc, char* argv[])
 		else if(strs[0] == "flush")
 		{
 			s = db->Flush(strs[1]);
-			if(s == OK)
-			{
-				printf("flush succeed\n");
-			}
-			else
+			if(s != OK)
 			{
 				printf("flush failed: %d\n", s);
 			}

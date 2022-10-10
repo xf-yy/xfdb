@@ -202,7 +202,7 @@ void WritableEngine::WriteMetaThread(size_t index, void* arg)
 		{
 			WritableDBPtr db = std::dynamic_pointer_cast<WritableDB>(msg.db);
 			assert(db);
-			db->WriteDbMeta();
+			db->WriteDbInfo();
 		}
 		else
 		{
@@ -319,7 +319,7 @@ void WritableEngine::ScanNotifyFile()
 	std::lock_guard<std::mutex> lock(m_mutex);
 	for(size_t i = 0; i < filenames.size(); ++i)
 	{
-		m_notifyfiles.push_back(filenames[i]);
+		m_tobe_delete_notifyfiles.push_back(filenames[i]);
 	}
 }
 
@@ -334,7 +334,7 @@ void WritableEngine::WriteNotifyFile(const NotifyData& nd)
 	if(NotifyFile::Write(m_conf.notify_dir.c_str(), nd, filename) == OK)
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
-		m_notifyfiles.push_back(filename);
+		m_tobe_delete_notifyfiles.push_back(filename);
 	}
 }
 
@@ -352,11 +352,11 @@ void WritableEngine::CleanNotifyFile()
 		FileName filename;
 		{
 			std::lock_guard<std::mutex> lock(m_mutex);
-			if(m_notifyfiles.empty())
+			if(m_tobe_delete_notifyfiles.empty())
 			{
 				return;
 			}
-			filename = m_notifyfiles.front();
+			filename = m_tobe_delete_notifyfiles.front();
 		}
 		char filepath[MAX_PATH_LEN];
 		xfutil::Path::Combine(filepath, sizeof(filepath), m_conf.notify_dir.c_str(), filename.str);
@@ -368,9 +368,9 @@ void WritableEngine::CleanNotifyFile()
 		
 		{
 			std::lock_guard<std::mutex> lock(m_mutex);
-			if(!m_notifyfiles.empty())
+			if(!m_tobe_delete_notifyfiles.empty())
 			{
-				m_notifyfiles.pop_front();
+				m_tobe_delete_notifyfiles.pop_front();
 			}
 		}
 	}

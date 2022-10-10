@@ -17,42 +17,53 @@ limitations under the License.
 #ifndef __xfdb_segment_iterator_h__
 #define __xfdb_segment_iterator_h__
 
+#include "iterator.h"
+#include "index_block.h"
+#include "data_block.h"
+
 namespace xfdb 
 {
 
-class SegmentIterator : public Iterator 
+class SegmentReaderIterator : public Iterator 
 {
 public:
-	explicit SegmentIterator(const std::map<fileid_t, SegmentReaderPtr>& segment_readers);
-	virtual ~SegmentIterator();
+	explicit SegmentReaderIterator(SegmentReaderPtr& segment_reader);
+	virtual ~SegmentReaderIterator()
+	{}
 
 public:
+	virtual StrView UpmostKey() const override;
+
 	/**移到第1个元素处*/
-	virtual void First(){};
+	virtual void First() override;
 	/**移到最后1个元素处*/
 	//virtual void Last() = 0;
 	
 	/**移到到>=key的地方*/
-	virtual void Seek(const StrView& key){};
+	//virtual void Seek(const StrView& key) override;
 	
 	/**向后移到一个元素*/
-	virtual void Next(){};
+	virtual void Next() override;
 	//virtual void Prev() = 0;
 
 	/**是否还有下一个元素*/
-	virtual bool Valid(){return false;};
+	virtual bool Valid() const override;
 	
 	/**获取key和value*/
-	virtual ObjectType Type(){return DeleteType;};
-	virtual StrView Key(){return StrView();};
-	virtual StrView Value(){return StrView();};
+	virtual const Object& object() const override;
 	
 private:
-	std::map<fileid_t, SegmentReaderPtr> m_segment_readers;
+	SegmentReaderPtr m_segment_reader;
+	uint32_t m_L1index_idx;
+	uint32_t m_L1index_count;
+	IndexBlockReader m_index_block_reader;
+	IndexBlockReaderIteratorPtr m_index_block_iter;
+	DataBlockReader m_data_block_reader;
+	DataBlockReaderIteratorPtr m_data_block_iter;
 
 private:
-	SegmentIterator(const SegmentIterator&) = delete;
-	SegmentIterator& operator=(const SegmentIterator&) = delete;
+	SegmentReaderIterator(const SegmentReaderIterator&) = delete;
+	SegmentReaderIterator& operator=(const SegmentReaderIterator&) = delete;
 };
 
 } 

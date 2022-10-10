@@ -72,9 +72,8 @@ public:
 	Status Open(const char* bucket_meta_filename);	
 	
 protected:
-	Status OpenSegment(const char* bucket_path, const SegmentFileIndex& sfi, SegmentReaderPtr& sr_ptr);
-	void OpenSegments(const BucketMetaData& sld, std::map<fileid_t, TableReaderPtr>& readers);
-	void OpenSegments(const BucketMetaData& sld, const TableReaderSnapshot* last_snapshot, std::map<fileid_t, TableReaderPtr>& readers);
+	Status OpenSegment(const char* bucket_path, const SegmentIndexInfo& sfi, SegmentReaderPtr& sr_ptr);
+	void OpenSegments(const BucketMetaData& bmd, const TableReaderSnapshot* last_snapshot, std::map<fileid_t, TableReaderPtr>& readers);
 
 protected:
 	const DBImplWptr m_db;
@@ -84,10 +83,13 @@ protected:
 	std::mutex m_mutex;
 	
 	mutable ReadWriteLock m_segment_rwlock;
-	fileid_t m_next_segment_id;
+	objectid_t m_next_object_id;
+
+	uint16_t m_max_level_num;
 	fileid_t m_next_bucket_meta_fileid;
-	BucketMetaFilePtr m_bucket_meta_file;
-	TableReaderSnapshotPtr m_reader_snapshot;	
+	fileid_t m_next_segment_id;
+
+	BucketReaderSnapshot m_reader_snapshot;
 
 	friend class DBImpl;
 };

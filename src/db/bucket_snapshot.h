@@ -37,7 +37,7 @@ public:
 public:
 	void TryFlush();
 	void Flush();
-	void Merge(){assert(false);}
+	void Merge();
 	
 	inline const std::map<std::string, BucketPtr>& Buckets() const
 	{

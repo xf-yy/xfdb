@@ -35,12 +35,7 @@ public:
 	virtual ~SegmentReader();
 
 public:
-	Status Open(const char* bucket_path, const SegmentFileIndex& info);
-
-	inline const SegmentFileIndex& FileIndex() const
-	{
-		return m_fileinfo;
-	}
+	Status Open(const char* bucket_path, const SegmentIndexInfo& info);
 	
 	Status Get(const StrView& key, ObjectType& type, String& value) const override;
 	
@@ -48,19 +43,24 @@ public:
 	
 	//最大key
 	StrView UpmostKey() const override;
-	//最小key
-	StrView LowestKey() const override;
 
 	/**返回segment文件总大小*/
 	uint64_t Size() const override;
 	
 	void GetStat(BucketStat& stat) const override;	
 	
+	inline const SegmentIndexInfo& IndexInfo() const
+	{
+		return m_index_info;
+	}
+	
 private:
-	SegmentFileIndex m_fileinfo;
+	BlockPool& m_pool;
+	SegmentIndexInfo m_index_info;
 	IndexReader m_index_reader;
 	DataReader m_data_reader;
-
+	
+	friend class SegmentReaderIterator;
 private:
 	SegmentReader(const SegmentReader&) = delete;
 	SegmentReader& operator=(const SegmentReader&) = delete;
@@ -76,8 +76,8 @@ public:
 public:	
 	Status Create(const char* bucket_path, fileid_t fileid);
 	
-	Status Write(const TableWriterSnapshotPtr& table_writer_snapshot, SegmentFileIndex& seginfo);
-	Status Merge(const std::map<fileid_t, SegmentReaderPtr>& segment_readers, SegmentFileIndex& seginfo);
+	Status Write(const TableWriterSnapshotPtr& table_writer_snapshot, SegmentIndexInfo& seginfo);
+	Status Merge(const MergingSegmentInfo& msinfo, SegmentIndexInfo& seginfo);
 
 	static Status Remove(const char* bucket_path, fileid_t fileid);
 

@@ -151,7 +151,7 @@ void ReadOnlyEngine::ProcessNotifyData(const NotifyData& nd)
 	case NOTIFY_UPDATE_DB_META:
 		if(nd.file_id != MIN_FILEID)
 		{
-			MakeDbMetaFileName(nd.file_id, file_name);
+			MakeDbInfoFileName(nd.file_id, file_name);
 			db->OpenBucket(file_name);
 		}
 		else
@@ -224,7 +224,7 @@ void ReadOnlyEngine::ReadNotifyThread(size_t index, void* arg)
 		}
 		else if(ret < 0)
 		{
-			LogWarn("read notify failed, errno: %d", ErrorNo);
+			LogWarn("read notify failed, errno: %d", LastError);
 		}
 	}
 

@@ -47,7 +47,7 @@ Status ReadWriteBucket::Get(const StrView& key, String& value)
 	m_segment_rwlock.ReadLock();
 	TableWriterPtr memwriter_ptr = m_memwriter;
 	TableWriterSnapshotPtr mts_ptr = m_memwriter_snapshot;
-	TableReaderSnapshotPtr trs_ptr = m_reader_snapshot;
+	BucketReaderSnapshot reader_snapshot = m_reader_snapshot;
 	m_segment_rwlock.ReadUnlock();
 
 	ObjectType type;
@@ -59,7 +59,7 @@ Status ReadWriteBucket::Get(const StrView& key, String& value)
 	{
 		return (type == SetType) ? OK : ERR_OBJECT_NOT_EXIST;
 	}
-	if(trs_ptr && trs_ptr->Get(key, type, value) == OK) 
+	if(reader_snapshot.readers && reader_snapshot.readers->Get(key, type, value) == OK) 
 	{
 		return (type == SetType) ? OK : ERR_OBJECT_NOT_EXIST;
 	}

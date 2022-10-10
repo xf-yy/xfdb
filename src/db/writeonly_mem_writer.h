@@ -41,9 +41,6 @@ public:
 	//大于最大key的key
 	virtual StrView UpmostKey()    const override;
 
-	//小于最小key的key
-	virtual StrView LowestKey() const override;
-
 protected:
 	std::vector<Object*> m_objects;
 	friend class WriteOnlyMemWriterIterator;

@@ -22,8 +22,6 @@ namespace xfdb
 TableWriter::TableWriter(BlockPool& pool)
 	: m_create_time(time(nullptr)), m_pool(pool), m_buf(m_pool)
 {
-	m_max_objectid = MIN_OBJECTID;
-
 	memset(&m_object_stat, 0x00, sizeof(m_object_stat));
 }
 TableWriter::~TableWriter()
@@ -37,10 +35,7 @@ StrView TableWriter::CloneString(const StrView& str)
 }
 
 Object* TableWriter::CloneObject(objectid_t seqid, const Object* object)
-{
-	assert(m_max_objectid <= seqid);
-	m_max_objectid = seqid;
-	
+{	
 	ObjectStatItem* stat = (object->type == SetType) ? &m_object_stat.set_stat : &m_object_stat.delete_stat;
 	stat->Add(object->key.size, object->value.size);
 	

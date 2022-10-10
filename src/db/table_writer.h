@@ -57,12 +57,6 @@ public:
 	{
 		return m_object_stat.Count();
 	}
-
-	/**最大object id*/
-	inline objectid_t GetMaxObjectID()
-	{
-		return m_max_objectid;
-	}
 	
 	/**返回消逝的时间，单位秒*/
 	inline second_t ElapsedTime() const
@@ -78,7 +72,6 @@ private:
 
 protected:
 	const second_t m_create_time;		//创建时间，秒
-	objectid_t m_max_objectid;			//当前最大object id
 	ObjectStat m_object_stat;			//统计值
 	BlockPool& m_pool;					//内存块池
 	WriteBuffer m_buf;					//内存分配器

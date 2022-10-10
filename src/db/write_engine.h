@@ -42,7 +42,7 @@ public:
 	virtual Status RemoveDB(const std::string& db_path) override;
 
 public:	
-	inline void NotifyWriteDbMeta(DBImplPtr db)
+	inline void NotifyWriteDbInfo(DBImplPtr db)
 	{
 		NotifyMsg msg(NOTIFY_WRITE_DB_META, db);
 	
@@ -140,7 +140,7 @@ private:
 		
 	BlockingQueue<NotifyMsg> m_clean_queue;
 	Thread m_clean_thread;
-	std::deque<FileName> m_notifyfiles;//待删除的通知文件，超过一定时间后被删除
+	std::deque<FileName> m_tobe_delete_notifyfiles;//待删除的通知文件，超过一定时间后被删除
 	
 private:	
 	WritableEngine(const WritableEngine&) = delete;

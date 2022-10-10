@@ -20,19 +20,16 @@ limitations under the License.
 #include "block_pool.h"
 #include "index_file.h"
 #include "file_util.h"
+#include "index_block.h"
 
 using namespace xfutil;
 
 namespace xfdb 
 {
 
-#define MIN_SHORT_KEY_LEN	16
-
 enum
 {
-	MID_UPMOST_KEY = MID_START,
-	MID_MAX_OBJECTID,
-	//MID_BLOOM_BITNUM,
+	//MID_BLOOM_BITNUM = MID_START,
 	//MID_COMPRESS_TYPE,
 };
 
@@ -47,93 +44,6 @@ static bool UpperCmp(const StrView& key, const SegmentL1Index& index)
 	return key.Compare(index.start_key) < 0;
 }
 
-//找>=key的短串
-void GetMaxShortKey(const StrView& key, String& str) 
-{
-	str.Assign(key.data, key.size);
-	if(key.size <= MIN_SHORT_KEY_LEN)
-	{
-		return;
-	}
-	for(size_t i = MIN_SHORT_KEY_LEN; i < key.size; ++i)
-	{
-		if(str[i] != (char)0xFF)
-		{
-			++str[i];
-			str.Resize(i+1);
-			return;
-		}
-	}
-}
-
-//找<=key的短串
-static void GetMinShortKey(String& str, uint32_t start_off) 
-{
-	for(size_t i = start_off; i < str.Size(); ++i)
-	{
-		if(str[i] != (char)0)
-		{
-			--str[i];
-			str.Resize(i+1);
-			return;
-		}
-	}
-}
-
-void GetMinShortKey(const StrView& key, String& str) 
-{
-	str.Assign(key.data, key.size);
-	if(key.size <= MIN_SHORT_KEY_LEN)
-	{
-		return;
-	}
-
-	GetMinShortKey(str, MIN_SHORT_KEY_LEN);
-}
-
-//找比<=key且>prev_key的短串
-void GetMidShortKey(const StrView& prev_key, const StrView& key, String& str)
-{
-	str.Assign(key.data, key.size);
-	if(key.size <= MIN_SHORT_KEY_LEN)
-	{
-		return;
-	}
-	assert(prev_key.Compare(key) <= 0);
-	
-	uint32_t prefix_len = prev_key.GetPrefixLength(key);
-	uint32_t min_len = MIN(prev_key.size, key.size);
-	
-	if(prefix_len < min_len)
-	{
-		if(str[prefix_len]-1 > prev_key[prefix_len])
-		{
-			--str[prefix_len];
-			str.Resize(prefix_len+1);
-			return;
-		}
-		++prefix_len;
-	}
-	if(prefix_len == 0)
-	{
-		prefix_len = MIN_SHORT_KEY_LEN;
-	}
-	return GetMinShortKey(str, prefix_len);
-}
-
-StrView MakeKey(StrView& prev_key, uint32_t shared_keysize, StrView& nonshared_key, String& prev_str1, String& prev_str2)
-{
-	if(prev_key.data == prev_str1.Data())
-	{
-		prev_str2.Assign(prev_key.data, shared_keysize);
-		prev_str2.Append(nonshared_key.data, nonshared_key.size);
-		return StrView(prev_str2.Data(), prev_str2.Size());
-	}
-	prev_str1.Assign(prev_key.data, shared_keysize);
-	prev_str1.Append(nonshared_key.data, nonshared_key.size);
-	return StrView(prev_str1.Data(), prev_str1.Size());
-}
-
 IndexReader::IndexReader(BlockPool& pool) : m_pool(pool), m_buf(pool)
 {
 }
@@ -142,7 +52,7 @@ IndexReader::~IndexReader()
 {
 }
 
-Status IndexReader::Open(const char* bucket_path, const SegmentFileIndex& info)
+Status IndexReader::Open(const char* bucket_path, const SegmentIndexInfo& info)
 {
 	char index_path[MAX_PATH_LEN];
 	MakeIndexFilePath(bucket_path, info.segment_fileid, index_path);
@@ -174,7 +84,6 @@ Status IndexReader::Open(const char* bucket_path, const SegmentFileIndex& info)
 	}
 	
 	assert(!m_L1indexs.empty());
-	m_meta.lowest_key = m_L1indexs.begin()->start_key;
 	return OK;
 }
 
@@ -209,45 +118,32 @@ bool IndexReader::ParseDeletedSegment(const byte_t* &data, const byte_t* data_en
 bool IndexReader::ParseOtherMeta(const byte_t* &data, const byte_t* data_end)
 {	
 	//其他属性
-	uint32_t id = DecodeV32(data, data_end);
-	while(id != MID_END)
+	for(;;)
 	{
+		uint32_t id = DecodeV32(data, data_end);
 		switch(id)
 		{
-		case MID_UPMOST_KEY:
-			{
-				StrView key = DecodeString(data, data_end);
-				m_meta.upmost_key = CloneKey(key);
-			}
-			break;
-		case MID_MAX_OBJECTID:
-			m_meta.max_objectid = DecodeV64(data, data_end);
-			break;
 		//case MID_BLOOM_BITNUM:
 		//	m_conf.bloom_bitnum = *data++;
 		//	break;
 		//case MID_COMPRESS_TYPE:
 		//	m_conf.compress_type = (CompressionType)(*data++);
 		//	break;
+		case MID_END:
+			return true;
+			break;
 		default:
 			return false;
 			break;
 		}
-		id = DecodeV32(data, data_end);
 	}
 	return true;
-}
-
-StrView IndexReader::CloneKey(const StrView& str)
-{
-	byte_t *p = m_buf.Write((byte_t*)str.data, str.size);
-	return StrView((char*)p, str.size);
 }
 
 bool IndexReader::ParseKeyIndex(const byte_t* &data, const byte_t* data_end, uint64_t& last_offset, SegmentL1Index& L1Index)
 {
 	StrView key = DecodeString(data, data_end);
-	L1Index.start_key = CloneKey(key);
+	L1Index.start_key = CloneKey(m_buf, key);
 
 	L1Index.L1offset = last_offset;
 	
@@ -285,6 +181,9 @@ Status IndexReader::ParseL2Index(const byte_t* data, uint32_t L2index_size)
 		ParseKeyIndex(data, data_end, last_offset, m_L1indexs[i]);
 	}
 
+	StrView key = DecodeString(data, data_end);
+	m_upmost_key = CloneKey(m_buf, key);
+	
 	//FIXME:未校验crc
 	/*uint32_t crc = */Decode32(data);
 	
@@ -313,141 +212,16 @@ Status IndexReader::ParseMeta(const byte_t* data, uint32_t meta_size)
 	return OK;
 }
 
-Status IndexReader::SearchGroup(const byte_t* group, uint32_t group_size, const L0GroupIndex& group_index, const StrView& key, SegmentL0Index& L0_index) const
-{
-	assert(group_size != 0);
-	const byte_t* group_end = group + group_size;
 
-	String prev_str1, prev_str2;
-	StrView prev_key = group_index.start_key;
-	uint64_t prev_offset = 0;
-	
-	const byte_t* data_ptr = group;
 
-	while(data_ptr < group_end)
-	{
-		//解key
-		uint32_t shared_keysize = DecodeV32(data_ptr, group_end);
-		StrView nonshared_key = DecodeString(data_ptr, group_end);
-		StrView curr_key = MakeKey(prev_key, shared_keysize, nonshared_key, prev_str1, prev_str2);
-
-		int ret = key.Compare(curr_key);
-		if(ret < 0)
-		{
-			break;
-		}
-		
-		L0_index.L0offset = DecodeV64(data_ptr, group_end);
-		L0_index.L0offset += prev_offset;
-		
-		//L0_index.start_key = curr_key;
-		L0_index.L0compress_size = DecodeV32(data_ptr, group_end);
-		uint32_t diff_size = DecodeV32(data_ptr, group_end);
-		L0_index.L0origin_size = L0_index.L0compress_size + diff_size;
-		L0_index.L0index_size = DecodeV32(data_ptr, group_end);
-
-		if(ret == 0)
-		{
-			return OK;
-		}
-		
-		prev_key = curr_key;
-		prev_offset = L0_index.L0offset;
-		
-	}
-	return OK;
-}
-
-Status IndexReader::SearchL2Group(const byte_t* group_start, uint32_t group_size, const LnGroupIndex& lngroup_index, const StrView& key, SegmentL0Index& L0_index) const
-{
-	assert(group_size != 0);
-	const byte_t* group_end = group_start + group_size;
-	const byte_t* index_ptr = group_end - lngroup_index.index_size;
-	const byte_t* group_ptr = group_start;
-
-	String prev_str1, prev_str2;
-	L0GroupIndex group_index;
-	StrView prev_key = lngroup_index.start_key;
-	
-	while(index_ptr < group_end)
-	{
-		//解group key
-		uint32_t shared_keysize = DecodeV32(index_ptr, group_end);
-		StrView nonshared_key = DecodeString(index_ptr, group_end);
-		StrView curr_key = MakeKey(prev_key, shared_keysize, nonshared_key, prev_str1, prev_str2);
-
-		int ret = key.Compare(curr_key);		
-		if(ret < 0)
-		{
-			break;
-		}
-		//解group_size
-		group_index.start_key = curr_key;
-		group_index.group_size = DecodeV32(index_ptr, group_end);
-		
-		if(ret == 0)
-		{
-			return SearchGroup(group_ptr, group_index.group_size, group_index, key, L0_index);
-		}
-		group_ptr += group_index.group_size;
-
-		prev_key = curr_key;
-	}
-	return SearchGroup(group_ptr-group_index.group_size, group_index.group_size, group_index, key, L0_index);
-}
-
-Status IndexReader::SearchBlock(const byte_t* block, uint32_t block_size, const SegmentL1Index* L1Index, const StrView& key, SegmentL0Index& L0_index) const
-{
-	assert(block_size != 0);
-	const byte_t* block_end = block + block_size;
-	const byte_t* index_ptr = block_end - L1Index->L1index_size - sizeof(uint32_t)/*crc32*/;
-	const byte_t* group_ptr = block;
-	
-	//找到第1个大于key的group
-	LnGroupIndex lngroup_index;
-
-	String prev_str1, prev_str2;
-	StrView prev_key = L1Index->start_key;
-
-	const byte_t* index_end = block_end - sizeof(uint32_t)/*crc32*/;
-	while(index_ptr < index_end)
-	{
-		//解 group key
-		uint32_t shared_keysize = DecodeV32(index_ptr, index_end);
-		StrView nonshared_key = DecodeString(index_ptr, index_end);
-		StrView curr_key = MakeKey(prev_key, shared_keysize, nonshared_key, prev_str1, prev_str2);
-
-		int ret = key.Compare(curr_key);
-		if(ret < 0)
-		{
-			break;
-		}
-		
-		lngroup_index.start_key = curr_key;
-		lngroup_index.group_size = DecodeV32(index_ptr, index_end);
-		lngroup_index.index_size = DecodeV32(index_ptr, index_end);
-
-		if(ret == 0)
-		{
-			return SearchL2Group(group_ptr, lngroup_index.group_size, lngroup_index, key, L0_index);
-		}
-		
-		group_ptr += lngroup_index.group_size;
-
-		prev_key = curr_key;
-	}
-	
-	return SearchL2Group(group_ptr-lngroup_index.group_size, lngroup_index.group_size, lngroup_index, key, L0_index);
-}
 
 const SegmentL1Index* IndexReader::Search(const StrView& key) const
 {
-	if(key.Compare(m_meta.lowest_key) < 0 || key.Compare(m_meta.upmost_key) > 0)
+	if(key.Compare(m_L1indexs[0].start_key) < 0 || key.Compare(m_upmost_key) > 0)
 	{
 		return nullptr;
 	}
 	
-	//二分查找
 	uint32_t pos = std::upper_bound(m_L1indexs.begin(), m_L1indexs.end(), key, UpperCmp) - m_L1indexs.begin();
 	assert(pos > 0 && pos <= m_L1indexs.size());
 	return &m_L1indexs[pos-1];
@@ -460,32 +234,16 @@ Status IndexReader::Search(const StrView& key, SegmentL0Index& L0_index) const
 	{
 		return ERR_OBJECT_NOT_EXIST;
 	}
-
-	//TODO: 读取bloom cache
-	//TODO: 读取L1块 cache
 	
-	//读取L1索引
 	//printf("L1Index->L1compress_size:%u\n", L1Index->L1compress_size);
-	byte_t* buf = m_pool.Alloc();
-	if(buf == nullptr)
+	IndexBlockReader block(m_pool);
+	Status s = block.Read(m_file, *L1Index);
+	if(s != OK)
 	{
-		return ERR_MEMORY_NOT_ENOUGH;
+		return s;
 	}
-	BlockPoolGuard guard(m_pool, buf);
-	
-	int64_t r_size = m_file.Read(L1Index->L1offset, buf, L1Index->L1compress_size);
-	if((uint64_t)r_size != L1Index->L1compress_size)
-	{
-		return ERR_FILE_READ;
-	}
-	//TODO: 判断是否需要解压
-	//TODO: 将bloom和data放入cache中
-	//TODO: 判断是否有bloom，有则判断bloom是否命中
-	
-	const byte_t* block = buf + L1Index->bloom_size;
-	uint32_t block_size = r_size - L1Index->bloom_size;
 
-	return SearchBlock(block, block_size, L1Index, key, L0_index);
+	return block.Search(key, L0_index);
 }
 
 
@@ -546,11 +304,6 @@ Status IndexWriter::Create(const char* bucket_path, fileid_t fileid)
 	return OK;
 }
 
-StrView IndexWriter::CloneKey(const StrView& str, WriteBuffer& buf)
-{
-	byte_t *p = buf.Write((byte_t*)str.data, str.size);
-	return StrView((char*)p, str.size);
-}
 
 Status IndexWriter::WriteGroup(uint32_t& L0_idx, L0GroupIndex& gi)
 {	
@@ -558,7 +311,7 @@ Status IndexWriter::WriteGroup(uint32_t& L0_idx, L0GroupIndex& gi)
 	{
 		return ERR_NOMORE_DATA;
 	}
-	gi.start_key = CloneKey(m_L0indexs[L0_idx].start_key, m_L1key_buf);	
+	gi.start_key = CloneKey(m_L1key_buf, m_L0indexs[L0_idx].start_key);	
 	StrView prev_key = gi.start_key;
 	uint64_t prev_offset = 0;
 	
@@ -632,7 +385,7 @@ Status IndexWriter::WriteL2Group(uint32_t& L0_idx, LnGroupIndex& ci)
 	{
 		return ERR_NOMORE_DATA;
 	}
-	ci.start_key = CloneKey(m_L0indexs[L0_idx].start_key, m_L1key_buf);
+	ci.start_key = CloneKey(m_L1key_buf, m_L0indexs[L0_idx].start_key);
 	
 	Status s = ERR_BUFFER_FULL;
 	byte_t* group_start = m_block_ptr;
@@ -719,7 +472,7 @@ Status IndexWriter::WriteBlock()
 	m_block_ptr = m_block_start;
 
 	SegmentL1Index L1_index;
-	L1_index.start_key = CloneKey(m_L0indexs[0].start_key, m_L1key_buf);
+	L1_index.start_key = CloneKey(m_L1key_buf, m_L0indexs[0].start_key);
 	L1_index.L1offset = m_offset;
 
 	uint32_t index_size;
@@ -750,7 +503,7 @@ Status IndexWriter::Write(const SegmentL0Index& L0_index)
 {
 	//TODO:构建最短key
 	m_L0indexs[m_L0index_cnt] = L0_index;
-	m_L0indexs[m_L0index_cnt].start_key = CloneKey(L0_index.start_key, m_L0key_buf);
+	m_L0indexs[m_L0index_cnt].start_key = CloneKey(m_L0key_buf, L0_index.start_key);
 
 	++m_L0index_cnt;
 	m_writing_size += L0_index.start_key.size + MAX_V32_SIZE*3;
@@ -768,7 +521,7 @@ Status IndexWriter::Write(const SegmentL0Index& L0_index)
 	return OK;
 }
 
-Status IndexWriter::WriteL2Index(uint32_t& L2index_size)
+Status IndexWriter::WriteL2Index(const StrView& upmost_key, uint32_t& L2index_size)
 {
 	L2index_size = 0;
 
@@ -803,6 +556,7 @@ Status IndexWriter::WriteL2Index(uint32_t& L2index_size)
 	}
 	m_L1indexs.clear();
 	
+	m_block_ptr = EncodeString(m_block_ptr, upmost_key.data, upmost_key.size);
 	m_block_ptr = Encode32(m_block_ptr, 0);//FIXME:crc填0
 
 	uint32_t size = m_block_ptr - m_block_start;
@@ -836,11 +590,7 @@ void IndexWriter::WriteMeta(const SegmentMeta& meta)
 	WriteObjectStat(SetType, meta.object_stat.set_stat);
 	WriteObjectStat(DeleteType, meta.object_stat.delete_stat);
 
-	//计算最短最大key
-	String key;
-	GetMaxShortKey(meta.upmost_key, key);
-	m_block_ptr = EncodeString(m_block_ptr, MID_UPMOST_KEY, key.Data(), key.Size());
-	m_block_ptr = EncodeV64(m_block_ptr, MID_MAX_OBJECTID, meta.max_objectid);
+	//FIXME:暂没有其他属性
 	m_block_ptr = EncodeV32(m_block_ptr, MID_END);
 	
 	m_block_ptr = Encode32(m_block_ptr, 0);//FIXME:crc填0
@@ -867,12 +617,12 @@ Status IndexWriter::WriteMeta(uint32_t L2index_size, const SegmentMeta& meta)
 	return OK;
 }
 
-Status IndexWriter::WriteL2IndexMeta(const SegmentMeta& meta)
+Status IndexWriter::WriteL2IndexMeta(const StrView& upmost_key, const SegmentMeta& meta)
 {
 	m_L2offset_start = m_offset;
 
 	uint32_t L2index_size;
-	Status s = WriteL2Index(L2index_size);
+	Status s = WriteL2Index(upmost_key, L2index_size);
 	if(s != OK)
 	{
 		return s;
@@ -881,7 +631,7 @@ Status IndexWriter::WriteL2IndexMeta(const SegmentMeta& meta)
 	return WriteMeta(L2index_size, meta);
 }
 
-Status IndexWriter::Finish(const SegmentMeta& meta)
+Status IndexWriter::Finish(const StrView& upmost_key, const SegmentMeta& meta)
 {
 	if(m_L0index_cnt != 0)
 	{
@@ -891,7 +641,7 @@ Status IndexWriter::Finish(const SegmentMeta& meta)
 			return s;
 		}
 	}
-	Status s = WriteL2IndexMeta(meta);
+	Status s = WriteL2IndexMeta(upmost_key, meta);
 	if(s != OK)
 	{
 		return s;

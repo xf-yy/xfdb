@@ -73,11 +73,6 @@ StrView ReadWriteMemWriter::UpmostKey() const
 	return m_objects.empty() ? StrView() : m_objects.rbegin()->first;
 }
 
-//小于最小key的key
-StrView ReadWriteMemWriter::LowestKey() const
-{
-	return m_objects.empty() ? StrView() : m_objects.begin()->first;
-}
 
 }  
 

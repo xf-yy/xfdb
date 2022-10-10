@@ -39,8 +39,6 @@ public:
 	
 	/**最大key*/
 	virtual StrView UpmostKey() const = 0;
-	/**最小key*/
-	virtual StrView LowestKey() const = 0;
 	
 	/**返回segment文件总大小*/
 	virtual uint64_t Size() const = 0;

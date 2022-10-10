@@ -17,6 +17,7 @@ limitations under the License.
 #ifndef __xfdb_memwriter_iterator_h__
 #define __xfdb_memwriter_iterator_h__
 
+#include <map>
 #include "types.h"
 #include "iterator.h"
 
@@ -30,8 +31,10 @@ public:
 	virtual ~WriteOnlyMemWriterIterator(){}
 
 public:
+	virtual StrView UpmostKey() const override;
+
 	/**移到第1个元素处*/
-	virtual void First()  override
+	virtual void First() override
 	{
 		m_index = 0;
 	}
@@ -39,21 +42,19 @@ public:
 	//virtual void Last() = 0;
 	
 	/**移到到>=key的地方*/
-	virtual void Seek(const StrView& key) override;
+	//virtual void Seek(const StrView& key) override;
 	
 	/**向后移到一个元素*/
 	virtual void Next() override;
 	//virtual void Prev() = 0;
 
 	/**是否还有下一个元素*/
-	virtual bool Valid()  override
+	virtual bool Valid() const override
 	{
 		return m_index < m_max_num;
 	}
 	
-	virtual ObjectType Type() override;
-	virtual StrView Key()  override;
-	virtual StrView Value() override;
+	virtual const Object& object() const override;
 	
 private:
 	WriteOnlyMemWriterPtr m_table;
@@ -73,24 +74,24 @@ public:
 	virtual ~ReadWriteMemWriterIterator(){}
 
 public:
+	virtual StrView UpmostKey() const override;
+	
 	/**移到第1个元素处*/
-	virtual void First()  override;
+	virtual void First() override;
 	/**移到最后1个元素处*/
 	//virtual void Last() = 0;
 	
 	/**移到到>=key的地方*/
-	virtual void Seek(const StrView& key) override;
+	//virtual void Seek(const StrView& key) override;
 	
 	/**向后移到一个元素*/
 	virtual void Next() override;
 	//virtual void Prev() = 0;
 
 	/**是否还有下一个元素*/
-	virtual bool Valid()  override;
+	virtual bool Valid()   const override;
 	
-	virtual ObjectType Type() override;
-	virtual StrView Key()  override;
-	virtual StrView Value() override;
+	virtual const Object& object() const override;
 	
 private:
 	ReadWriteMemWriterPtr m_table;

@@ -20,6 +20,8 @@ limitations under the License.
 #include "data_file.h"
 #include "index_file.h"
 #include "file_util.h"
+#include "key_util.h"
+#include "data_block.h"
 
 using namespace xfutil;
 
@@ -45,140 +47,17 @@ Status DataReader::Open(const char* bucket_path, fileid_t fileid)
 	return OK;
 }
 
-Status DataReader::SearchGroup(const byte_t* group, uint32_t group_size, const L0GroupIndex& group_index, const StrView& key, ObjectType& type, String& value) const
-{
-	assert(group_size != 0);
-	const byte_t* group_end = group + group_size;
-	const byte_t* data_ptr = group;
-
-	String prev_str1, prev_str2;
-	StrView prev_key = group_index.start_key;
-	
-	while(data_ptr < group_end)
-	{
-		uint32_t shared_keysize = DecodeV32(data_ptr, group_end);
-		StrView nonshared_key = DecodeString(data_ptr, group_end);
-		StrView curr_key = MakeKey(prev_key, shared_keysize, nonshared_key, prev_str1, prev_str2);
-		
-		byte_t curr_type = *data_ptr++;
-		StrView curr_value = DecodeString(data_ptr, group_end);
-		
-		int ret = key.Compare(curr_key);
-		if(ret == 0)
-		{
-			type = (ObjectType)(curr_type & 0x0F);
-			value.Assign(curr_value.data, curr_value.size);
-			return OK;
-		}
-		else if(ret < 0)
-		{
-			break;
-		}
-		prev_key = curr_key;
-	}
-	return ERR_OBJECT_NOT_EXIST;
-}
-
-Status DataReader::SearchL2Group(const byte_t* group_start, uint32_t group_size, const LnGroupIndex& lngroup_index, const StrView& key, ObjectType& type, String& value) const
-{
-	assert(group_size != 0);
-	const byte_t* group_end = group_start + group_size;
-	const byte_t* index_ptr = group_end - lngroup_index.index_size;
-	const byte_t* group_ptr = group_start;
-	
-	String prev_str1, prev_str2;
-	L0GroupIndex group_index;
-	StrView prev_key = lngroup_index.start_key;
-	
-	while(index_ptr < group_end)
-	{
-		//解group key
-		uint32_t shared_keysize = DecodeV32(index_ptr, group_end);
-		StrView nonshared_key = DecodeString(index_ptr, group_end);
-		StrView curr_key = MakeKey(prev_key, shared_keysize, nonshared_key, prev_str1, prev_str2);
-		int ret = key.Compare(curr_key);
-		if(ret < 0)
-		{
-			break;
-		}
-		
-		group_index.start_key = curr_key;
-		group_index.group_size = DecodeV32(index_ptr, group_end);
-		
-		if(ret == 0)
-		{
-			return SearchGroup(group_ptr, group_index.group_size, group_index, key, type, value);
-		}
-		group_ptr += group_index.group_size;
-		
-		prev_key = curr_key;
-	}
-
-	return SearchGroup(group_ptr-group_index.group_size, group_index.group_size, group_index, key, type, value);;
-}
-
-Status DataReader::SearchBlock(const byte_t* block, uint32_t block_size, const SegmentL0Index& L0_index, const StrView& key, ObjectType& type, String& value) const
-{
-	assert(block_size != 0);
-	const byte_t* block_end = block + block_size;
-	const byte_t* index_ptr = block_end - L0_index.L0index_size - sizeof(uint32_t)/*crc32*/;
-	const byte_t* group_ptr = block;
-	
-	//找到第1个大于key的group
-	String prev_str1, prev_str2;
-	LnGroupIndex lngroup_index;
-	StrView prev_key;
-
-	const byte_t* index_end = block_end - sizeof(uint32_t)/*crc32*/;
-	while(index_ptr < index_end)
-	{
-		uint32_t shared_keysize = DecodeV32(index_ptr, index_end);
-		StrView nonshared_key = DecodeString(index_ptr, index_end);
-		StrView curr_key = MakeKey(prev_key, shared_keysize, nonshared_key, prev_str1, prev_str2);
-
-		int ret = key.Compare(curr_key);
-		if(ret < 0)
-		{
-			break;
-		}
-		
-		lngroup_index.start_key = curr_key;
-		lngroup_index.group_size = DecodeV32(index_ptr, index_end);
-		lngroup_index.index_size = DecodeV32(index_ptr, index_end);
-
-		//前后key比较	
-		if(ret == 0)
-		{
-			return SearchL2Group(group_ptr, lngroup_index.group_size, lngroup_index, key, type, value);
-		}
-		group_ptr += lngroup_index.group_size;
-		prev_key = curr_key;
-	}
-	return SearchL2Group(group_ptr-lngroup_index.group_size, lngroup_index.group_size, lngroup_index, key, type, value);;
-}
 
 Status DataReader::Search(const SegmentL0Index& L0_index, const StrView& key, ObjectType& type, String& value) const
 {
-	//TODO: 读cache
-	
-	//从文件中读取数据块
-	//printf("L0_index.L0compress_size:%u\n", L0_index.L0compress_size);
-	byte_t* buf = m_pool.Alloc();
-	if(buf == nullptr)
+	DataBlockReader block(m_pool);
+	Status s = block.Read(m_file, L0_index);
+	if(s != OK)
 	{
-		return ERR_MEMORY_NOT_ENOUGH;
+		return s;
 	}
-	BlockPoolGuard guard(m_pool, buf);
-	
-	int64_t r_size = m_file.Read(L0_index.L0offset, buf, L0_index.L0compress_size);
-	if((uint64_t)r_size != L0_index.L0compress_size)
-	{
-		return ERR_FILE_READ;
-	}
-	//TODO: 是否要解压
-	//TODO: 存cache
-	
-	return SearchBlock(buf, r_size, L0_index, key, type, value);
+
+	return block.Search(key, type, value);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -231,12 +110,6 @@ Status DataWriter::Create(const char* bucket_path, fileid_t fileid)
 	return OK;
 }
 
-StrView DataWriter::CloneKey(const StrView& str)
-{
-	byte_t *p = m_key_buf.Write((byte_t*)str.data, str.size);
-	return StrView((char*)p, str.size);
-}
-
 StrView DataWriter::ClonePrevKey(const StrView& str)
 {
 	m_prev_key.Assign(str.data, str.size);
@@ -249,7 +122,7 @@ Status DataWriter::WriteGroup(Iterator& iter, L0GroupIndex& gi)
 	{
 		return ERR_NOMORE_DATA;
 	}
-	gi.start_key = CloneKey(iter.Key());
+	gi.start_key = CloneKey(m_key_buf, iter.object().key);
 	StrView prev_key = gi.start_key;
 	
 	Status s = OK;
@@ -257,8 +130,8 @@ Status DataWriter::WriteGroup(Iterator& iter, L0GroupIndex& gi)
 
 	for(int i = 0; i < MAX_OBJECT_NUM_OF_GROUP && iter.Valid(); ++i)
 	{
-		const StrView key = iter.Key();
-		const StrView value = iter.Value();
+		const StrView& key = iter.object().key;
+		const StrView& value = iter.object().value;
 		
 		//当剩余空间不足时，结束掉该block
 		uint32_t need_size = key.size + value.size + EXTRA_OBJECT_SIZE;
@@ -274,7 +147,7 @@ Status DataWriter::WriteGroup(Iterator& iter, L0GroupIndex& gi)
 		uint32_t nonshared_size = key.size - shared_keysize;
 		m_block_ptr = EncodeString(m_block_ptr, &key.data[shared_keysize], nonshared_size);
 
-		*m_block_ptr++ = iter.Type();
+		*m_block_ptr++ = iter.object().type;
 
 		m_block_ptr = EncodeString(m_block_ptr, value.data, value.size);
 
@@ -321,7 +194,7 @@ Status DataWriter::WriteL2Group(Iterator& iter, LnGroupIndex& ci)
 	{
 		return ERR_NOMORE_DATA;
 	}
-	ci.start_key = CloneKey(iter.Key());
+	ci.start_key = CloneKey(m_key_buf, iter.object().key);
 	
 	Status s = ERR_BUFFER_FULL;
 	byte_t* group_start = m_block_ptr;
@@ -409,7 +282,7 @@ Status DataWriter::Write(Iterator& iter)
 		m_key_buf.Clear();
 		
 		SegmentL0Index L0_index;
-		L0_index.start_key = CloneKey(iter.Key());	//iter.Key可能是临时key
+		L0_index.start_key = CloneKey(m_key_buf, iter.object().key);	//iter.Key可能是临时key
 		L0_index.L0offset = m_offset;
 		
 		uint32_t index_size;

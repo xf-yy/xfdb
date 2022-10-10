@@ -19,11 +19,13 @@ limitations under the License.
 #include "table_writer_snapshot.h"
 #include "mem_writer_iterator.h"
 #include "table_writer.h"
+#include "table_reader_snapshot.h"
+#include "segment_iterator.h"
 
 namespace xfdb 
 {
 
-SegmentReader::SegmentReader(BlockPool& pool) : m_index_reader(pool), m_data_reader(pool)
+SegmentReader::SegmentReader(BlockPool& pool) : m_pool(pool), m_index_reader(pool), m_data_reader(pool)
 {
 }
 
@@ -31,9 +33,9 @@ SegmentReader::~SegmentReader()
 {
 }
 
-Status SegmentReader::Open(const char* bucket_path, const SegmentFileIndex& info)
+Status SegmentReader::Open(const char* bucket_path, const SegmentIndexInfo& info)
 {
-	m_fileinfo = info;
+	m_index_info = info;
 	Status s = m_index_reader.Open(bucket_path, info);
 	if(s != OK)
 	{
@@ -56,25 +58,20 @@ Status SegmentReader::Get(const StrView& key, ObjectType& type, String& value) c
 
 IteratorPtr SegmentReader::NewIterator()
 {
-	assert(false);
-	return nullptr;
+	SegmentReaderPtr ptr = std::dynamic_pointer_cast<SegmentReader>(shared_from_this());
+
+	return NewSegmentReaderIterator(ptr);
 }
 
 //最大key
 StrView SegmentReader::UpmostKey() const
 {
-	return m_index_reader.GetMeta().upmost_key;
-}
-
-//最小key
-StrView SegmentReader::LowestKey() const
-{
-	return m_index_reader.GetMeta().lowest_key;
+	return m_index_reader.UpmostKey();
 }
 
 uint64_t SegmentReader::Size() const
 {
-	return m_fileinfo.index_filesize + m_fileinfo.data_filesize;
+	return m_index_info.index_filesize + m_index_info.data_filesize;
 }
 
 void SegmentReader::GetStat(BucketStat& stat) const
@@ -103,8 +100,9 @@ Status SegmentWriter::Create(const char* bucket_path, fileid_t fileid)
 	return m_data_writer.Create(bucket_path, fileid);
 }
 
-Status SegmentWriter::Write(const TableWriterSnapshotPtr& table_writer_snapshot, SegmentFileIndex& seginfo)
+Status SegmentWriter::Write(const TableWriterSnapshotPtr& table_writer_snapshot, SegmentIndexInfo& seginfo)
 {	
+	//FIXME:与Merge相似，可以合并
 	IteratorPtr iter = table_writer_snapshot->NewIterator();
 	Status s = m_data_writer.Write(*iter);
 	if(s != OK)
@@ -118,15 +116,12 @@ Status SegmentWriter::Write(const TableWriterSnapshotPtr& table_writer_snapshot,
 	}
 
 	SegmentMeta meta;
-	meta.max_objectid = table_writer_snapshot->GetMaxObjectID();
-	meta.lowest_key = table_writer_snapshot->LowestKey();
-	meta.upmost_key = table_writer_snapshot->UpmostKey();
 
 	BucketStat stat = {0};
 	table_writer_snapshot->GetStat(stat);
 	meta.object_stat = stat.object_stat;
 	
-	s = m_index_writer.Finish(meta);
+	s = m_index_writer.Finish(iter->UpmostKey(), meta);
 	if(s != OK)
 	{
 		return s;
@@ -137,15 +132,49 @@ Status SegmentWriter::Write(const TableWriterSnapshotPtr& table_writer_snapshot,
 	return OK;
 }
 	
-Status SegmentWriter::Merge(const std::map<fileid_t, SegmentReaderPtr>& segment_readers, SegmentFileIndex& seginfo)
+Status SegmentWriter::Merge(const MergingSegmentInfo& msinfo, SegmentIndexInfo& seginfo)
 {
-	assert(false);
-	//IteratorPtr iter = segment_readers->NewIterator();
-	//m_data_writer.Write(*iter);
+	assert(msinfo.reader_snapshot.readers);
+	const auto& readers = msinfo.reader_snapshot.readers->Readers();
 
-	//m_index_writer.Finish(table_writer_snapshot->);
+	std::map<fileid_t, TableReaderPtr> segment_readers;
+	for(auto it = msinfo.merging_segment_fileids.begin(); it != msinfo.merging_segment_fileids.end(); ++it)
+	{
+		auto reader_it = readers.find(*it);
+		assert(reader_it != readers.end());
 
-	return ERR_INVALID_MODE;
+		segment_readers[*it] = reader_it->second;
+	}
+
+	TableReaderSnapshot tmp_reader_snapshot(segment_readers);
+	IteratorPtr iter = tmp_reader_snapshot.NewIterator();
+	Status s = m_data_writer.Write(*iter);
+	if(s != OK)
+	{
+		return s;
+	}
+	s = m_data_writer.Finish();
+	if(s != OK)
+	{
+		return s;
+	}
+
+	SegmentMeta meta;
+
+	BucketStat stat = {0};
+	tmp_reader_snapshot.GetStat(stat);
+	meta.object_stat = stat.object_stat;
+	
+	s = m_index_writer.Finish(iter->UpmostKey(), meta);
+	if(s != OK)
+	{
+		return s;
+	}
+	seginfo.data_filesize = m_data_writer.FileSize();
+	seginfo.index_filesize = m_index_writer.FileSize();
+	seginfo.L2index_meta_size = m_index_writer.L2IndexMetaSize();
+
+	return OK;
 }
 		
 Status SegmentWriter::Remove(const char* bucket_path, fileid_t fileid)

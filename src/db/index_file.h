@@ -26,14 +26,8 @@ limitations under the License.
 #include "xfdb/strutil.h"
 #include "path.h"
 
-using namespace xfutil;
 namespace xfdb 
 {
-
-StrView MakeKey(StrView& prev_key, uint32_t shared_keysize, StrView& nonshared_key, String& prev_str1, String& prev_str2);
-void GetMaxShortKey(const StrView& key, String& str); 
-void GetMinShortKey(const StrView& key, String& str);
-void GetMidShortKey(const StrView& key1, const StrView& key2, String& str);
 
 class IndexReader
 {
@@ -42,10 +36,14 @@ public:
 	~IndexReader();
 	
 public:	
-	Status Open(const char* bucket_path, const SegmentFileIndex& info);
+	Status Open(const char* bucket_path, const SegmentIndexInfo& info);
 
 	Status Search(const StrView& key, SegmentL0Index& idx) const;
-	
+
+	inline const StrView& UpmostKey() const
+	{
+		return m_upmost_key;
+	}
 	inline const SegmentMeta& GetMeta() const
 	{
 		return m_meta;
@@ -58,14 +56,8 @@ public:
 private:
 	const SegmentL1Index* Search(const StrView& key) const;
 
-	Status SearchBlock(const byte_t* block, uint32_t block_size, const SegmentL1Index* L1Index, const StrView& key, SegmentL0Index& L0_index) const;
-	Status SearchL2Group(const byte_t* group_start, uint32_t group_size, const LnGroupIndex& group_index, const StrView& key, SegmentL0Index& L0_index) const;
-	Status SearchGroup(const byte_t* group, uint32_t group_size, const L0GroupIndex& group_index, const StrView& key, SegmentL0Index& L0_index) const;
-
 	Status ParseL2Index(const byte_t* data, uint32_t L2index_meta_size);
 	Status ParseMeta(const byte_t* data, uint32_t metasize);
-
-	StrView CloneKey(const StrView& str);
 	
 	bool ParseObjectStat(const byte_t* &data, const byte_t* data_end);
 	bool ParseDeletedSegment(const byte_t* &data, const byte_t* data_end);
@@ -74,12 +66,15 @@ private:
 	bool ParseKeyIndex(const byte_t* &data, const byte_t* data_end, uint64_t& last_offset, SegmentL1Index& L1Index);
 
 private:
+	DBConfig m_conf;
 	File m_file;
 	BlockPool& m_pool;
 	WriteBuffer m_buf;
 	std::vector<SegmentL1Index> m_L1indexs;
+	StrView m_upmost_key;
 	SegmentMeta m_meta;
-	DBConfig m_conf;
+	
+	friend class SegmentReaderIterator;
 	
 private:
 	IndexReader(const IndexReader&) = delete;
@@ -95,7 +90,7 @@ public:
 public:	
 	Status Create(const char* bucket_path, fileid_t fileid);
 	Status Write(const SegmentL0Index& L0_index);
-	Status Finish(const SegmentMeta& meta);
+	Status Finish(const StrView& upmost_key, const SegmentMeta& meta);
 	inline uint64_t FileSize()
 	{
 		return m_file.Size();
@@ -113,14 +108,12 @@ private:
 	Status WriteL2GroupIndex(const LnGroupIndex* group_indexs, int index_cnt);
 	Status WriteBlock(uint32_t& index_size);
 	Status WriteBlock();
-	Status WriteL2Index(uint32_t& L2index_size);
+	Status WriteL2Index(const StrView& upmost_key, uint32_t& L2index_size);
 	Status WriteMeta(uint32_t L2index_size, const SegmentMeta& meta);
 	void WriteMeta(const SegmentMeta& meta);
 	void WriteObjectStat(ObjectType type, const ObjectStatItem& stat);
 	
-	Status WriteL2IndexMeta(const SegmentMeta& meta);
-	
-	StrView CloneKey(const StrView& str, WriteBuffer& buf);
+	Status WriteL2IndexMeta(const StrView& upmost_key, const SegmentMeta& meta);
 
 private:
 	const DBConfig& m_db_conf;

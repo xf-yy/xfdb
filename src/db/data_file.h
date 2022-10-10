@@ -25,8 +25,6 @@ limitations under the License.
 #include "iterator.h"
 #include "path.h"
 
-using namespace xfutil;
-
 namespace xfdb 
 {
 
@@ -41,14 +39,10 @@ public:
 	Status Search(const SegmentL0Index& L0_index, const StrView& key, ObjectType& type, String& value) const;
 
 private:
-	Status SearchBlock(const byte_t* block, uint32_t block_size, const SegmentL0Index& L0_index, const StrView& key, ObjectType& type, String& value) const;
-	Status SearchL2Group(const byte_t* group_start, uint32_t group_size, const LnGroupIndex& group_index, const StrView& key, ObjectType& type, String& value) const;
-	Status SearchGroup(const byte_t* group, uint32_t group_size, const L0GroupIndex& group_index, const StrView& key, ObjectType& type, String& value) const;
-
-private:
 	File m_file;
 	BlockPool& m_pool;
-	
+
+	friend class SegmentReaderIterator;	
 private:
 	DataReader(const DataReader&) = delete;
 	DataReader& operator=(const DataReader&) = delete;
@@ -80,7 +74,6 @@ private:
 	Status WriteL2GroupIndex(const LnGroupIndex* group_indexs, int index_cnt);
 	
 	StrView ClonePrevKey(const StrView& str);
-	StrView CloneKey(const StrView& str);
 
 private:
 	const DBConfig& m_db_conf;

@@ -19,11 +19,12 @@ limitations under the License.
 
 #include <vector>
 #include <ctime>
+#include <set>
 #include "xfdb/util_types.h"
 #include "xfdb/db_types.h"
 #include "xfdb/strutil.h"
 #include "hash.h"
-#include <map>
+
 
 using namespace xfutil;
 
@@ -37,12 +38,13 @@ typedef uint64_t objectid_t;
 //segment fileid: 高60bit是segmentid，低4bit是level
 #define LEVEL_BITNUM				(4)
 #define LEVEL_MASK					((1<<LEVEL_BITNUM) - 1)
-
-#define MAX_LEVEL_NUM				LEVEL_MASK
-#define MAX_SEGMENT_ID				((0x1ULL <<(64-LEVEL_BITNUM)) - 1)
-
+#define MAX_LEVEL_NUM				7
+static_assert(MAX_LEVEL_NUM > 2, "invalid MAX_LEVEL_NUM");
 #define LEVEL_NUM(id)				((id) & LEVEL_MASK)
+
 #define SEGMENT_ID(id)				((id) >> LEVEL_BITNUM)
+#define MAX_SEGMENT_ID				((0x1ULL << (64-LEVEL_BITNUM)) - 1)
+#define SEGMENT_FILEID(id, level)	(((id) << LEVEL_BITNUM) | level)
 
 #define INVALID_FILEID				(0)
 #define MIN_FILEID					(INVALID_FILEID + 1)
@@ -204,12 +206,9 @@ struct SegmentMeta
 {
 	std::vector<fileid_t> deleted_segment_fileids;
 	ObjectStat object_stat;
-	objectid_t max_objectid;
-	StrView lowest_key;
-	StrView upmost_key;
 };
 
-struct SegmentFileIndex
+struct SegmentIndexInfo
 {
 	fileid_t segment_fileid;	//segment fileid
 	uint64_t data_filesize;		//data文件大小
@@ -279,6 +278,16 @@ class ReadOnlyBucket;
 typedef std::shared_ptr<ReadOnlyBucket> ReadOnlyBucketPtr;
 #define NewReadOnlyBucket 	std::make_shared<ReadOnlyBucket>
 
+class TableReader;
+typedef std::shared_ptr<TableReader> TableReaderPtr;
+
+class Iterator;
+typedef std::shared_ptr<Iterator> IteratorPtr;
+
+class TableReaderSnapshot;
+typedef std::shared_ptr<TableReaderSnapshot> TableReaderSnapshotPtr;
+#define NewTableReaderSnapshot 	std::make_shared<TableReaderSnapshot>
+
 class TableWriter;
 typedef std::shared_ptr<TableWriter> TableWriterPtr;
 
@@ -314,30 +323,17 @@ class SegmentReader;
 typedef std::shared_ptr<SegmentReader> SegmentReaderPtr;
 #define NewSegmentReader 	std::make_shared<SegmentReader>
 
+class SegmentReaderIterator;
+typedef std::shared_ptr<SegmentReaderIterator> SegmentReaderIteratorPtr;
+#define NewSegmentReaderIterator 	std::make_shared<SegmentReaderIterator>
+
 class SegmentWriter;
 typedef std::shared_ptr<SegmentWriter> SegmentWriterPtr;
 #define NewSegmentWriter 	std::make_shared<SegmentWriter>
 
-struct MergingSegmentInfo
-{
-	fileid_t new_segment_fileid;
-	SegmentReaderPtr new_segment_reader;
-	std::map<fileid_t, SegmentReaderPtr> merging_segment_readers;
-};
-
-class TableReader;
-typedef std::shared_ptr<TableReader> TableReaderPtr;
-
-class TableReaderSnapshot;
-typedef std::shared_ptr<TableReaderSnapshot> TableReaderSnapshotPtr;
-#define NewTableReaderSnapshot 	std::make_shared<TableReaderSnapshot>
-
-class Iterator;
-typedef std::shared_ptr<Iterator> IteratorPtr;
-
-class TableReadersIterator;
-typedef std::shared_ptr<TableReadersIterator> TableReadersIteratorPtr;
-#define NewTableReadersIterator 	std::make_shared<TableReadersIterator>
+class IteratorSet;
+typedef std::shared_ptr<IteratorSet> IteratorSetPtr;
+#define NewIteratorSet 	std::make_shared<IteratorSet>
 
 class WriteOnlyMemWriterIterator;
 typedef std::shared_ptr<WriteOnlyMemWriterIterator> WriteOnlyMemWriterIteratorPtr;
@@ -346,6 +342,22 @@ typedef std::shared_ptr<WriteOnlyMemWriterIterator> WriteOnlyMemWriterIteratorPt
 class ReadWriteMemWriterIterator;
 typedef std::shared_ptr<ReadWriteMemWriterIterator> ReadWriteMemWriterIteratorPtr;
 #define NewReadWriteMemWriterIterator 	std::make_shared<ReadWriteMemWriterIterator>
+
+struct BucketReaderSnapshot
+{
+	BucketMetaFilePtr meta_file;
+	TableReaderSnapshotPtr readers;
+};
+
+struct MergingSegmentInfo
+{
+	fileid_t new_segment_fileid;
+	SegmentReaderPtr new_segment_reader;
+	std::set<fileid_t> merging_segment_fileids;
+	BucketReaderSnapshot reader_snapshot;
+};
+
+
 
 }
 

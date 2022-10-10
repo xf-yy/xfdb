@@ -80,14 +80,5 @@ StrView WriteOnlyMemWriter::UpmostKey() const
 	return m_objects.empty() ? StrView() : m_objects.back()->key;
 }
 
-//小于最小key的key
-StrView WriteOnlyMemWriter::LowestKey() const
-{
-#if _DEBUG
-	assert(m_sorted);
-#endif
-	return m_objects.empty() ? StrView() : m_objects[0]->key;
-}
-
 }  
 

@@ -49,15 +49,15 @@ Status ReadOnlyBucket::Open()
 Status ReadOnlyBucket::Get(const StrView& key, String& value)
 {
 	m_segment_rwlock.ReadLock();
-	TableReaderSnapshotPtr trs_ptr = m_reader_snapshot;
+	BucketReaderSnapshot reader_snapshot = m_reader_snapshot;
 	m_segment_rwlock.ReadUnlock();
 
-	if(!trs_ptr)
+	if(!reader_snapshot.readers)
 	{
 		return ERR_OBJECT_NOT_EXIST;
 	}
 	ObjectType type;
-	Status s = trs_ptr->Get(key, type, value);
+	Status s = reader_snapshot.readers->Get(key, type, value);
 	if(s != OK)
 	{
 		return s;
@@ -70,12 +70,12 @@ void ReadOnlyBucket::GetStat(BucketStat& stat) const
 	memset(&stat, 0x00, sizeof(stat));
 
 	m_segment_rwlock.ReadLock();
-	TableReaderSnapshotPtr trs_ptr = m_reader_snapshot;
+	BucketReaderSnapshot reader_snapshot = m_reader_snapshot;
 	m_segment_rwlock.ReadUnlock();
 
-	if(trs_ptr)
+	if(reader_snapshot.readers)
 	{
-		trs_ptr->GetStat(stat);
+		reader_snapshot.readers->GetStat(stat);
 	}
 }
 

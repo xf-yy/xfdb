@@ -47,11 +47,11 @@ typedef int fd_t;
 
 typedef uint64_t second_t;
 
-#define	ErrorNo	errno
+#define	LastError	errno
 
 #else
 #error "not suppot this platform"
-#define ErrorNo	GetLastError()
+#define LastError	GetLastError()
 #endif
 
 

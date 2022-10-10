@@ -31,8 +31,11 @@ Bucket::Bucket(DBImplPtr db, const BucketInfo& info)
 	MakeBucketPath(db->GetPath().c_str(), info.name.c_str(), info.id, bucket_path);
 	m_bucket_path = bucket_path;
 
+	m_next_object_id = MIN_OBJECTID;
+
 	m_next_segment_id = MIN_FILEID;
 	m_next_bucket_meta_fileid = MIN_FILEID;
+	m_max_level_num = MAX_LEVEL_NUM;
 }
 
 Status Bucket::Open(const char* bucket_meta_filename)
@@ -46,15 +49,14 @@ Status Bucket::Open(const char* bucket_meta_filename)
 	{
 		return s;
 	}
-	BucketMetaData sld;
-	s = bucket_meta_file->Read(sld);
+	BucketMetaData bmd;
+	s = bucket_meta_file->Read(bmd);
 	if(s != OK)
 	{
 		return s;
 	}
 	fileid_t fileid = strtoull(bucket_meta_filename, nullptr, 10);
 
-		
 	//保证一次只有一个线程在执行reload操作
 	std::lock_guard<std::mutex> lock(m_mutex);
 	if(fileid < m_next_bucket_meta_fileid)
@@ -64,63 +66,42 @@ Status Bucket::Open(const char* bucket_meta_filename)
 	}	
 	
 	m_segment_rwlock.ReadLock();
-	TableReaderSnapshotPtr trs_ptr = m_reader_snapshot;
+	BucketReaderSnapshot reader_snapshot = m_reader_snapshot;
 	m_segment_rwlock.ReadUnlock();
 
 	std::map<fileid_t, TableReaderPtr> new_readers;
-	if(trs_ptr)
-	{
-		OpenSegments(sld, trs_ptr.get(), new_readers);
-	}
-	else
-	{
-		OpenSegments(sld, new_readers);
-	}
+	OpenSegments(bmd, reader_snapshot.readers.get(), new_readers);
 	
 	TableReaderSnapshotPtr new_ss_ptr = NewTableReaderSnapshot(new_readers);
 	
 	m_segment_rwlock.WriteLock();
-	m_reader_snapshot.swap(new_ss_ptr);
-	m_bucket_meta_file.swap(bucket_meta_file);
 	m_next_bucket_meta_fileid = fileid+1;
-	m_next_segment_id = sld.next_segment_id;
+	m_next_segment_id = bmd.next_segment_id;
+	m_next_object_id = bmd.next_object_id;
+	m_max_level_num = bmd.max_level_num;
+
+	m_reader_snapshot.readers.swap(new_ss_ptr);
+	m_reader_snapshot.meta_file.swap(bucket_meta_file);
 	m_segment_rwlock.WriteUnlock();
 
 	return OK;
 }
 
-Status Bucket::OpenSegment(const char* bucket_path, const SegmentFileIndex& sfi, SegmentReaderPtr& sr_ptr)
+Status Bucket::OpenSegment(const char* bucket_path, const SegmentIndexInfo& sfi, SegmentReaderPtr& sr_ptr)
 {
 	DBImplPtr db = m_db.lock();
 	sr_ptr = NewSegmentReader(db->GetEngine()->GetBlockPool());
 	
-	Status s = sr_ptr->Open(bucket_path, sfi);
-	if(s != OK)
-	{
-		LogWarn("failed to open segment file: %ull, status: %u, errno: %u", sfi.segment_fileid, s, ErrorNo);
-	}
-	return s;
+	return sr_ptr->Open(bucket_path, sfi);
 }
 
-void Bucket::OpenSegments(const BucketMetaData& sld, std::map<fileid_t, TableReaderPtr>& readers)
+void Bucket::OpenSegments(const BucketMetaData& bmd, const TableReaderSnapshot* last_snapshot, std::map<fileid_t, TableReaderPtr>& readers)
 {
-	SegmentReaderPtr sr_ptr;
-	for(const auto& seginfo : sld.alive_segment_infos)
-	{		
-		if(OpenSegment(m_bucket_path.c_str(), seginfo, sr_ptr) == OK)
-		{
-			readers[seginfo.segment_fileid] = sr_ptr;
-		}
-	}
-}
-
-void Bucket::OpenSegments(const BucketMetaData& sld, const TableReaderSnapshot* last_snapshot, std::map<fileid_t, TableReaderPtr>& readers)
-{
-	assert(last_snapshot != nullptr);
-	const std::map<fileid_t, TableReaderPtr>& last_readers = last_snapshot->Readers();
+	static const std::map<fileid_t, TableReaderPtr> empty_readers;
+	const std::map<fileid_t, TableReaderPtr>& last_readers = (last_snapshot != nullptr) ? last_snapshot->Readers() : empty_readers;
 	
 	SegmentReaderPtr sr_ptr;
-	for(const auto& seginfo : sld.alive_segment_infos)
+	for(const auto& seginfo : bmd.alive_segment_infos)
 	{		
 		auto it = last_readers.find(seginfo.segment_fileid);
 		if(it != last_readers.end())

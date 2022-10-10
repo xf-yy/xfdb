@@ -42,9 +42,6 @@ public:
 	//大于最大key的key
 	virtual StrView UpmostKey()    const override;
 
-	//小于最小key的key
-	virtual StrView LowestKey() const override;
-
 private:
 	friend class ReadWriteMemWriterIterator;
 	std::map<StrView, Object*> m_objects;

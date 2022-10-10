@@ -17,6 +17,7 @@ limitations under the License.
 #ifndef __xfdb_bucket_meta_file_h__
 #define __xfdb_bucket_meta_file_h__
 
+#include <set>
 #include "types.h"
 #include "file.h"
 #include "buffer.h"
@@ -26,13 +27,18 @@ namespace xfdb
 
 struct BucketMetaData
 {		
-	fileid_t next_segment_id;
-	std::vector<SegmentFileIndex> alive_segment_infos;
+	std::vector<SegmentIndexInfo> alive_segment_infos;
 	std::vector<fileid_t> deleted_segment_fileids;
+	std::set<fileid_t> max_level_segment_fileids;
+	uint16_t max_level_num;							//记录最大level数，创建后固定
+	fileid_t next_segment_id;
+	objectid_t next_object_id;
 
 	BucketMetaData()
 	{
+		max_level_num = MAX_LEVEL_NUM;
 		next_segment_id = MIN_FILEID;
+		next_object_id = MIN_OBJECTID;
 	}
 };
 
@@ -45,14 +51,14 @@ public:
 public:	
 	Status Open(const char* bucket_path, fileid_t fileid, LockFlag type = LOCK_NONE);
 	Status Open(const char* bucket_path, const char* filename, LockFlag type = LOCK_NONE);
-	Status Read(BucketMetaData& info);
+	Status Read(BucketMetaData& bmd);
 	inline fileid_t FileID()
 	{
 		return m_id;
 	}
 	
 	//
-	static Status Write(const char* bucket_path, fileid_t fileid, BucketMetaData& info);
+	static Status Write(const char* bucket_path, fileid_t fileid, BucketMetaData& bmd);
 	static Status Remove(const char* bucket_path, const char* file_name, bool remove_all);
 
 private:

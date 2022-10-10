@@ -74,34 +74,29 @@ private:
 
 private:
 	fileid_t SelectNewSegmentFileID(MergingSegmentInfo& msinfo);
-	void WriteAliveSegmentInfos(TableReaderSnapshotPtr& trs_ptr, std::vector<fileid_t>& writed_segment_fileids, BucketMetaData& md);
-	void UpdateReaderSnapshot(MergingSegmentInfo& msinfo);
+	void WriteAliveSegmentInfos(TableReaderSnapshotPtr& trs_ptr, BucketMetaData& md);
 
 protected:
-	friend class WritableDB;
-	friend class WritableEngine;
 	WritableEngine* m_engine;
 				
-	//流程：memwriter->table_writer_snapshot->segment_snapshot;
-	//TODO: 可采用几组memwriter达到并发写的目的(根据key hash)
-	objectid_t m_next_objectid;					//下个object的 seqid
-	TableWriterPtr m_memwriter;						//当前可写的memwriter
-	TableWriterSnapshotPtr m_memwriter_snapshot;	//只读待落盘的memwriter集
+	TableWriterPtr m_memwriter;							//当前可写的memwriter
+	TableWriterSnapshotPtr m_memwriter_snapshot;		//只读待落盘的memwriter集
 
-	//FIXME:segment文件生成了，但没有写入segment list，怎么淘汰？
-	//对于大于segment list中的segment都要淘汰？还是重新加入segment list？
+	//FIXME:segment文件生成了，但没有写入bucket meta，怎么淘汰？
+	//对于大于bucket meta中的segment都要淘汰？还是重新加入bucket meta？
+	std::map<fileid_t, bool> m_writing_segment_fileids;	//正在写的segment
+	int m_writed_segment_cnt;							//已写完的segment数
+	
+	//TODO: 所有level层的segment，用于merge
+	std::set<fileid_t> m_tobe_merge_segments[MAX_LEVEL_NUM];
+	std::map<fileid_t, bool> m_merging_segment_fileids[MAX_LEVEL_NUM];
+	std::vector<fileid_t> m_merged_segment_fileids;		//合并后待删除的段，需写入bucket meta
 
-	
-	//std::set<fileid_t> m_merging_segment_fileids;	//正在合并的段ID，		防止重复合并
-	
-	
-	std::vector<fileid_t> m_merged_segment_fileids;		//合并后待删除的段，需写入segment list
-	std::vector<fileid_t> m_writed_segment_fileids;
-	std::map<fileid_t, bool> m_writing_segment_fileids;
-	
-	//待清除的segment list文件	
-	std::deque<FileName> m_deleting_bucket_meta_names;
+	//待清除的bucket meta文件	
+	std::deque<FileName> m_tobe_delete_bucket_meta_names;
 		
+	friend class WritableDB;
+	friend class WritableEngine;
 };
 
 

@@ -35,7 +35,7 @@ public:
 	//创建目录，必须保证父目录存在
 	static inline bool Create(const char* path)
 	{
-		return (mkdir(path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == 0) || (ErrorNo == EEXIST);
+		return (mkdir(path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == 0) || (LastError == EEXIST);
 	}
 	//static bool CreateR(const char* path);
 	//递归移除目录

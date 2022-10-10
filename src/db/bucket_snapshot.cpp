@@ -17,7 +17,7 @@ limitations under the License.
 #include "db_impl.h"
 #include "types.h"
 #include "bucket.h"
-#include "db_meta_file.h"
+#include "db_info_file.h"
 #include "bucket_snapshot.h"
 #include "logger.h"
 
@@ -43,6 +43,14 @@ void BucketSnapshot::Flush()
 	for(auto it = m_buckets.begin(); it != m_buckets.end(); ++it)
 	{
 		it->second->Flush();
+	}
+}
+
+void BucketSnapshot::Merge()
+{
+	for(auto it = m_buckets.begin(); it != m_buckets.end(); ++it)
+	{
+		it->second->Merge();
 	}
 }
 

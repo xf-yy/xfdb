@@ -31,7 +31,7 @@ namespace xfdb
 WriteOnlyBucket::WriteOnlyBucket(WritableEngine* engine, DBImplPtr db, const BucketInfo& info) 
 	: Bucket(db, info), m_engine(engine)
 {	
-	m_next_objectid = MIN_OBJECTID;
+	m_merged_segment_fileids.reserve(engine->GetConfig().merge_factor * engine->GetConfig().part_merge_thread_num);
 }
 
 WriteOnlyBucket::~WriteOnlyBucket()
@@ -59,6 +59,8 @@ Status WriteOnlyBucket::Create()
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
 		md.next_segment_id = m_next_segment_id;
+		md.next_object_id = m_next_object_id;
+		md.max_level_num = m_max_level_num;
 		bucket_meta_fileid = m_next_bucket_meta_fileid;
 	}
 	return BucketMetaFile::Write(m_bucket_path.c_str(), bucket_meta_fileid, md);
@@ -88,7 +90,7 @@ Status WriteOnlyBucket::Open()
 	}
 	for(size_t i = 0; i < file_names.size() - 1; ++i)
 	{
-		m_deleting_bucket_meta_names.push_back(file_names[i]);
+		m_tobe_delete_bucket_meta_names.push_back(file_names[i]);
 	}
 	
 	return Bucket::Open(file_names.back().str);
@@ -113,7 +115,7 @@ void WriteOnlyBucket::GetStat(BucketStat& stat) const
 	m_segment_rwlock.ReadLock();
 	TableWriterPtr memwriter_ptr = m_memwriter;
 	TableWriterSnapshotPtr mts_ptr = m_memwriter_snapshot;
-	TableReaderSnapshotPtr trs_ptr = m_reader_snapshot;
+	BucketReaderSnapshot reader_snapshot = m_reader_snapshot;
 	m_segment_rwlock.ReadUnlock();
 
 	if(memwriter_ptr)
@@ -124,9 +126,9 @@ void WriteOnlyBucket::GetStat(BucketStat& stat) const
 	{
 		mts_ptr->GetStat(stat);
 	}
-	if(trs_ptr)
+	if(reader_snapshot.readers)
 	{
-		trs_ptr->GetStat(stat);
+		reader_snapshot.readers->GetStat(stat);
 	}
 }
 
@@ -139,12 +141,12 @@ Status WriteOnlyBucket::Write(const Object* object)
 		assert(m_memwriter);
 		m_engine->NotifyTryFlush(m_db.lock(), shared_from_this());
 	}
-	Status s = m_memwriter->Write(m_next_objectid, object);	//数量+大小
+	Status s = m_memwriter->Write(m_next_object_id, object);	//数量+大小
 	if(s != OK)
 	{
 		return s;
 	}
-	++m_next_objectid;
+	++m_next_object_id;
 	
 	if(m_memwriter->Size() >= m_engine->GetConfig().max_memtable_size || m_memwriter->GetObjectCount() >= m_engine->GetConfig().max_object_num_of_memtable)
 	{
@@ -202,11 +204,11 @@ Status WriteOnlyBucket::Clean()
 	{		
 		{
 			std::lock_guard<std::mutex> guard(m_mutex);
-			if(m_deleting_bucket_meta_names.empty()) 
+			if(m_tobe_delete_bucket_meta_names.empty()) 
 			{
 				return ERR_NOMORE_DATA;
 			}
-			clean_filename = m_deleting_bucket_meta_names.front();
+			clean_filename = m_tobe_delete_bucket_meta_names.front();
 		}
 		Status s = BucketMetaFile::Remove(m_bucket_path.c_str(), clean_filename.str, false);
 		if(s != OK)
@@ -215,9 +217,9 @@ Status WriteOnlyBucket::Clean()
 		}
 		{
 			std::lock_guard<std::mutex> guard(m_mutex);
-			if(!m_deleting_bucket_meta_names.empty()) 
+			if(!m_tobe_delete_bucket_meta_names.empty()) 
 			{
-				m_deleting_bucket_meta_names.pop_front();
+				m_tobe_delete_bucket_meta_names.pop_front();
 			}
 		}
 	}
@@ -229,7 +231,7 @@ Status WriteOnlyBucket::WriteSegment(TableWriterSnapshotPtr& memwriter_snapshot,
 {
 	memwriter_snapshot->Sort();
 	
-	SegmentFileIndex seginfo;
+	SegmentIndexInfo seginfo;
 	seginfo.segment_fileid = fileid;
 
 	{
@@ -268,17 +270,22 @@ Status WriteOnlyBucket::WriteSegment()
 		}
 		
 		memwriter_snapshot.swap(m_memwriter_snapshot);
-		fileid = (m_next_segment_id++ << LEVEL_BITNUM);
+
+		fileid_t new_segment_id = m_next_segment_id++;
+		fileid = SEGMENT_FILEID(new_segment_id, 0);
 		m_writing_segment_fileids[fileid] = false;
 
-		TableReaderSnapshotPtr reader_snapshot = NewTableReaderSnapshot(memwriter_snapshot, fileid, m_reader_snapshot.get());
-		m_reader_snapshot = reader_snapshot;
+		std::map<fileid_t, TableReaderPtr> new_readers = m_reader_snapshot.readers->Readers();
+		new_readers[fileid] = memwriter_snapshot;
+
+		TableReaderSnapshotPtr reader_snapshot = NewTableReaderSnapshot(new_readers);
+		m_reader_snapshot.readers.swap(reader_snapshot);
 	}
 
 	SegmentReaderPtr new_segment_reader;
 	WriteSegment(memwriter_snapshot, fileid, new_segment_reader);
 	
-	bool need_write_bucket_meta;
+	int writed_segment_inc = 0;
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
 		m_writing_segment_fileids[fileid] = true;
@@ -290,33 +297,64 @@ Status WriteOnlyBucket::WriteSegment()
 			{
 				break;
 			}
-			m_writed_segment_fileids.push_back(it->first);
+			m_tobe_merge_segments[0].insert(fileid);
 			m_writing_segment_fileids.erase(it++);
+			++m_writed_segment_cnt;
+			++writed_segment_inc;
 		}
-		need_write_bucket_meta = !m_writed_segment_fileids.empty();
 		
 		WriteLockGuard lock_guard(m_segment_rwlock);
-		TableReaderSnapshotPtr reader_snapshot = NewTableReaderSnapshot(new_segment_reader, fileid, m_reader_snapshot.get());
-		m_reader_snapshot = reader_snapshot;
+		std::map<fileid_t, TableReaderPtr> new_readers = m_reader_snapshot.readers->Readers();
+		new_readers[fileid] = new_segment_reader;
+
+		TableReaderSnapshotPtr reader_snapshot = NewTableReaderSnapshot(new_readers);
+		m_reader_snapshot.readers.swap(reader_snapshot);
 	}
 	
 	//判断是否有可写的段信息
-	if(need_write_bucket_meta)
+	if(writed_segment_inc != 0)
 	{
-		m_engine->NotifyWriteBucketMeta(m_db.lock(), shared_from_this());
+		DBImplPtr db = m_db.lock();
+		
+		m_engine->NotifyWriteBucketMeta(db, shared_from_this());
+		//FIXME:判断是否需要merge
+		m_engine->NotifyPartMerge(db, shared_from_this());
 	}
-	//TODO: 判断是否需要merge
 	return OK;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 fileid_t WriteOnlyBucket::SelectNewSegmentFileID(MergingSegmentInfo& msinfo)
 {
-	//TODO:合并前先计算有没有可复用的segid，如果没有则重新选用segment集
-	//     如果全部都没有，则选用未使用的最小segment id
-	//原则：选用最小的seqid，将其level+1，如果level+1已是最大level，则选第2个seqid...
-	for(auto it : msinfo.merging_segment_readers)
+	//算法：选用最小的seqid，将其level+1，如果level+1已是最大level，则从begin->end中选个未用的seqid
+	//     如果都用了，则选用未使用的最小segment id
+	assert(msinfo.merging_segment_fileids.size() > 1);
+	auto it = msinfo.merging_segment_fileids.begin();
+	if(LEVEL_NUM(*it) < MAX_LEVEL_NUM)
 	{
+		fileid_t segment_id = SEGMENT_ID(*it);
+		int new_level = LEVEL_NUM(*it) + 1;
+
+		return SEGMENT_FILEID(segment_id, new_level);
+	}
+	else
+	{
+		auto prev_it = it;
+		for(++it; it != msinfo.merging_segment_fileids.end(); ++it)
+		{
+			fileid_t prev_segment_id = SEGMENT_ID(*prev_it);
+			fileid_t segment_id = SEGMENT_ID(*it);
+
+			if(prev_segment_id+1 < segment_id)
+			{
+				//FIXME: 曾经出现过怎么办？需记录并check一下？
+				//将最高level的所有segment id记录下来，万一中途更改MAX_LEVEL_NUM值，怎么办？每个db记录最高level，不能改变
+				int level = LEVEL_NUM(*it);
+				return SEGMENT_FILEID(prev_segment_id+1, level);
+			}
+
+			prev_it = it;
+		}
 	}
 	assert(false);
 	return INVALID_FILEID;
@@ -328,76 +366,104 @@ Status WriteOnlyBucket::Merge()
 	return OK;
 }
 
-void WriteOnlyBucket::UpdateReaderSnapshot(MergingSegmentInfo& msinfo)
-{
-	m_segment_rwlock.ReadLock();
-	TableReaderSnapshotPtr rs_ptr = m_reader_snapshot;
-	m_segment_rwlock.ReadUnlock();
-	
-	std::map<fileid_t, TableReaderPtr> new_readers = rs_ptr->Readers();
-	for(auto it = msinfo.merging_segment_readers.begin(); it != msinfo.merging_segment_readers.end(); ++it)
-	{
-		new_readers.erase(it->first);
-	}
-	new_readers[msinfo.new_segment_fileid] = msinfo.new_segment_reader;
-
-	TableReaderSnapshotPtr new_segment_snapshot = NewTableReaderSnapshot(new_readers);
-
-	m_segment_rwlock.WriteLock();
-	m_reader_snapshot.swap(new_segment_snapshot);
-	m_segment_rwlock.WriteUnlock();
-}
-
 Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 {		
-	msinfo.new_segment_fileid = SelectNewSegmentFileID(msinfo);
+	if(msinfo.merging_segment_fileids.size() <= 1)
+	{
+		return OK;
+	}
+	#ifdef DEBUG
+	for(auto it = msinfo.merging_segment_fileids.begin(); it != msinfo.merging_segment_fileids.end(); ++it)
+	{
+		printf("    Merge segment id:%ld\n", *it);
+	}	
+	#endif
 
+	SegmentIndexInfo seginfo;
+	seginfo.segment_fileid = msinfo.new_segment_fileid;
 	DBImplPtr db = m_db.lock();
-	SegmentWriter segment_writer(db->GetConfig(), m_engine->m_pool);
-	Status s = segment_writer.Create(m_bucket_path.c_str(), msinfo.new_segment_fileid);
-	if(s != OK)
+
 	{
-		return s;
-	}
-	
-	SegmentFileIndex seginfo;
-	s = segment_writer.Merge(msinfo.merging_segment_readers, seginfo);
-	if(s != OK)
-	{
-		return s;
+		SegmentWriter segment_writer(db->GetConfig(), m_engine->m_pool);
+		Status s = segment_writer.Create(m_bucket_path.c_str(), msinfo.new_segment_fileid);
+		if(s != OK)
+		{
+			return s;
+		}
+		
+		s = segment_writer.Merge(msinfo, seginfo);
+		if(s != OK)
+		{
+			return s;
+		}
 	}
 
-	//更新segment snapshot，然后通知写segment list
-	s = OpenSegment(m_bucket_path.c_str(), seginfo, msinfo.new_segment_reader);
-	if(s == OK)
+	Status s = OpenSegment(m_bucket_path.c_str(), seginfo, msinfo.new_segment_reader);
+	if(s != OK)
 	{
 		return s;
 	}
-	UpdateReaderSnapshot(msinfo);
 
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
-		m_merged_segment_fileids.reserve(m_merged_segment_fileids.size()+msinfo.merging_segment_readers.size());
-		for(auto it = msinfo.merging_segment_readers.begin(); it != msinfo.merging_segment_readers.end(); ++it)
+
+		for(auto it = msinfo.merging_segment_fileids.begin(); it != msinfo.merging_segment_fileids.end(); ++it)
 		{
-			m_merged_segment_fileids.push_back(it->first);
-			//m_merging_segment_fileids.erase(it->first);
+			m_merged_segment_fileids.push_back(*it);
 		}
+		int level = LEVEL_NUM(msinfo.new_segment_fileid);
+		m_merging_segment_fileids[level][msinfo.new_segment_fileid] = true;
+		for(auto it = m_merging_segment_fileids[level].begin(); it != m_merging_segment_fileids[level].end(); ++it)
+		{
+			if(!it->second)
+			{
+				break;
+			}
+			m_tobe_merge_segments[level].insert(it->first);
+		}
+
+		m_segment_rwlock.ReadLock();
+		BucketReaderSnapshot reader_snapshot = m_reader_snapshot;
+		m_segment_rwlock.ReadUnlock();
+
+		std::map<fileid_t, TableReaderPtr> new_readers = reader_snapshot.readers->Readers();
+		for(auto it = msinfo.merging_segment_fileids.begin(); it != msinfo.merging_segment_fileids.end(); ++it)
+		{
+			assert(new_readers.find(*it) != new_readers.end());
+			new_readers.erase(*it);
+		}
+		assert(new_readers.find(msinfo.new_segment_fileid) == new_readers.end());
+		new_readers[msinfo.new_segment_fileid] = msinfo.new_segment_reader;
+
+		m_segment_rwlock.WriteLock();
+		TableReaderSnapshotPtr new_reader_snapshot = NewTableReaderSnapshot(new_readers);
+		m_reader_snapshot.readers.swap(new_reader_snapshot);
+		m_segment_rwlock.WriteUnlock();
 	}
 	
 	m_engine->NotifyWriteBucketMeta(db, shared_from_this());
+	//FIXME:判断是否需要merge
+	m_engine->NotifyPartMerge(db, shared_from_this());
+
 	return OK;
 }
 
 //单线程：超过一定大小的block不参与合并，低于1/10的小块不与大块合并
 Status WriteOnlyBucket::FullMerge()
-{
-	m_segment_rwlock.ReadLock();
-	TableReaderSnapshotPtr bfs_ptr = m_reader_snapshot;
-	m_segment_rwlock.ReadUnlock();
+{	
+	assert(false);
+	return ERR_INVALID_MODE;
 
-	//TODO:以超过阈值的segment为分割点，找到待合并的segment集
 	std::vector<MergingSegmentInfo> msinfo;
+	{
+		std::lock_guard<std::mutex> lock(m_mutex);
+		
+		m_segment_rwlock.ReadLock();
+		BucketReaderSnapshot reader_snapshot = m_reader_snapshot;
+		m_segment_rwlock.ReadUnlock();
+
+		//TODO:以超过阈值的segment为分割点，找到待合并的segment集
+	}
 	
 	for(auto& seg_info : msinfo)
 	{
@@ -412,45 +478,68 @@ Status WriteOnlyBucket::FullMerge()
 
 //多线程
 Status WriteOnlyBucket::PartMerge()
-{
-	m_segment_rwlock.ReadLock();
-	TableReaderSnapshotPtr bfs_ptr = m_reader_snapshot;
-	m_segment_rwlock.ReadUnlock();
-
-	//TODO:从低层开始，按id升序找出待合并的segment集
+{	
 	MergingSegmentInfo msinfo;
-	//...
+	{
+		uint32_t merge_factor = m_engine->GetConfig().merge_factor;
 
-	//相差很大的segment不要合并？比如10GB，100MB，即不超过10倍
+		//TODO:从低层开始，按id升序找出待合并的segment集
+		//相差很大的segment不要合并？比如10GB，100MB，即不超过10倍
+		std::lock_guard<std::mutex> lock(m_mutex);
+
+		for(int i = 0; i < MAX_LEVEL_NUM; ++i)
+		{
+			//printf("level:%d, segment cnt:%zd, merge factor:%u\n", i, m_tobe_merge_segments[i].size(), merge_factor);
+			if(m_tobe_merge_segments[i].size() >= merge_factor)
+			{
+				//取前部分segment
+				auto& segments = m_tobe_merge_segments[i];
+				auto it = segments.begin();
+				for(uint32_t m = 0; m < merge_factor; ++m)
+				{
+					msinfo.merging_segment_fileids.insert(*it);
+					segments.erase(it++);
+				}
+
+				msinfo.new_segment_fileid = SelectNewSegmentFileID(msinfo);
+				printf("    msinfo.new_segment_fileid:%ld\n", msinfo.new_segment_fileid);
+
+				m_merging_segment_fileids[i][msinfo.new_segment_fileid] = false;
+				break;
+			}
+		}
+		if(!msinfo.merging_segment_fileids.empty())
+		{
+			m_segment_rwlock.WriteLock();
+			msinfo.reader_snapshot = m_reader_snapshot;
+			m_segment_rwlock.WriteUnlock();
+		}
+	}
+
 	return Merge(msinfo);
-	
-	//bool need_merge = new_segment_snapshot->NeedMerge();
 }
 
-void WriteOnlyBucket::WriteAliveSegmentInfos(TableReaderSnapshotPtr& trs_ptr, std::vector<fileid_t>& writed_segment_fileids, BucketMetaData& md)
+void WriteOnlyBucket::WriteAliveSegmentInfos(TableReaderSnapshotPtr& trs_ptr, BucketMetaData& md)
 {
 	const std::map<fileid_t, TableReaderPtr>& readers = trs_ptr->Readers();
 	assert(!readers.empty());
+
 	md.alive_segment_infos.reserve(readers.size());
-	
-	fileid_t max_fileid = writed_segment_fileids.empty() ? readers.rbegin()->first : writed_segment_fileids.back();
 	for(auto it = readers.begin(); it != readers.end(); ++it)
 	{
-		if(it->first > max_fileid)
+		SegmentReaderPtr seg_reader = std::dynamic_pointer_cast<SegmentReader>(it->second);
+		if(!seg_reader)
 		{
 			break;
 		}
-		SegmentReaderPtr seg_reader = std::dynamic_pointer_cast<SegmentReader>(it->second);
-		assert(seg_reader);
-		md.alive_segment_infos.push_back(seg_reader->FileIndex());
+		md.alive_segment_infos.push_back(seg_reader->IndexInfo());
 	}
 }
 
 //保证只被1个线程调用
 Status WriteOnlyBucket::WriteBucketMeta()
 {
-	TableReaderSnapshotPtr trs_ptr;
-	std::vector<fileid_t> writed_segment_fileids;
+	BucketReaderSnapshot reader_snapshot;
 	fileid_t bucket_meta_fileid;
 	BucketMetaData md;
 	
@@ -458,27 +547,28 @@ Status WriteOnlyBucket::WriteBucketMeta()
 	//同时只读打开segment list，然后更新它们
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
-		if(m_writed_segment_fileids.empty() && m_merged_segment_fileids.empty())
+		if(m_writed_segment_cnt == 0 && m_merged_segment_fileids.empty())
 		{
 			return ERR_NOMORE_DATA;
 		}
-
 		bucket_meta_fileid = m_next_bucket_meta_fileid++;
+
+		m_writed_segment_cnt = 0;
 		if(!m_merged_segment_fileids.empty())
 		{
 			md.deleted_segment_fileids.swap(m_merged_segment_fileids);
+			m_merged_segment_fileids.reserve(m_engine->GetConfig().merge_factor * m_engine->GetConfig().part_merge_thread_num);
 		}
-		if(!m_writed_segment_fileids.empty())
-		{
-			writed_segment_fileids.swap(m_writed_segment_fileids);
-		}
+
 		md.next_segment_id = m_next_segment_id;
+		md.next_object_id = m_next_object_id;
+		md.max_level_num = m_max_level_num;
 		
 		ReadLockGuard lock_guard(m_segment_rwlock);
-		trs_ptr = m_reader_snapshot;
+		reader_snapshot = m_reader_snapshot;
 	}
 	
-	WriteAliveSegmentInfos(trs_ptr, writed_segment_fileids, md);
+	WriteAliveSegmentInfos(reader_snapshot.readers, md);
 	Status s = BucketMetaFile::Write(m_bucket_path.c_str(), bucket_meta_fileid, md);
 	if(s != OK)
 	{
@@ -489,7 +579,7 @@ Status WriteOnlyBucket::WriteBucketMeta()
 	bucket_meta_file->Open(m_bucket_path.c_str(), bucket_meta_fileid, xfutil::LOCK_TRY_READ);
 	{
 		WriteLockGuard lock_guard(m_segment_rwlock);
-		m_bucket_meta_file.swap(bucket_meta_file);
+		m_reader_snapshot.meta_file.swap(bucket_meta_file);
 	}
 	//写通知文件
 	DBImplPtr db = m_db.lock();
@@ -501,17 +591,10 @@ Status WriteOnlyBucket::WriteBucketMeta()
 	{
 		FileName filename;
 		MakeBucketMetaFileName(bucket_meta_file->FileID(), filename.str);
-		m_deleting_bucket_meta_names.push_back(filename);
+		m_tobe_delete_bucket_meta_names.push_back(filename);
 
 		m_engine->NotifyClean(db);
 	}
-
-	//判断是否需要merge
-	//bool need_merge = new_segment_snapshot->NeedMerge();
-	//if(need_merge)
-	//{
-	//	  m_engine->NotifyPartMerge(db, shared_from_this());
-	//}
 	
 	return OK;
 }

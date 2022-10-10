@@ -20,15 +20,21 @@ limitations under the License.
 namespace xfdb 
 {
 
-TableReadersIterator::TableReadersIterator(const std::vector<IteratorPtr>& iters)
+IteratorSet::IteratorSet(const std::vector<IteratorPtr>& iters)
 	: m_iters(iters)
 {
 	assert(iters.size() > 1);
-	GetMinKey();
+	GetUpmostKey();
+	First();
+}
+
+StrView IteratorSet::UpmostKey() const 
+{
+	return m_upmost_key;
 }
 
 /**移到第1个元素处*/
-void TableReadersIterator::First()
+void IteratorSet::First()
 {
 	for(size_t i = 0; i < m_iters.size(); ++i)
 	{
@@ -38,32 +44,24 @@ void TableReadersIterator::First()
 }
 
 /**向后移到一个元素*/
-void TableReadersIterator::Next()
+void IteratorSet::Next()
 {
 	m_iters[m_curr_idx]->Next();
 
 	GetMinKey();
 }
 
-bool TableReadersIterator::Valid()
+bool IteratorSet::Valid() const
 {
 	return m_curr_idx != m_iters.size();
 }
 
-ObjectType TableReadersIterator::Type() 
+const Object& IteratorSet::object() const
 {
-	return m_iters[m_curr_idx]->Type();
-};
-StrView TableReadersIterator::Key() 
-{
-	return m_iters[m_curr_idx]->Key();
-};
-StrView TableReadersIterator::Value() 
-{
-	return m_iters[m_curr_idx]->Value();
+	return m_iters[m_curr_idx]->object();
 };
 
-void TableReadersIterator::GetMinKey()
+void IteratorSet::GetMinKey()
 {
 	ssize_t idx = m_iters.size();
 	for(ssize_t i = m_iters.size()-1; i >= 0; --i) 
@@ -76,8 +74,8 @@ void TableReadersIterator::GetMinKey()
 			} 
 			else 
 			{
-				StrView curr_key = m_iters[i]->Key();
-				int ret = curr_key.Compare(m_iters[idx]->Key());
+				StrView curr_key = m_iters[i]->object().key;
+				int ret = curr_key.Compare(m_iters[idx]->object().key);
 				if(ret < 0)
 				{
 					idx = i;
@@ -90,6 +88,20 @@ void TableReadersIterator::GetMinKey()
 		}
 	}
 	m_curr_idx = idx;
+}
+
+void IteratorSet::GetUpmostKey()
+{
+	assert(!m_iters.empty());
+	m_upmost_key = m_iters[0]->UpmostKey();
+	for(size_t i = 1; i < m_iters.size(); ++i) 
+	{
+		StrView cmp_key = m_iters[i]->UpmostKey();
+		if(m_upmost_key.Compare(cmp_key) < 0)
+		{
+			m_upmost_key = cmp_key;
+		}
+	}
 }
 
 } 

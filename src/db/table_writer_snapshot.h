@@ -44,11 +44,6 @@ public:
 	{
 		return m_upmost_key;
 	}
-	/**最小key*/
-	StrView LowestKey() const  override
-	{
-		return m_lowest_key;
-	}
 	
 	/**返回segment文件总大小*/
 	uint64_t Size() const override;
@@ -56,20 +51,11 @@ public:
 	/**获取统计*/
 	void GetStat(BucketStat& stat) const override;
 
-	/////////////////////////////////////////////////////////
-	/**最大object id*/
-	inline objectid_t GetMaxObjectID()
-	{
-		return m_max_objectid;
-	}
-		
 private:
 	std::vector<TableWriterPtr> m_memwriters;
 	StrView m_upmost_key;
-	StrView m_lowest_key;
-	objectid_t m_max_objectid;
 	
-	friend class TableReadersIterator;
+	friend class IteratorSet;
 	
 private:
 	TableWriterSnapshot(const TableWriterSnapshot&) = delete;

@@ -30,38 +30,26 @@ TableWriterSnapshot::TableWriterSnapshot(TableWriterPtr& mem_table,        Table
 		m_memwriters.insert(m_memwriters.end(), last_snapshot->m_memwriters.begin(), last_snapshot->m_memwriters.end());
 	}
 	m_memwriters.push_back(mem_table);
-
-	m_max_objectid = 0;
 }
 
 void TableWriterSnapshot::Sort()
 {
-	printf("TableWriterSnapshot size:%zd\n", m_memwriters.size());
-	//找最小，最大的key
+	assert(!m_memwriters.empty());
+	
+	//先排序
 	for(size_t i = 0; i < m_memwriters.size(); ++i)
 	{
 		m_memwriters[i]->Sort();
+	}
 
-		if(m_upmost_key.Empty())
+	//找最大的key
+	m_upmost_key = m_memwriters[0]->UpmostKey();
+	for(size_t i = 1; i < m_memwriters.size(); ++i)
+	{
+		StrView cmp_key = m_memwriters[i]->UpmostKey();
+		if(m_upmost_key.Compare(cmp_key) < 0)
 		{
-			m_upmost_key = m_memwriters[i]->UpmostKey();
-		}
-		else if(m_upmost_key.Compare(m_memwriters[i]->UpmostKey()) < 0)
-		{
-			m_upmost_key = m_memwriters[i]->UpmostKey();
-		}
-		if(m_lowest_key.Empty())
-		{
-			m_lowest_key = m_memwriters[i]->LowestKey();
-		}
-		else if(m_lowest_key.Compare(m_memwriters[i]->LowestKey()) > 0)
-		{
-			m_lowest_key = m_memwriters[i]->LowestKey();
-		}
-		
-		if(m_max_objectid < m_memwriters[i]->GetMaxObjectID())
-		{
-			m_max_objectid = m_memwriters[i]->GetMaxObjectID();
+			m_upmost_key = cmp_key;
 		}
 	}
 }
@@ -79,7 +67,7 @@ IteratorPtr TableWriterSnapshot::NewIterator()
 	{
 		iters.push_back(m_memwriters[i]->NewIterator());
 	}
-	return NewTableReadersIterator(iters);
+	return NewIteratorSet(iters);
 }
 
 Status TableWriterSnapshot::Get(const StrView& key, ObjectType& type, String& value) const

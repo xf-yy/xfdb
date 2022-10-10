@@ -14,49 +14,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_iterator_h__
-#define __xfdb_iterator_h__
+#ifndef __xfdb_key_util_h__
+#define __xfdb_key_util_h__
 
 #include "types.h"
-#include "xfdb/strutil.h"
+#include "buffer.h"
 
 namespace xfdb 
 {
 
-class Iterator 
-{
-public:
-	Iterator(){}
-	virtual ~Iterator(){}
+#define MIN_SHORT_KEY_LEN	16
 
-public:
-	//最大key
-	virtual StrView UpmostKey() const = 0;
+void GetMaxShortKey(const StrView& key, String& str); 
+void GetMinShortKey(const StrView& key, String& str);
+void GetMidShortKey(const StrView& key1, const StrView& key2, String& str);
 
-	/**移到第1个元素处*/
-	virtual void First() = 0;
-	/**移到最后1个元素处*/
-	//virtual void Last() = 0;
-	
-	/**移到到>=key的地方*/
-	//virtual void Seek(const StrView& key) = 0;
-	
-	/**向后移到一个元素*/
-	virtual void Next() = 0;
-	//virtual void Prev() = 0;
+StrView MakeKey(StrView& prev_key, uint32_t shared_keysize, StrView& nonshared_key, String& prev_str1, String& prev_str2);
+StrView CloneKey(WriteBuffer& buf, const StrView& str);
 
-	/**是否还有下一个元素*/
-	virtual bool Valid() const = 0;
-	
-	/**获取method, key和value*/
-	virtual const Object& object() const = 0;
-	
-private:
-	Iterator(const Iterator&) = delete;
-	Iterator& operator=(const Iterator&) = delete;
-};
 
-} 
+}  
 
-#endif 
+#endif
 

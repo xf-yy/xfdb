@@ -14,25 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#include "table_reader_snapshot.h"
 #include "path.h"
 #include "logger.h"
+#include "table_reader_snapshot.h"
 #include "table_writer_snapshot.h"
+#include "table_reader_iterator.h"
 
 namespace xfdb 
 {
 
-static const std::map<fileid_t, TableReaderPtr> s_empty_readers;
-
-TableReaderSnapshot::TableReaderSnapshot(TableReaderPtr reader, fileid_t fileid, TableReaderSnapshot* prev_snapshot/* = nullptr*/)
-	: m_readers(prev_snapshot != nullptr ? prev_snapshot->m_readers : s_empty_readers)
-{
-	m_readers[fileid] = reader;
-}
-
 TableReaderSnapshot::TableReaderSnapshot(const std::map<fileid_t, TableReaderPtr>& new_readers) 
 	: m_readers(new_readers)
 {
+	GetMeta();
 }
 
 TableReaderSnapshot::~TableReaderSnapshot()
@@ -52,6 +46,23 @@ Status TableReaderSnapshot::Get(const StrView& key, ObjectType& type, String& va
 	return ERR_OBJECT_NOT_EXIST;
 }
 
+IteratorPtr TableReaderSnapshot::NewIterator()
+{
+	if(m_readers.size() == 1)
+	{
+		return m_readers.begin()->second->NewIterator();
+	}
+	
+	std::vector<IteratorPtr> iters;
+	iters.reserve(m_readers.size());
+
+	for(auto it = m_readers.begin(); it != m_readers.end(); ++it)
+	{
+		iters.push_back(it->second->NewIterator());
+	}
+	return NewIteratorSet(iters);
+}
+
 void TableReaderSnapshot::GetStat(BucketStat& stat) const
 {	
 	for(auto it = m_readers.begin(); it != m_readers.end(); ++it)
@@ -63,6 +74,24 @@ void TableReaderSnapshot::GetStat(BucketStat& stat) const
 	}
 }
 
+void TableReaderSnapshot::GetMeta()
+{
+	if(m_readers.empty())
+	{
+		return;
+	}
+	
+	auto it = m_readers.begin();
+	m_upmost_key = it->second->UpmostKey();
+
+	for(++it; it != m_readers.end(); ++it)
+	{
+		if(m_upmost_key < it->second->UpmostKey())
+		{
+			m_upmost_key = it->second->UpmostKey();
+		}
+	}
+}
 
 #if 0
 //判断是否可以进行merge了
