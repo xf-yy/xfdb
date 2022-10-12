@@ -77,7 +77,6 @@ private:
 		
 	Status Clean();
 	Status CleanBucket();
-	Status CleanBucket(const std::string& bucket_name);
 
 	Status CleanDbInfo();
 	Status WriteDbInfo();
@@ -97,12 +96,6 @@ private:
 	std::map<bucketid_t, std::string> m_deleting_buckets;
 	//bucket list未更新的bucket改变次数
 	int m_bucket_changed_cnt;
-	
-	//待flush的bucket
-	std::set<std::string> m_tobe_flush_buckets;
-	
-	//待清理的bucket
-	std::set<std::string> m_tobe_clean_buckets;
 	
 private:
 	WritableDB(const WritableDB&) = delete;

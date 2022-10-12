@@ -54,6 +54,14 @@ void BucketSnapshot::Merge()
 	}
 }
 
+void BucketSnapshot::Clean()
+{
+	for(auto it = m_buckets.begin(); it != m_buckets.end(); ++it)
+	{
+		it->second->Clean();
+	}
+}
+
 void BucketSnapshot::Buckets(std::vector<std::string>& bucket_names) const
 {
 	bucket_names.resize(m_buckets.size());

@@ -47,14 +47,14 @@ static void Usage()
 {
 	printf("usage:\n");
 	printf("    1. set <bucket_name> <key> <value>\n");
-	printf("    2. delete <bucket_name> <key>\n");
-	printf("    3. get <bucket_name> <key>\n");
-	printf("    4. flush <bucket_name>\n");
-	printf("    5. stat <bucket_name>\n");
-	printf("    6. list_bucket\n");
-	printf("    7. loop_set <loop_count> <bucket_name>\n");
+	printf("    2. loop_set <loop_count> <bucket_name>\n");
+	printf("    3. delete <bucket_name> <key>\n");
+	printf("    4. get <bucket_name> <key>\n");
+	printf("    5. flush <bucket_name>\n");
+	printf("    6. stat <bucket_name>\n");
+	printf("    7. list_bucket\n");
 	printf("    8. quit\n");
-	printf("    9. usage\n");
+	printf("    9. help\n");
 }
 
 int main(int argc, char* argv[])
@@ -68,10 +68,10 @@ int main(int argc, char* argv[])
 	std::string db_path(argv[1]);
 	
 	GlobalConfig gconf;
-	gconf.mode = MODE_WRITEONLY;
+	gconf.mode = MODE_READWRITE;
 	gconf.notify_dir = "./notify";
 	gconf.max_object_num_of_memtable = 5000;
-	gconf.merge_factor = 4;
+	gconf.merge_factor = 5;
 	Status s = XfdbStart(gconf);
 	if(s != OK)
 	{
@@ -134,8 +134,8 @@ int main(int argc, char* argv[])
 				long max_cnt = atoll(strs[1].c_str());
 				for(long i = 0; i < max_cnt; ++i)
 				{
-					snprintf(key, sizeof(key), "test_key_%ld", i);
-					snprintf(value, sizeof(value), "test_value_%ld_%ld", i, i);
+					snprintf(key, sizeof(key), "%ld_test_key_x_%ld", i, i);
+					snprintf(value, sizeof(value), "%ld_test_value_y_%ld_%ld", i, i, i);
 
 					const StrView key_view(key);
 					const StrView value_view(value);
@@ -235,7 +235,7 @@ int main(int argc, char* argv[])
 		{
 			break;
 		}
-		else if(strs[0] == "usage")
+		else if(strs[0] == "help")
 		{
 			Usage();
 		}

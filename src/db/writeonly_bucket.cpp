@@ -90,7 +90,7 @@ Status WriteOnlyBucket::Open()
 	}
 	for(size_t i = 0; i < file_names.size() - 1; ++i)
 	{
-		m_tobe_delete_bucket_meta_names.push_back(file_names[i]);
+		m_tobe_delete_bucket_meta_filenames.push_back(file_names[i]);
 	}
 	
 	return Bucket::Open(file_names.back().str);
@@ -204,11 +204,11 @@ Status WriteOnlyBucket::Clean()
 	{		
 		{
 			std::lock_guard<std::mutex> guard(m_mutex);
-			if(m_tobe_delete_bucket_meta_names.empty()) 
+			if(m_tobe_delete_bucket_meta_filenames.empty()) 
 			{
 				return ERR_NOMORE_DATA;
 			}
-			clean_filename = m_tobe_delete_bucket_meta_names.front();
+			clean_filename = m_tobe_delete_bucket_meta_filenames.front();
 		}
 		Status s = BucketMetaFile::Remove(m_bucket_path.c_str(), clean_filename.str, false);
 		if(s != OK)
@@ -217,9 +217,9 @@ Status WriteOnlyBucket::Clean()
 		}
 		{
 			std::lock_guard<std::mutex> guard(m_mutex);
-			if(!m_tobe_delete_bucket_meta_names.empty()) 
+			if(!m_tobe_delete_bucket_meta_filenames.empty()) 
 			{
-				m_tobe_delete_bucket_meta_names.pop_front();
+				m_tobe_delete_bucket_meta_filenames.pop_front();
 			}
 		}
 	}
@@ -297,7 +297,7 @@ Status WriteOnlyBucket::WriteSegment()
 			{
 				break;
 			}
-			m_tobe_merge_segments[0].insert(fileid);
+			m_tobe_merge_segments[0].insert(it->first);
 			m_writing_segment_fileids.erase(it++);
 			++m_writed_segment_cnt;
 			++writed_segment_inc;
@@ -372,17 +372,11 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 	{
 		return OK;
 	}
-	#ifdef DEBUG
-	for(auto it = msinfo.merging_segment_fileids.begin(); it != msinfo.merging_segment_fileids.end(); ++it)
-	{
-		printf("    Merge segment id:%ld\n", *it);
-	}	
-	#endif
+
+	DBImplPtr db = m_db.lock();
 
 	SegmentIndexInfo seginfo;
 	seginfo.segment_fileid = msinfo.new_segment_fileid;
-	DBImplPtr db = m_db.lock();
-
 	{
 		SegmentWriter segment_writer(db->GetConfig(), m_engine->m_pool);
 		Status s = segment_writer.Create(m_bucket_path.c_str(), msinfo.new_segment_fileid);
@@ -413,13 +407,14 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 		}
 		int level = LEVEL_NUM(msinfo.new_segment_fileid);
 		m_merging_segment_fileids[level][msinfo.new_segment_fileid] = true;
-		for(auto it = m_merging_segment_fileids[level].begin(); it != m_merging_segment_fileids[level].end(); ++it)
+		for(auto it = m_merging_segment_fileids[level].begin(); it != m_merging_segment_fileids[level].end();)
 		{
 			if(!it->second)
 			{
 				break;
 			}
 			m_tobe_merge_segments[level].insert(it->first);
+			m_merging_segment_fileids[level].erase(it++);
 		}
 
 		m_segment_rwlock.ReadLock();
@@ -479,44 +474,50 @@ Status WriteOnlyBucket::FullMerge()
 //多线程
 Status WriteOnlyBucket::PartMerge()
 {	
-	MergingSegmentInfo msinfo;
+	const uint32_t merge_factor = m_engine->GetConfig().merge_factor;
+
+	//每层都尝试合并一下
+	for(int i = 0; i < MAX_LEVEL_NUM; ++i)
 	{
-		uint32_t merge_factor = m_engine->GetConfig().merge_factor;
-
-		//TODO:从低层开始，按id升序找出待合并的segment集
-		//相差很大的segment不要合并？比如10GB，100MB，即不超过10倍
-		std::lock_guard<std::mutex> lock(m_mutex);
-
-		for(int i = 0; i < MAX_LEVEL_NUM; ++i)
+		for(;;)
 		{
-			//printf("level:%d, segment cnt:%zd, merge factor:%u\n", i, m_tobe_merge_segments[i].size(), merge_factor);
-			if(m_tobe_merge_segments[i].size() >= merge_factor)
+			MergingSegmentInfo msinfo;
+
+			//TODO:从低层开始，按id升序找出待合并的segment集
+			//相差很大的segment不要合并？比如10GB，100MB，即不超过10倍
 			{
+				std::lock_guard<std::mutex> lock(m_mutex);
+				if(m_tobe_merge_segments[i].size() < merge_factor)
+				{
+					break;
+				}
+
+				//printf("level:%d, segment cnt:%zd, merge factor:%u\n", i, m_tobe_merge_segments[i].size(), merge_factor);
 				//取前部分segment
-				auto& segments = m_tobe_merge_segments[i];
-				auto it = segments.begin();
+				auto it = m_tobe_merge_segments[i].begin();
 				for(uint32_t m = 0; m < merge_factor; ++m)
 				{
 					msinfo.merging_segment_fileids.insert(*it);
-					segments.erase(it++);
+					it = m_tobe_merge_segments[i].erase(it);
 				}
 
 				msinfo.new_segment_fileid = SelectNewSegmentFileID(msinfo);
-				printf("    msinfo.new_segment_fileid:%ld\n", msinfo.new_segment_fileid);
 
-				m_merging_segment_fileids[i][msinfo.new_segment_fileid] = false;
-				break;
+				m_merging_segment_fileids[LEVEL_NUM(msinfo.new_segment_fileid)][msinfo.new_segment_fileid] = false;
+
+			}
+			m_segment_rwlock.ReadLock();
+			msinfo.reader_snapshot = m_reader_snapshot;
+			m_segment_rwlock.ReadUnlock();
+
+			Status s = Merge(msinfo);
+			if(s != OK)
+			{
+				return s;
 			}
 		}
-		if(!msinfo.merging_segment_fileids.empty())
-		{
-			m_segment_rwlock.WriteLock();
-			msinfo.reader_snapshot = m_reader_snapshot;
-			m_segment_rwlock.WriteUnlock();
-		}
 	}
-
-	return Merge(msinfo);
+	return OK;
 }
 
 void WriteOnlyBucket::WriteAliveSegmentInfos(TableReaderSnapshotPtr& trs_ptr, BucketMetaData& md)
@@ -591,8 +592,11 @@ Status WriteOnlyBucket::WriteBucketMeta()
 	{
 		FileName filename;
 		MakeBucketMetaFileName(bucket_meta_file->FileID(), filename.str);
-		m_tobe_delete_bucket_meta_names.push_back(filename);
 
+		{
+			std::lock_guard<std::mutex> lock(m_mutex);
+			m_tobe_delete_bucket_meta_filenames.push_back(filename);
+		}
 		m_engine->NotifyClean(db);
 	}
 	

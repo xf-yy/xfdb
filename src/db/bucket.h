@@ -65,7 +65,10 @@ public:
 	{
 		return ERR_INVALID_MODE;
 	}
-	
+	virtual Status Clean()
+	{
+		return ERR_INVALID_MODE;
+	}
 	virtual void GetStat(BucketStat& stat) const = 0;
 	
 public:	

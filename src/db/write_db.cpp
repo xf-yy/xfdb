@@ -163,17 +163,7 @@ Status WritableDB::Open()
 		return s;
 	}
 	
-	s = OpenBucket(file_infos.back().str, bld);
-	if(s != OK) 
-	{
-		return s;
-	}
-	for(auto bi : bld.alive_buckets)
-	{
-		m_tobe_clean_buckets.insert(bi.name);
-	}
-	
-	return OK;
+	return OpenBucket(file_infos.back().str, bld);
 }
 
 void WritableDB::BeforeClose()
@@ -223,32 +213,19 @@ Status WritableDB::CleanDbInfo()
 	return OK;	
 }
 
-Status WritableDB::CleanBucket(const std::string& bucket_name)
-{
-	BucketPtr bptr;
-	if(!GetBucket(bucket_name, bptr))
-	{
-		return ERR_BUCKET_NOT_EXIST;
-	}
-
-	WriteOnlyBucket* bucket = (WriteOnlyBucket*)bptr.get();
-	return bucket->Clean();
-}
-
 Status WritableDB::CleanBucket()
 {
-	for(auto it = m_tobe_clean_buckets.begin(); it != m_tobe_clean_buckets.end(); )
+	//FIXME: 这里尝试清除所有的bucket
+	m_bucket_rwlock.ReadLock();
+	BucketSnapshotPtr bs_ptr = m_bucket_snapshot;
+	m_bucket_rwlock.ReadUnlock();
+
+	if(bs_ptr)
 	{
-		if(CleanBucket(*it) == OK)
-		{
-			++it;
-		}
-		else
-		{
-			m_tobe_clean_buckets.erase(it++);
-		}
+		bs_ptr->Clean();
 	}
-	return m_tobe_clean_buckets.empty() ? ERR_NOMORE_DATA : OK;
+
+	return OK;
 }
 
 Status WritableDB::WriteDbInfo()
@@ -341,7 +318,7 @@ Status WritableDB::CreateBucket(const std::string& bucket_name, BucketPtr& bptr)
 		m_bucket_rwlock.WriteLock();
 		m_bucket_snapshot.swap(new_bucket_snapshot);
 		m_bucket_rwlock.WriteUnlock();
-		
+
 		++m_bucket_changed_cnt;
 	}
 	
@@ -395,6 +372,7 @@ Status WritableDB::DeleteBucket(const std::string& bucket_name)
 		m_bucket_rwlock.WriteUnlock();
 		
 		m_deleting_buckets[bucket->GetInfo().id] = bucket_name;
+
 		++m_bucket_changed_cnt;
 	}
 	((WritableEngine*)m_engine)->NotifyWriteDbInfo(shared_from_this());
@@ -460,6 +438,7 @@ Status WritableDB::TryFlush()
 
 	if(bucket_snapshot)
 	{
+		//FIXME: 查找m_tobe_flush_buckets
 		bucket_snapshot->TryFlush();
 	}
 	return OK;
@@ -484,6 +463,7 @@ Status WritableDB::Flush()
 
 	if(bucket_snapshot)
 	{
+		//FIXME: 查找m_tobe_flush_buckets
 		bucket_snapshot->Flush();
 	}
 	return OK;

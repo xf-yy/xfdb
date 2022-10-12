@@ -38,6 +38,7 @@ public:
 	void TryFlush();
 	void Flush();
 	void Merge();
+	void Clean();
 	
 	inline const std::map<std::string, BucketPtr>& Buckets() const
 	{

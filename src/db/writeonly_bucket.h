@@ -46,9 +46,10 @@ public:
 	
 	//异步
 	virtual Status TryFlush() override;
-	virtual Status Flush()   override;
+	virtual Status Flush() override;
 	virtual Status Merge() override;
-		
+	virtual	Status Clean() override;
+
 	static Status Remove(const char* bucket_path);
 
 protected:	
@@ -70,7 +71,6 @@ private:
 	Status FullMerge();		//同步merge
 	Status PartMerge();		//同步merge，写入时合并降低速度？
 	
-	Status Clean();
 
 private:
 	fileid_t SelectNewSegmentFileID(MergingSegmentInfo& msinfo);
@@ -93,7 +93,7 @@ protected:
 	std::vector<fileid_t> m_merged_segment_fileids;		//合并后待删除的段，需写入bucket meta
 
 	//待清除的bucket meta文件	
-	std::deque<FileName> m_tobe_delete_bucket_meta_names;
+	std::deque<FileName> m_tobe_delete_bucket_meta_filenames;
 		
 	friend class WritableDB;
 	friend class WritableEngine;
