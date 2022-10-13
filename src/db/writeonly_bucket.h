@@ -61,6 +61,7 @@ protected:
 	    
 private:
 	Status Create();
+	Status RemoveMetaFile();
 
 	Status WriteSegment();			//同步刷盘
 	Status WriteSegment(TableWriterSnapshotPtr& memwriter_snapshot, fileid_t fileid, SegmentReaderPtr& new_segment_reader);
@@ -93,7 +94,8 @@ protected:
 	std::vector<fileid_t> m_merged_segment_fileids;		//合并后待删除的段，需写入bucket meta
 
 	//待清除的bucket meta文件	
-	std::deque<FileName> m_tobe_delete_bucket_meta_filenames;
+	std::deque<fileid_t> m_tobe_delete_bucket_meta_fileids;
+	fileid_t m_tobe_clean_bucket_meta_fileid;
 		
 	friend class WritableDB;
 	friend class WritableEngine;

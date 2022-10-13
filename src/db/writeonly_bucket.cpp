@@ -32,6 +32,7 @@ WriteOnlyBucket::WriteOnlyBucket(WritableEngine* engine, DBImplPtr db, const Buc
 	: Bucket(db, info), m_engine(engine)
 {	
 	m_merged_segment_fileids.reserve(engine->GetConfig().merge_factor * engine->GetConfig().part_merge_thread_num);
+	m_tobe_clean_bucket_meta_fileid = INVALID_FILEID;
 }
 
 WriteOnlyBucket::~WriteOnlyBucket()
@@ -77,7 +78,7 @@ Status WriteOnlyBucket::Open()
 			return s;
 		}
 	}
-	//读取最新的segment list
+	//获取所有的meta file
 	std::vector<FileName> file_names;
 	Status s = ListBucketMetaFile(m_bucket_path.c_str(), file_names);
 	if(s != OK)
@@ -86,14 +87,16 @@ Status WriteOnlyBucket::Open()
 	}
 	if(file_names.empty()) 
 	{
-		return OK;
+		return ERR_BUCKET_EMPTY;
 	}
 	for(size_t i = 0; i < file_names.size() - 1; ++i)
 	{
-		m_tobe_delete_bucket_meta_filenames.push_back(file_names[i]);
+		fileid_t id = atoll(file_names[i].str);
+		m_tobe_delete_bucket_meta_fileids.push_back(id);
 	}
-	
-	return Bucket::Open(file_names.back().str);
+	const char* curr_filename = file_names.back().str;
+	m_tobe_clean_bucket_meta_fileid = atoll(curr_filename);
+	return Bucket::Open(curr_filename);
 }
 
 void WriteOnlyBucket::Clear()
@@ -175,56 +178,77 @@ Status WriteOnlyBucket::Remove(const char* bucket_path)
 	Status s = ListBucketMetaFile(bucket_path, file_names);
 	if(s != OK)
 	{		
-		assert(s != ERR_FILE_READ);
 		return s;
 	}
 	for(size_t i = 0; i < file_names.size(); ++i)
-	{		
-		const FileName& fn = file_names[i];
-
-		bool remove_all = (i == file_names.size() - 1);
-		s = BucketMetaFile::Remove(bucket_path, fn.str, remove_all);
+	{
+		s = BucketMetaFile::Remove(bucket_path, file_names[i].str);
 		if(s != OK)
 		{
-			assert(s != ERR_FILE_READ);
 			return s;
 		}
 	}
 
-	//最后删除目录
+	//最后删除目录(包括未删除的segment)
 	Directory::Remove(bucket_path);
+	return OK;
+}
+
+Status WriteOnlyBucket::RemoveMetaFile()
+{
+	for(;;)
+	{		
+		fileid_t clean_fileid;
+		{
+			std::lock_guard<std::mutex> guard(m_mutex);
+			if(m_tobe_delete_bucket_meta_fileids.empty()) 
+			{
+				return ERR_NOMORE_DATA;
+			}
+			clean_fileid = m_tobe_delete_bucket_meta_fileids.front();
+		}
+		char filename[MAX_FILENAME_LEN];
+		MakeBucketMetaFileName(clean_fileid, filename);
+		Status s = BucketMetaFile::Remove(m_bucket_path.c_str(), filename);
+		if(s != OK)
+		{
+			return s;
+		}
+		{
+			std::lock_guard<std::mutex> guard(m_mutex);
+			if(!m_tobe_delete_bucket_meta_fileids.empty()) 
+			{
+				m_tobe_delete_bucket_meta_fileids.pop_front();
+			}
+		}
+	}
+
 	return OK;
 }
 
 Status WriteOnlyBucket::Clean()
 {
-	//保证一次只有一个线程在执行clean操作
-	FileName clean_filename;
-	for(;;)
-	{		
+	//NOTE:保证一次只有一个线程在执行clean操作
+	Status s = RemoveMetaFile();
+	if(s == ERR_NOMORE_DATA)
+	{
+		fileid_t clean_bucket_meta_fileid = INVALID_FILEID;
 		{
 			std::lock_guard<std::mutex> guard(m_mutex);
-			if(m_tobe_delete_bucket_meta_filenames.empty()) 
+			if(m_tobe_delete_bucket_meta_fileids.empty() && m_tobe_clean_bucket_meta_fileid != INVALID_FILEID)
 			{
-				return ERR_NOMORE_DATA;
-			}
-			clean_filename = m_tobe_delete_bucket_meta_filenames.front();
-		}
-		Status s = BucketMetaFile::Remove(m_bucket_path.c_str(), clean_filename.str, false);
-		if(s != OK)
-		{
-			return s;
-		}
-		{
-			std::lock_guard<std::mutex> guard(m_mutex);
-			if(!m_tobe_delete_bucket_meta_filenames.empty()) 
-			{
-				m_tobe_delete_bucket_meta_filenames.pop_front();
+				clean_bucket_meta_fileid = m_tobe_clean_bucket_meta_fileid;
+				m_tobe_clean_bucket_meta_fileid = INVALID_FILEID;
 			}
 		}
+		if(clean_bucket_meta_fileid != INVALID_FILEID)
+		{
+			char filename[MAX_FILENAME_LEN];
+			MakeBucketMetaFileName(clean_bucket_meta_fileid, filename);
+			s = BucketMetaFile::Clean(m_bucket_path.c_str(), filename);
+		} 
 	}
-
-	return OK;
+	return s;
 }
 
 Status WriteOnlyBucket::WriteSegment(TableWriterSnapshotPtr& memwriter_snapshot, fileid_t fileid, SegmentReaderPtr& new_segment_reader)
@@ -573,6 +597,7 @@ Status WriteOnlyBucket::WriteBucketMeta()
 	Status s = BucketMetaFile::Write(m_bucket_path.c_str(), bucket_meta_fileid, md);
 	if(s != OK)
 	{
+		//FIXME:恢复md.deleted_segment_fileids到m_merged_segment_fileids?
 		return s;
 	}
 	//只读打开segment list file，并替换当前list file
@@ -582,23 +607,23 @@ Status WriteOnlyBucket::WriteBucketMeta()
 		WriteLockGuard lock_guard(m_segment_rwlock);
 		m_reader_snapshot.meta_file.swap(bucket_meta_file);
 	}
-	//写通知文件
+
 	DBImplPtr db = m_db.lock();
-	NotifyData nd(NOTIFY_UPDATE_BUCKET_META, db->GetPath(), m_info.name, bucket_meta_fileid);
-	m_engine->WriteNotifyFile(nd);
 
 	//加入清理队列
 	if(bucket_meta_file)
 	{
-		FileName filename;
-		MakeBucketMetaFileName(bucket_meta_file->FileID(), filename.str);
-
 		{
 			std::lock_guard<std::mutex> lock(m_mutex);
-			m_tobe_delete_bucket_meta_filenames.push_back(filename);
+			m_tobe_clean_bucket_meta_fileid = bucket_meta_fileid;
+			m_tobe_delete_bucket_meta_fileids.push_back(bucket_meta_file->FileID());
 		}
 		m_engine->NotifyClean(db);
-	}
+	}	
+
+	//写通知文件
+	NotifyData nd(NOTIFY_UPDATE_BUCKET_META, db->GetPath(), m_info.name, bucket_meta_fileid);
+	m_engine->WriteNotifyFile(nd);
 	
 	return OK;
 }

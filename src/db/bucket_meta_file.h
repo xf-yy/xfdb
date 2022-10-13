@@ -59,12 +59,18 @@ public:
 	
 	//
 	static Status Write(const char* bucket_path, fileid_t fileid, BucketMetaData& bmd);
-	static Status Remove(const char* bucket_path, const char* file_name, bool remove_all);
+	//清理meta中待删除的segment文件
+	static Status Clean(const char* bucket_path, const char* file_name);
+	//移除meta中待删除的segment文件，并删除meta文件
+	static Status Remove(const char* bucket_path, const char* file_name);
 
 private:
 	static Status Parse(const byte_t* data, uint32_t size, BucketMetaData& md);
 	static Status Serialize(const BucketMetaData& md, String& str);
 	static uint32_t EstimateSize(const BucketMetaData& md);
+
+	//清理meta中待删除的segment文件
+	static Status Clean(const char* bucket_path, const char* file_name, LockFlag flag);
 
 private:
 	File m_file;

@@ -264,49 +264,49 @@ uint32_t BucketMetaFile::EstimateSize(const BucketMetaData& md)
 	return size;
 }
 
-Status BucketMetaFile::Remove(const char* bucket_path, const char* file_name, bool remove_all)
+Status BucketMetaFile::Remove(const char* bucket_path, const char* file_name)
 {
-	//尝试写锁打开snapshot，并读取已删除的block文件
+	Status s = Clean(bucket_path, file_name, LOCK_TRY_WRITE);
+	if(s != OK)
 	{
-		BucketMetaFile mfile;
-		Status s = mfile.Open(bucket_path, file_name, LOCK_TRY_WRITE);
-		if(s != OK)
-		{
-			assert(s != ERR_FILE_READ);
-			return s;
-		}
-		BucketMetaData md;
-		s = mfile.Read(md);
-		if(s != OK)
-		{
-			assert(s != ERR_FILE_READ);
-			return s;
-		}
-		for(auto id : md.deleted_segment_fileids)
-		{
-			s = SegmentWriter::Remove(bucket_path, id);
-			if(s != OK)
-			{
-				assert(s != ERR_FILE_READ);
-				return s;
-			}
-		}
-		if(remove_all)
-		{
-			for(auto info : md.alive_segment_infos)
-			{
-				s = SegmentWriter::Remove(bucket_path, info.segment_fileid);
-				if(s != OK)
-				{
-					assert(s != ERR_FILE_READ);
-					return s;
-				}
-			}
-		}
+		return s;
 	}
+
 	char file_path[MAX_PATH_LEN];
 	Path::Combine(file_path, sizeof(file_path), bucket_path, file_name);
 	return File::Remove(file_path) ? OK : ERR_PATH_DELETE;
+}
+
+Status BucketMetaFile::Clean(const char* bucket_path, const char* file_name)
+{
+	return Clean(bucket_path, file_name, LOCK_TRY_READ);
+}
+
+Status BucketMetaFile::Clean(const char* bucket_path, const char* file_name, LockFlag flag)
+{
+	//尝试写锁打开meta文件，删除待删除的segment文件
+	BucketMetaFile mfile;
+	Status s = mfile.Open(bucket_path, file_name, flag);
+	if(s != OK)
+	{
+		return s;
+	}
+	BucketMetaData md;
+	s = mfile.Read(md);
+	if(s != OK)
+	{
+		return s;
+	}
+	for(auto id : md.deleted_segment_fileids)
+	{
+		s = SegmentWriter::Remove(bucket_path, id);
+		if(s != OK)
+		{
+			return s;
+		}
+	}
+
+	return OK;
 }
 
 } 

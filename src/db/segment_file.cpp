@@ -182,7 +182,6 @@ Status SegmentWriter::Remove(const char* bucket_path, fileid_t fileid)
 	Status s = IndexWriter::Remove(bucket_path, fileid);
 	if(s != OK)
 	{
-		assert(s != ERR_FILE_READ);
 		return s;
 	}
 	return DataWriter::Remove(bucket_path, fileid);
