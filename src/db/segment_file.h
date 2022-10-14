@@ -82,6 +82,9 @@ public:
 	static Status Remove(const char* bucket_path, fileid_t fileid);
 
 private:
+	Status Write(IteratorPtr& iter, const BucketStat& stat, SegmentIndexInfo& seginfo);
+
+private:
 	IndexWriter m_index_writer;
 	DataWriter m_data_writer;
 

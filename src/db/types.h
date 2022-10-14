@@ -20,6 +20,7 @@ limitations under the License.
 #include <vector>
 #include <ctime>
 #include <set>
+#include <map>
 #include "xfdb/util_types.h"
 #include "xfdb/db_types.h"
 #include "xfdb/strutil.h"
@@ -355,6 +356,10 @@ struct MergingSegmentInfo
 	SegmentReaderPtr new_segment_reader;
 	std::set<fileid_t> merging_segment_fileids;
 	BucketReaderSnapshot reader_snapshot;
+
+	fileid_t NewSegmentFileID() const;
+	void GetMergingReaders(std::map<fileid_t, TableReaderPtr>& segment_readers) const;
+
 };
 
 

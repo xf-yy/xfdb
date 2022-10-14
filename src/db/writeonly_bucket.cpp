@@ -348,41 +348,6 @@ Status WriteOnlyBucket::WriteSegment()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-fileid_t WriteOnlyBucket::SelectNewSegmentFileID(MergingSegmentInfo& msinfo)
-{
-	//算法：选用最小的seqid，将其level+1，如果level+1已是最大level，则从begin->end中选个未用的seqid
-	//     如果都用了，则选用未使用的最小segment id
-	assert(msinfo.merging_segment_fileids.size() > 1);
-	auto it = msinfo.merging_segment_fileids.begin();
-	if(LEVEL_NUM(*it) < MAX_LEVEL_NUM)
-	{
-		fileid_t segment_id = SEGMENT_ID(*it);
-		int new_level = LEVEL_NUM(*it) + 1;
-
-		return SEGMENT_FILEID(segment_id, new_level);
-	}
-	else
-	{
-		auto prev_it = it;
-		for(++it; it != msinfo.merging_segment_fileids.end(); ++it)
-		{
-			fileid_t prev_segment_id = SEGMENT_ID(*prev_it);
-			fileid_t segment_id = SEGMENT_ID(*it);
-
-			if(prev_segment_id+1 < segment_id)
-			{
-				//FIXME: 曾经出现过怎么办？需记录并check一下？
-				//将最高level的所有segment id记录下来，万一中途更改MAX_LEVEL_NUM值，怎么办？每个db记录最高level，不能改变
-				int level = LEVEL_NUM(*it);
-				return SEGMENT_FILEID(prev_segment_id+1, level);
-			}
-
-			prev_it = it;
-		}
-	}
-	assert(false);
-	return INVALID_FILEID;
-}
 
 Status WriteOnlyBucket::Merge()
 {
@@ -525,7 +490,7 @@ Status WriteOnlyBucket::PartMerge()
 					it = m_tobe_merge_segments[i].erase(it);
 				}
 
-				msinfo.new_segment_fileid = SelectNewSegmentFileID(msinfo);
+				msinfo.new_segment_fileid = msinfo.NewSegmentFileID();
 
 				m_merging_segment_fileids[LEVEL_NUM(msinfo.new_segment_fileid)][msinfo.new_segment_fileid] = false;
 

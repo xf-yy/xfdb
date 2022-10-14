@@ -123,6 +123,12 @@ public:
 		size = 0;
 	}
 
+	explicit StrView(const char* data_)
+	{
+		data = data_;
+		size = strlen(data_);
+	}
+
 	StrView(const char* data_, size_t size_)
 	{
 		data = data_;
@@ -133,12 +139,6 @@ public:
 	{
 		data = str.Data();
 		size = str.Size();
-	}
-	
-	explicit StrView(const char* data_)
-	{
-		data = data_;
-		size = strlen(data_);
 	}
 
 public:

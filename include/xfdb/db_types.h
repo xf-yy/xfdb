@@ -196,11 +196,11 @@ struct ObjectStatItem
 		key_size += stat.key_size;
 		value_size += stat.value_size;
 	}
-	inline void Add(uint64_t key_size, uint64_t value_size)
+	inline void Add(uint64_t key_size_, uint64_t value_size_)
 	{
 		++count;
-		key_size += key_size;
-		value_size += value_size;
+		key_size += key_size_;
+		value_size += value_size_;
 	}
 };
 

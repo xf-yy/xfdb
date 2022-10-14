@@ -68,8 +68,6 @@ void TableReaderSnapshot::GetStat(BucketStat& stat) const
 	for(auto it = m_readers.begin(); it != m_readers.end(); ++it)
 	{
 		//FIXME: 识别segment类型
-		
-		stat.segment_stat.Add(it->second->Size());
 		it->second->GetStat(stat);
 	}
 }

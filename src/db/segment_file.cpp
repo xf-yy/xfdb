@@ -100,10 +100,8 @@ Status SegmentWriter::Create(const char* bucket_path, fileid_t fileid)
 	return m_data_writer.Create(bucket_path, fileid);
 }
 
-Status SegmentWriter::Write(const TableWriterSnapshotPtr& table_writer_snapshot, SegmentIndexInfo& seginfo)
+Status SegmentWriter::Write(IteratorPtr& iter, const BucketStat& stat, SegmentIndexInfo& seginfo)
 {	
-	//FIXME:与Merge相似，可以合并
-	IteratorPtr iter = table_writer_snapshot->NewIterator();
 	Status s = m_data_writer.Write(*iter);
 	if(s != OK)
 	{
@@ -116,11 +114,8 @@ Status SegmentWriter::Write(const TableWriterSnapshotPtr& table_writer_snapshot,
 	}
 
 	SegmentMeta meta;
-
-	BucketStat stat = {0};
-	table_writer_snapshot->GetStat(stat);
 	meta.object_stat = stat.object_stat;
-	
+
 	s = m_index_writer.Finish(iter->UpmostKey(), meta);
 	if(s != OK)
 	{
@@ -131,50 +126,30 @@ Status SegmentWriter::Write(const TableWriterSnapshotPtr& table_writer_snapshot,
 	seginfo.L2index_meta_size = m_index_writer.L2IndexMetaSize();
 	return OK;
 }
-	
+
+Status SegmentWriter::Write(const TableWriterSnapshotPtr& table_writer_snapshot, SegmentIndexInfo& seginfo)
+{	
+	//FIXME:与Merge相似，可以合并
+	IteratorPtr iter = table_writer_snapshot->NewIterator();
+
+	BucketStat stat = {0};
+	table_writer_snapshot->GetStat(stat);
+
+	return Write(iter, stat, seginfo);
+}
+
 Status SegmentWriter::Merge(const MergingSegmentInfo& msinfo, SegmentIndexInfo& seginfo)
 {
-	assert(msinfo.reader_snapshot.readers);
-	const auto& readers = msinfo.reader_snapshot.readers->Readers();
-
 	std::map<fileid_t, TableReaderPtr> segment_readers;
-	for(auto it = msinfo.merging_segment_fileids.begin(); it != msinfo.merging_segment_fileids.end(); ++it)
-	{
-		auto reader_it = readers.find(*it);
-		assert(reader_it != readers.end());
-
-		segment_readers[*it] = reader_it->second;
-	}
+	msinfo.GetMergingReaders(segment_readers);
 
 	TableReaderSnapshot tmp_reader_snapshot(segment_readers);
 	IteratorPtr iter = tmp_reader_snapshot.NewIterator();
-	Status s = m_data_writer.Write(*iter);
-	if(s != OK)
-	{
-		return s;
-	}
-	s = m_data_writer.Finish();
-	if(s != OK)
-	{
-		return s;
-	}
-
-	SegmentMeta meta;
 
 	BucketStat stat = {0};
 	tmp_reader_snapshot.GetStat(stat);
-	meta.object_stat = stat.object_stat;
-	
-	s = m_index_writer.Finish(iter->UpmostKey(), meta);
-	if(s != OK)
-	{
-		return s;
-	}
-	seginfo.data_filesize = m_data_writer.FileSize();
-	seginfo.index_filesize = m_index_writer.FileSize();
-	seginfo.L2index_meta_size = m_index_writer.L2IndexMetaSize();
 
-	return OK;
+	return Write(iter, stat, seginfo);
 }
 		
 Status SegmentWriter::Remove(const char* bucket_path, fileid_t fileid)
@@ -186,6 +161,58 @@ Status SegmentWriter::Remove(const char* bucket_path, fileid_t fileid)
 	}
 	return DataWriter::Remove(bucket_path, fileid);
 }
+
+
+fileid_t MergingSegmentInfo::NewSegmentFileID() const
+{
+	//算法：选用最小的seqid，将其level+1，如果level+1已是最大level，则从begin->end中选个未用的seqid
+	//     如果都用了，则选用未使用的最小segment id
+	assert(merging_segment_fileids.size() > 1);
+	auto it = merging_segment_fileids.begin();
+	if(LEVEL_NUM(*it) < MAX_LEVEL_NUM)
+	{
+		fileid_t segment_id = SEGMENT_ID(*it);
+		int new_level = LEVEL_NUM(*it) + 1;
+
+		return SEGMENT_FILEID(segment_id, new_level);
+	}
+	else
+	{
+		auto prev_it = it;
+		for(++it; it != merging_segment_fileids.end(); ++it)
+		{
+			fileid_t prev_segment_id = SEGMENT_ID(*prev_it);
+			fileid_t segment_id = SEGMENT_ID(*it);
+
+			if(prev_segment_id+1 < segment_id)
+			{
+				//FIXME: 曾经出现过怎么办？需记录并check一下？
+				//将最高level的所有segment id记录下来，万一中途更改MAX_LEVEL_NUM值，怎么办？每个db记录最高level，不能改变
+				int level = LEVEL_NUM(*it);
+				return SEGMENT_FILEID(prev_segment_id+1, level);
+			}
+
+			prev_it = it;
+		}
+	}
+	assert(false);
+	return INVALID_FILEID;
+}
+
+void MergingSegmentInfo::GetMergingReaders(std::map<fileid_t, TableReaderPtr>& segment_readers) const
+{
+	assert(reader_snapshot.readers);
+	const auto& readers = reader_snapshot.readers->Readers();
+
+	for(auto id_it = merging_segment_fileids.begin(); id_it != merging_segment_fileids.end(); ++id_it)
+	{
+		auto reader_it = readers.find(*id_it);
+		assert(reader_it != readers.end());
+
+		segment_readers[*id_it] = reader_it->second;
+	}		
+}
+
 
 }  
 

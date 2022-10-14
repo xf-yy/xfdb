@@ -38,11 +38,11 @@ void SegmentReaderIterator::First()
 	m_L1index_idx = 0;
 
 	IndexReader& ir = m_segment_reader->m_index_reader;
-	m_index_block_reader.Read(m_segment_reader->m_index_reader.m_file, m_segment_reader->m_index_reader.m_L1indexs[0]);
+	m_index_block_reader.Read(ir.m_file, ir.m_L1indexs[0]);
 	m_index_block_iter = m_index_block_reader.NewIterator();
 
 	DataReader& dr = m_segment_reader->m_data_reader;
-	m_data_block_reader.Read(m_segment_reader->m_data_reader.m_file, m_index_block_iter->L0Index());
+	m_data_block_reader.Read(dr.m_file, m_index_block_iter->L0Index());
 	m_data_block_iter = m_data_block_reader.NewIterator();
 }
 

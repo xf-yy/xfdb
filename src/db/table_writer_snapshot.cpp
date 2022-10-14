@@ -99,8 +99,6 @@ void TableWriterSnapshot::GetStat(BucketStat& stat) const
 	for(size_t i = 0; i < m_memwriters.size(); ++i)
 	{
 		//FIXME: 识别memwriter类型？
-		
-		stat.memwriter_stat.Add(m_memwriters[i]->Size());
 		m_memwriters[i]->GetStat(stat);
 	}
 }

@@ -72,9 +72,7 @@ private:
 	Status FullMerge();		//同步merge
 	Status PartMerge();		//同步merge，写入时合并降低速度？
 	
-
 private:
-	fileid_t SelectNewSegmentFileID(MergingSegmentInfo& msinfo);
 	void WriteAliveSegmentInfos(TableReaderSnapshotPtr& trs_ptr, BucketMetaData& md);
 
 protected:
