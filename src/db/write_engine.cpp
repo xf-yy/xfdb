@@ -275,7 +275,13 @@ void WritableEngine::TryFlushThread(size_t index, void* arg)
 	WritableEngine* engine = (WritableEngine*)arg;
 	assert(engine != nullptr);
 	
-	const uint32_t time_ms = engine->m_conf.tryflush_interval_s * 1000;
+	uint16_t flush_interval_s = engine->m_conf.flush_interval_s / 3;
+	if(flush_interval_s < 1)
+	{
+		flush_interval_s = 1;
+	}
+
+	const uint32_t timeout_ms = flush_interval_s * 1000;
 
 	//key: db_path
 	std::set<std::string> flush_dbs;
@@ -284,7 +290,7 @@ void WritableEngine::TryFlushThread(size_t index, void* arg)
 	for(;;)
 	{
 		NotifyMsg nd;
-		if(engine->m_tryflush_queue.Pop(nd, time_ms))
+		if(engine->m_tryflush_queue.Pop(nd, timeout_ms))
 		{
 			if(nd.type == NOTIFY_EXIT)
 			{
@@ -293,7 +299,7 @@ void WritableEngine::TryFlushThread(size_t index, void* arg)
 			flush_dbs.insert(nd.db->GetPath());
 
 			//判断时间间隔是否已达到
-			if((second_t)time(nullptr) < last_flush_time + engine->m_conf.tryflush_interval_s)
+			if((second_t)time(nullptr) < last_flush_time + flush_interval_s)
 			{
 				continue;
 			}

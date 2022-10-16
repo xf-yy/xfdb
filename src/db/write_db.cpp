@@ -501,8 +501,7 @@ Status WritableDB::Merge(const std::string& bucket_name)
 	{
 		return ERR_BUCKET_NOT_EXIST;
 	}
-	bptr->Merge();
-	return OK;
+	return bptr->Merge();
 }
 
 Status WritableDB::FullMerge(const std::string& bucket_name)

@@ -60,6 +60,7 @@ enum Status
 	ERR_UNINITIALIZED,
 	ERR_INVALID_MODE,
 	ERR_INVALID_CONFIG,
+	ERR_IN_PROCESSING,
 	
 	//db
 	ERR_DB_OPENED = 50,
@@ -115,23 +116,28 @@ struct GlobalConfig
 	uint16_t part_merge_thread_num = 4;
 	uint16_t full_merge_thread_num = 2;
 	uint16_t merge_factor = 10;					//合并因子
-	uint64_t max_segment_file_size = GB(32);	//segment超过此值时不参与merge
+	uint64_t max_merge_size = GB(32);			//segment超过此值时不参与merge
 	
-	//uint64_t total_memtable_size = GB(2);	//总大小，超过时，阻塞写
+	//uint64_t total_memtable_size = GB(2);		//总大小，超过时，阻塞写
 	uint32_t max_memtable_size = MB(64);		//1~1024
-	uint32_t max_object_num_of_memtable = 50*10000;//1000~100*10000
-	uint16_t memtable_ttl_s = 30;				//1~600
-	uint16_t tryflush_interval_s = 15;			//检测flush时间间隔，单位秒
+	uint32_t max_memtable_objects = 50*10000;	//1000~100*10000
+	uint16_t flush_interval_s = 30;				//1~600
 	
 	uint16_t clean_interval_s = 30;				//检测clean时间间隔，单位秒
 	
 public:
 	bool Check() const
 	{
-		if(mode != MODE_READONLY && mode != MODE_WRITEONLY && mode != MODE_READWRITE)
+		switch(mode)
 		{
-			return false;
+		case MODE_READONLY:
+		case MODE_WRITEONLY:
+		case MODE_READWRITE:
+			break;
+		default: return false; 
+			break;
 		}
+
 		//if(!log_file_path.empty() && log_file_path.back() == '/')
 		//{
 		//	return false;

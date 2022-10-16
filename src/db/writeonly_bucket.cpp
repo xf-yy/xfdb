@@ -44,7 +44,7 @@ WriteOnlyBucket::~WriteOnlyBucket()
 TableWriterPtr WriteOnlyBucket::NewTableWriter(WritableEngine* engine)
 {
 	assert(!(engine->m_conf.mode & MODE_READONLY));
-	return NewWriteOnlyMemWriter(engine->m_pool, engine->m_conf.max_object_num_of_memtable);
+	return NewWriteOnlyMemWriter(engine->m_pool, engine->m_conf.max_memtable_objects);
 }
 
 Status WriteOnlyBucket::Create()
@@ -96,7 +96,27 @@ Status WriteOnlyBucket::Open()
 	}
 	const char* curr_filename = file_names.back().str;
 	m_tobe_clean_bucket_meta_fileid = atoll(curr_filename);
-	return Bucket::Open(curr_filename);
+
+	s = Bucket::Open(curr_filename);
+	if(s != OK)
+	{
+		return s;
+	}
+
+	//将已读的segment加入tobe merge队列
+	std::lock_guard<std::mutex> lock(m_mutex);
+
+	m_segment_rwlock.ReadLock();
+	BucketReaderSnapshot reader_snapshot = m_reader_snapshot;
+	m_segment_rwlock.ReadUnlock();	
+	
+	const auto& readers = reader_snapshot.readers->Readers();
+	for(auto it = readers.begin(); it != readers.end(); ++it)
+	{
+		int level = LEVEL_NUM(it->first);
+		m_tobe_merge_segments[level][it->first] = it->second->Size();
+	}
+	return OK;
 }
 
 void WriteOnlyBucket::Clear()
@@ -151,7 +171,7 @@ Status WriteOnlyBucket::Write(const Object* object)
 	}
 	++m_next_object_id;
 	
-	if(m_memwriter->Size() >= m_engine->GetConfig().max_memtable_size || m_memwriter->GetObjectCount() >= m_engine->GetConfig().max_object_num_of_memtable)
+	if(m_memwriter->Size() >= m_engine->GetConfig().max_memtable_size || m_memwriter->GetObjectCount() >= m_engine->GetConfig().max_memtable_objects)
 	{
 		FlushMemWriter();
 	}
@@ -297,7 +317,7 @@ Status WriteOnlyBucket::WriteSegment()
 
 		fileid_t new_segment_id = m_next_segment_id++;
 		fileid = SEGMENT_FILEID(new_segment_id, 0);
-		m_writing_segment_fileids[fileid] = false;
+		m_writing_segments[fileid] = 0;
 
 		std::map<fileid_t, TableReaderPtr> new_readers = m_reader_snapshot.readers->Readers();
 		new_readers[fileid] = memwriter_snapshot;
@@ -312,17 +332,17 @@ Status WriteOnlyBucket::WriteSegment()
 	int writed_segment_inc = 0;
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
-		m_writing_segment_fileids[fileid] = true;
+		m_writing_segments[fileid] = new_segment_reader->Size();
 		
 		//判断m_writing_segments已经确认的segment
-		for(auto it = m_writing_segment_fileids.begin(); it != m_writing_segment_fileids.end(); )
+		for(auto it = m_writing_segments.begin(); it != m_writing_segments.end(); )
 		{
-			if(!it->second)
+			if(it->second == 0)
 			{
 				break;
 			}
-			m_tobe_merge_segments[0].insert(it->first);
-			m_writing_segment_fileids.erase(it++);
+			m_tobe_merge_segments[0][it->first] = it->second;
+			m_writing_segments.erase(it++);
 			++m_writed_segment_cnt;
 			++writed_segment_inc;
 		}
@@ -357,10 +377,7 @@ Status WriteOnlyBucket::Merge()
 
 Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 {		
-	if(msinfo.merging_segment_fileids.size() <= 1)
-	{
-		return OK;
-	}
+	assert(msinfo.merging_segment_fileids.size() > 1);
 
 	DBImplPtr db = m_db.lock();
 
@@ -395,14 +412,14 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 			m_merged_segment_fileids.push_back(*it);
 		}
 		int level = LEVEL_NUM(msinfo.new_segment_fileid);
-		m_merging_segment_fileids[level][msinfo.new_segment_fileid] = true;
+		m_merging_segment_fileids[level][msinfo.new_segment_fileid] = msinfo.new_segment_reader->Size();
 		for(auto it = m_merging_segment_fileids[level].begin(); it != m_merging_segment_fileids[level].end();)
 		{
-			if(!it->second)
+			if(it->second == 0)
 			{
 				break;
 			}
-			m_tobe_merge_segments[level].insert(it->first);
+			m_tobe_merge_segments[level][it->first] = it->second;;
 			m_merging_segment_fileids[level].erase(it++);
 		}
 
@@ -432,26 +449,67 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 	return OK;
 }
 
-//单线程：超过一定大小的block不参与合并，低于1/10的小块不与大块合并
-Status WriteOnlyBucket::FullMerge()
-{	
-	assert(false);
-	return ERR_INVALID_MODE;
-
-	std::vector<MergingSegmentInfo> msinfo;
+//单线程执行
+Status WriteOnlyBucket::FullMerge_()
+{
+	//等待当前没有任何合并操作？	
+	std::vector<MergingSegmentInfo> msinfos;
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
-		
+
+		for(int level = 0; level < MAX_LEVEL_NUM; ++level)
+		{
+			if(!m_merging_segment_fileids[level].empty())
+			{
+				return ERR_IN_PROCESSING;
+			}
+		}
+
+		MergingSegmentInfo msinfo;
+
 		m_segment_rwlock.ReadLock();
-		BucketReaderSnapshot reader_snapshot = m_reader_snapshot;
+		msinfo.reader_snapshot = m_reader_snapshot;
 		m_segment_rwlock.ReadUnlock();
 
 		//TODO:以超过阈值的segment为分割点，找到待合并的segment集
+		const auto& readers = msinfo.reader_snapshot.readers->Readers();
+		for(auto it = readers.begin(); it != readers.end(); ++it)
+		{
+			if(it->second->Size() < m_engine->GetConfig().max_merge_size)
+			{
+				msinfo.merging_segment_fileids.insert(it->first);
+			}
+			else
+			{
+				if(msinfo.merging_segment_fileids.size() > 1)
+				{
+					msinfo.new_segment_fileid = msinfo.NewSegmentFileID();
+					
+					int new_level = LEVEL_NUM(msinfo.new_segment_fileid);
+					m_merging_segment_fileids[new_level][msinfo.new_segment_fileid] = 0;
+					msinfos.push_back(msinfo);
+				}
+				msinfo.merging_segment_fileids.clear();
+			}
+		}
+		if(msinfo.merging_segment_fileids.size() > 1)
+		{
+			msinfo.new_segment_fileid = msinfo.NewSegmentFileID();
+			
+			int new_level = LEVEL_NUM(msinfo.new_segment_fileid);
+			m_merging_segment_fileids[new_level][msinfo.new_segment_fileid] = 0;
+			msinfos.push_back(msinfo);
+		}
+
+		for(int level = 0; level < MAX_LEVEL_NUM; ++level)
+		{
+			m_tobe_merge_segments[level].clear();
+		}
 	}
 	
-	for(auto& seg_info : msinfo)
+	for(auto& msinfo : msinfos)
 	{
-		Status s = Merge(seg_info);
+		Status s = Merge(msinfo);
 		if(s != OK)
 		{
 			return s;
@@ -460,44 +518,60 @@ Status WriteOnlyBucket::FullMerge()
 	return OK;
 }
 
-//多线程
+Status WriteOnlyBucket::FullMerge()
+{
+	Status s = FullMerge_();
+	while(s == ERR_IN_PROCESSING)
+	{
+		Thread::Sleep(1000);
+		s = FullMerge_();
+	}
+	return s;
+}
+
+//多线程执行
 Status WriteOnlyBucket::PartMerge()
 {	
 	const uint32_t merge_factor = m_engine->GetConfig().merge_factor;
 
 	//每层都尝试合并一下
-	for(int i = 0; i < MAX_LEVEL_NUM; ++i)
+	for(int level = 0; level < MAX_LEVEL_NUM; ++level)
 	{
 		for(;;)
 		{
 			MergingSegmentInfo msinfo;
-
-			//TODO:从低层开始，按id升序找出待合并的segment集
-			//相差很大的segment不要合并？比如10GB，100MB，即不超过10倍
 			{
 				std::lock_guard<std::mutex> lock(m_mutex);
-				if(m_tobe_merge_segments[i].size() < merge_factor)
+				if(m_tobe_merge_segments[level].size() < merge_factor)
 				{
 					break;
 				}
 
-				//printf("level:%d, segment cnt:%zd, merge factor:%u\n", i, m_tobe_merge_segments[i].size(), merge_factor);
-				//取前部分segment
-				auto it = m_tobe_merge_segments[i].begin();
+				auto it = m_tobe_merge_segments[level].begin();
 				for(uint32_t m = 0; m < merge_factor; ++m)
 				{
-					msinfo.merging_segment_fileids.insert(*it);
-					it = m_tobe_merge_segments[i].erase(it);
+					//如果segment大小超过阈值，则截断
+					if(it->second >= m_engine->GetConfig().max_merge_size)
+					{
+						m_tobe_merge_segments[level].erase(it);
+						break;
+					}
+					msinfo.merging_segment_fileids.insert(it->first);
+					it = m_tobe_merge_segments[level].erase(it);
 				}
+				if(msinfo.merging_segment_fileids.size() <= 1)
+				{
+					continue;
+				}
+				m_segment_rwlock.ReadLock();
+				msinfo.reader_snapshot = m_reader_snapshot;
+				m_segment_rwlock.ReadUnlock();
 
 				msinfo.new_segment_fileid = msinfo.NewSegmentFileID();
 
-				m_merging_segment_fileids[LEVEL_NUM(msinfo.new_segment_fileid)][msinfo.new_segment_fileid] = false;
-
+				int new_level = LEVEL_NUM(msinfo.new_segment_fileid);
+				m_merging_segment_fileids[new_level][msinfo.new_segment_fileid] = 0;
 			}
-			m_segment_rwlock.ReadLock();
-			msinfo.reader_snapshot = m_reader_snapshot;
-			m_segment_rwlock.ReadUnlock();
 
 			Status s = Merge(msinfo);
 			if(s != OK)
@@ -611,7 +685,7 @@ Status WriteOnlyBucket::Flush(bool force)
 	{
 		return OK;
 	}
-	if(force || m_memwriter->ElapsedTime() >= m_engine->GetConfig().memtable_ttl_s)
+	if(force || m_memwriter->ElapsedTime() >= m_engine->GetConfig().flush_interval_s)
 	{
 		FlushMemWriter();
 	}

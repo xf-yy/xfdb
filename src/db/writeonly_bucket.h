@@ -41,7 +41,6 @@ public:
 
 	virtual void GetStat(BucketStat& stat) const override;
 
-	//OK, check
 	Status Write(const Object* object);
 	
 	//异步
@@ -70,6 +69,7 @@ private:
 
 	Status Merge(MergingSegmentInfo& msinfo);
 	Status FullMerge();		//同步merge
+	Status FullMerge_();	//
 	Status PartMerge();		//同步merge，写入时合并降低速度？
 	
 private:
@@ -78,22 +78,20 @@ private:
 protected:
 	WritableEngine* m_engine;
 				
-	TableWriterPtr m_memwriter;							//当前可写的memwriter
-	TableWriterSnapshotPtr m_memwriter_snapshot;		//只读待落盘的memwriter集
+	TableWriterPtr m_memwriter;											//当前正在写的memwriter
+	TableWriterSnapshotPtr m_memwriter_snapshot;						//只读待落盘的memwriter集
 
 	//FIXME:segment文件生成了，但没有写入bucket meta，怎么淘汰？
 	//对于大于bucket meta中的segment都要淘汰？还是重新加入bucket meta？
-	std::map<fileid_t, bool> m_writing_segment_fileids;	//正在写的segment
-	int m_writed_segment_cnt;							//已写完的segment数
+	std::map<fileid_t, uint64_t> m_writing_segments;					//正在写的segment
+	int m_writed_segment_cnt;											//已写完的segment数
 	
-	//TODO: 所有level层的segment，用于merge
-	std::set<fileid_t> m_tobe_merge_segments[MAX_LEVEL_NUM];
-	std::map<fileid_t, bool> m_merging_segment_fileids[MAX_LEVEL_NUM];
-	std::vector<fileid_t> m_merged_segment_fileids;		//合并后待删除的段，需写入bucket meta
+	std::map<fileid_t, uint64_t> m_tobe_merge_segments[MAX_LEVEL_NUM];	//所有level层的segment，用于merge
+	std::map<fileid_t, uint64_t> m_merging_segment_fileids[MAX_LEVEL_NUM];	//正在合并的segment
+	std::vector<fileid_t> m_merged_segment_fileids;						//已合并并待删除的segment，需写入bucket meta
 
-	//待清除的bucket meta文件	
-	std::deque<fileid_t> m_tobe_delete_bucket_meta_fileids;
-	fileid_t m_tobe_clean_bucket_meta_fileid;
+	std::deque<fileid_t> m_tobe_delete_bucket_meta_fileids;				//待删除的bucket meta文件
+	fileid_t m_tobe_clean_bucket_meta_fileid;							//待清理的bucket meta文件
 		
 	friend class WritableDB;
 	friend class WritableEngine;

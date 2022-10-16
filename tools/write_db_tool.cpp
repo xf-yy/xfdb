@@ -45,16 +45,17 @@ static std::vector<std::string> string_split(const std::string& str, char delim)
 
 static void Usage()
 {
-	printf("usage:\n");
-	printf("    1. set <bucket_name> <key> <value>\n");
-	printf("    2. loop_set <loop_count> <bucket_name>\n");
-	printf("    3. delete <bucket_name> <key>\n");
-	printf("    4. get <bucket_name> <key>\n");
-	printf("    5. flush <bucket_name>\n");
-	printf("    6. stat <bucket_name>\n");
-	printf("    7. list_bucket\n");
-	printf("    8. quit\n");
-	printf("    9. help\n");
+	printf("command list:\n");
+	printf("    set <bucket_name> <key> <value>\n");
+	printf("    loop_set <loop_count> <bucket_name>\n");
+	printf("    delete <bucket_name> <key>\n");
+	printf("    flush <bucket_name>\n");
+	printf("    merge <bucket_name>\n");
+	printf("    get <bucket_name> <key>\n");
+	printf("    stat <bucket_name>\n");
+	printf("    list_bucket\n");
+	printf("    quit\n");
+	printf("    help\n");
 }
 
 int main(int argc, char* argv[])
@@ -70,7 +71,7 @@ int main(int argc, char* argv[])
 	GlobalConfig gconf;
 	gconf.mode = MODE_READWRITE;
 	gconf.notify_dir = "./notify";
-	gconf.max_object_num_of_memtable = 5000;
+	gconf.max_memtable_objects = 5000;
 	gconf.merge_factor = 5;
 	Status s = XfdbStart(gconf);
 	if(s != OK)
@@ -193,6 +194,14 @@ int main(int argc, char* argv[])
 				printf("flush failed: %d\n", s);
 			}
 		}
+		else if(strs[0] == "merge")
+		{
+			s = db->Merge(strs[1]);
+			if(s != OK)
+			{
+				printf("merge failed: %d\n", s);
+			}
+		}		
 		else if(strs[0] == "stat")
 		{
 			if(strs.size() < 2)

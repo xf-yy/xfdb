@@ -71,8 +71,8 @@ public:
 	Status Flush();							
 
 	//将所有的segment表合并成最大segment(异步操作)
-	//Status Merge(const std::string& bucket_name);
-	//Status Merge();						
+	Status Merge(const std::string& bucket_name);
+	Status Merge();						
 
 private:
 	friend class Engine;

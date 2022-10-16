@@ -159,8 +159,6 @@ Status DB::Flush(const std::string& bucket_name)
 	return m_db->Flush(bucket_name);
 }
 
-//将所有的segment表合并成最大segment(异步)
-#if 0
 Status DB::Merge()
 {
 	assert(m_db != nullptr);
@@ -172,7 +170,7 @@ Status DB::Merge(const std::string& bucket_name)
 	assert(m_db != nullptr);
 	return m_db->Merge(bucket_name);
 }
-#endif
+
 
 }   
 
