@@ -168,32 +168,22 @@ fileid_t MergingSegmentInfo::NewSegmentFileID() const
 	//算法：选用最小的seqid，将其level+1，如果level+1已是最大level，则从begin->end中选个未用的seqid
 	//     如果都用了，则选用未使用的最小segment id
 	assert(merging_segment_fileids.size() > 1);
-	auto it = merging_segment_fileids.begin();
-	if(LEVEL_NUM(*it) < MAX_LEVEL_NUM)
+	fileid_t fileid = *merging_segment_fileids.begin();
+	
+	if(LEVEL_ID(fileid) < MAX_LEVEL_ID)
 	{
-		fileid_t segment_id = SEGMENT_ID(*it);
-		int new_level = LEVEL_NUM(*it) + 1;
+		fileid_t segment_id = SEGMENT_ID(fileid);
+		uint32_t new_level = LEVEL_ID(fileid) + 1;
 
 		return SEGMENT_FILEID(segment_id, new_level);
 	}
-	else
+	else if(FULLMERGE_COUNT(fileid) < MAX_FULLMERGE_NUM)
 	{
-		auto prev_it = it;
-		for(++it; it != merging_segment_fileids.end(); ++it)
-		{
-			fileid_t prev_segment_id = SEGMENT_ID(*prev_it);
-			fileid_t segment_id = SEGMENT_ID(*it);
+		fileid_t segment_id = SEGMENT_ID(fileid);
+		uint32_t fullmerge_cnt = FULLMERGE_COUNT(fileid) + 1;
+		uint32_t level = LEVEL_ID(fileid);
 
-			if(prev_segment_id+1 < segment_id)
-			{
-				//FIXME: 曾经出现过怎么办？需记录并check一下？
-				//将最高level的所有segment id记录下来，万一中途更改MAX_LEVEL_NUM值，怎么办？每个db记录最高level，不能改变
-				int level = LEVEL_NUM(*it);
-				return SEGMENT_FILEID(prev_segment_id+1, level);
-			}
-
-			prev_it = it;
-		}
+		return SEGMENT_FILEID2(segment_id, fullmerge_cnt, level);
 	}
 	assert(false);
 	return INVALID_FILEID;

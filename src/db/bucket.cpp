@@ -35,7 +35,7 @@ Bucket::Bucket(DBImplPtr db, const BucketInfo& info)
 
 	m_next_segment_id = MIN_FILEID;
 	m_next_bucket_meta_fileid = MIN_FILEID;
-	m_max_level_num = MAX_LEVEL_NUM;
+	m_max_level_num = MAX_LEVEL_ID;
 }
 
 Status Bucket::Open(const char* bucket_meta_filename)

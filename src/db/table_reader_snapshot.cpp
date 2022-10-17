@@ -91,39 +91,6 @@ void TableReaderSnapshot::GetMeta()
 	}
 }
 
-#if 0
-//判断是否可以进行merge了
-bool SegmentLevelInfo::NeedMerge(std::set<fileid_t>& merging_segment_fileids) const
-{
-	for(int i = 0; i < MAX_LEVEL_NUM; ++i)
-	{
-		//
-	}
-	return false;
-}
-
-void SegmentLevelInfo::InitLevel(int segment_cnt[MAX_LEVEL_NUM])
-{
-	//预分配空间
-	for(int i = 0; i < MAX_LEVEL_NUM; ++i)
-	{
-		m_segment_fileids[i].reserve(segment_cnt[i]);
-	}
-	//for(auto it = m_readers.begin(); it != m_readers.end(); ++it)
-	//{
-	//	m_segment_fileids[LEVEL_NUM(it->first)].push_back(it->first);
-	//}
-	//FIXME:是不是不用排序?
-	for(int i = 0; i < MAX_LEVEL_NUM; ++i)
-	{
-		for(int idx = 0; idx < (int)m_segment_fileids[i].size()-1; ++idx)
-		{
-			assert(m_segment_fileids[i][idx] < m_segment_fileids[i][idx+1]);
-		}
-	}
-}
-
-#endif
 
 }  
 

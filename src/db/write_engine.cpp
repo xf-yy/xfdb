@@ -165,7 +165,13 @@ void WritableEngine::FullMergeThread(size_t index, void* arg)
 		}
 		assert(msg.type == NOTIFY_FULL_MERGE);
 		WriteOnlyBucket* bucket = (WriteOnlyBucket*)msg.bucket.get();
-		bucket->FullMerge();
+		if(bucket->FullMerge() == ERR_IN_PROCESSING)
+		{
+			Thread::Sleep(1000);
+
+			//重新放入合并队列
+			engine->m_full_merge_queue.TryPush(msg);
+		}
 	}
 	LogInfo("merge db thread %d exit", index);
 	

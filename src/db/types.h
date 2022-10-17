@@ -37,15 +37,24 @@ typedef uint64_t fileid_t;
 typedef uint64_t objectid_t;
 
 //segment fileid: 高60bit是segmentid，低4bit是level
+#define MAX_LEVEL_ID				(7)
 #define LEVEL_BITNUM				(4)
 #define LEVEL_MASK					((1<<LEVEL_BITNUM) - 1)
-#define MAX_LEVEL_NUM				7
-static_assert(MAX_LEVEL_NUM > 2, "invalid MAX_LEVEL_NUM");
-#define LEVEL_NUM(id)				((id) & LEVEL_MASK)
+#define LEVEL_ID(id)				((id) & LEVEL_MASK)
+static_assert(MAX_LEVEL_ID > 2 && MAX_LEVEL_ID < 16, "invalid MAX_LEVEL_ID");
+static_assert(LEVEL_MASK == 15, "invalid LEVEL_MASK");
 
-#define SEGMENT_ID(id)				((id) >> LEVEL_BITNUM)
-#define MAX_SEGMENT_ID				((0x1ULL << (64-LEVEL_BITNUM)) - 1)
-#define SEGMENT_FILEID(id, level)	(((id) << LEVEL_BITNUM) | level)
+#define MAX_FULLMERGE_NUM			(15)						//LEVEL达最大值时才开始计数，非严格意义上的合并最大数
+#define FULLMERGE_BITNUM			(4)
+#define FULLMERGE_MASK				((1<<FULLMERGE_BITNUM) - 1)
+#define FULLMERGE_COUNT(id)			(((id) >> LEVEL_BITNUM) & FULLMERGE_MASK)
+static_assert(FULLMERGE_MASK == 15, "invalid FULLMERGE_MASK");
+
+#define SEGMENT_ID_SHIFT			(FULLMERGE_BITNUM + LEVEL_BITNUM)
+#define SEGMENT_ID(id)				((id) >> SEGMENT_ID_SHIFT)
+#define MAX_SEGMENT_ID				((0x1ULL << (64-SEGMENT_ID_SHIFT)) - 1)
+#define SEGMENT_FILEID(id, level)			(((id) << SEGMENT_ID_SHIFT) | level)
+#define SEGMENT_FILEID2(id, cnt, level)		(((id) << SEGMENT_ID_SHIFT) | (cnt<<FULLMERGE_BITNUM) | level)
 
 #define INVALID_FILEID				(0)
 #define MIN_FILEID					(INVALID_FILEID + 1)

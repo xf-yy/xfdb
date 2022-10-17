@@ -113,7 +113,7 @@ Status WriteOnlyBucket::Open()
 	const auto& readers = reader_snapshot.readers->Readers();
 	for(auto it = readers.begin(); it != readers.end(); ++it)
 	{
-		int level = LEVEL_NUM(it->first);
+		int level = LEVEL_ID(it->first);
 		m_tobe_merge_segments[level][it->first] = it->second->Size();
 	}
 	return OK;
@@ -306,7 +306,10 @@ Status WriteOnlyBucket::WriteSegment()
 	
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
-
+		if(m_next_segment_id >= MAX_SEGMENT_ID)
+		{
+			return ERR_RES_EXHAUST;
+		}
 		WriteLockGuard lock_guard(m_segment_rwlock);
 		if(!m_memwriter_snapshot)
 		{
@@ -411,7 +414,7 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 		{
 			m_merged_segment_fileids.push_back(*it);
 		}
-		int level = LEVEL_NUM(msinfo.new_segment_fileid);
+		int level = LEVEL_ID(msinfo.new_segment_fileid);
 		m_merging_segment_fileids[level][msinfo.new_segment_fileid] = msinfo.new_segment_reader->Size();
 		for(auto it = m_merging_segment_fileids[level].begin(); it != m_merging_segment_fileids[level].end();)
 		{
@@ -450,14 +453,14 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 }
 
 //单线程执行
-Status WriteOnlyBucket::FullMerge_()
+Status WriteOnlyBucket::FullMerge()
 {
 	//等待当前没有任何合并操作？	
 	std::vector<MergingSegmentInfo> msinfos;
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
 
-		for(int level = 0; level < MAX_LEVEL_NUM; ++level)
+		for(int level = 0; level < MAX_LEVEL_ID; ++level)
 		{
 			if(!m_merging_segment_fileids[level].empty())
 			{
@@ -475,7 +478,7 @@ Status WriteOnlyBucket::FullMerge_()
 		const auto& readers = msinfo.reader_snapshot.readers->Readers();
 		for(auto it = readers.begin(); it != readers.end(); ++it)
 		{
-			if(it->second->Size() < m_engine->GetConfig().max_merge_size)
+			if(it->second->Size() < m_engine->GetConfig().max_merge_size && FULLMERGE_COUNT(it->first) < MAX_FULLMERGE_NUM)
 			{
 				msinfo.merging_segment_fileids.insert(it->first);
 			}
@@ -485,7 +488,7 @@ Status WriteOnlyBucket::FullMerge_()
 				{
 					msinfo.new_segment_fileid = msinfo.NewSegmentFileID();
 					
-					int new_level = LEVEL_NUM(msinfo.new_segment_fileid);
+					int new_level = LEVEL_ID(msinfo.new_segment_fileid);
 					m_merging_segment_fileids[new_level][msinfo.new_segment_fileid] = 0;
 					msinfos.push_back(msinfo);
 				}
@@ -496,12 +499,12 @@ Status WriteOnlyBucket::FullMerge_()
 		{
 			msinfo.new_segment_fileid = msinfo.NewSegmentFileID();
 			
-			int new_level = LEVEL_NUM(msinfo.new_segment_fileid);
+			int new_level = LEVEL_ID(msinfo.new_segment_fileid);
 			m_merging_segment_fileids[new_level][msinfo.new_segment_fileid] = 0;
 			msinfos.push_back(msinfo);
 		}
 
-		for(int level = 0; level < MAX_LEVEL_NUM; ++level)
+		for(int level = 0; level < MAX_LEVEL_ID; ++level)
 		{
 			m_tobe_merge_segments[level].clear();
 		}
@@ -518,24 +521,13 @@ Status WriteOnlyBucket::FullMerge_()
 	return OK;
 }
 
-Status WriteOnlyBucket::FullMerge()
-{
-	Status s = FullMerge_();
-	while(s == ERR_IN_PROCESSING)
-	{
-		Thread::Sleep(1000);
-		s = FullMerge_();
-	}
-	return s;
-}
-
 //多线程执行
 Status WriteOnlyBucket::PartMerge()
 {	
 	const uint32_t merge_factor = m_engine->GetConfig().merge_factor;
 
 	//每层都尝试合并一下
-	for(int level = 0; level < MAX_LEVEL_NUM; ++level)
+	for(int level = 0; level < MAX_LEVEL_ID; ++level)
 	{
 		for(;;)
 		{
@@ -550,8 +542,8 @@ Status WriteOnlyBucket::PartMerge()
 				auto it = m_tobe_merge_segments[level].begin();
 				for(uint32_t m = 0; m < merge_factor; ++m)
 				{
-					//如果segment大小超过阈值，则截断
-					if(it->second >= m_engine->GetConfig().max_merge_size)
+					//如果segment大小超过阈值或level已达最大值，则截断
+					if(it->second >= m_engine->GetConfig().max_merge_size || LEVEL_ID(it->first) == MAX_LEVEL_ID)
 					{
 						m_tobe_merge_segments[level].erase(it);
 						break;
@@ -569,7 +561,7 @@ Status WriteOnlyBucket::PartMerge()
 
 				msinfo.new_segment_fileid = msinfo.NewSegmentFileID();
 
-				int new_level = LEVEL_NUM(msinfo.new_segment_fileid);
+				int new_level = LEVEL_ID(msinfo.new_segment_fileid);
 				m_merging_segment_fileids[new_level][msinfo.new_segment_fileid] = 0;
 			}
 
