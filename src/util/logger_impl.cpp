@@ -56,7 +56,7 @@ bool LoggerImpl::Write(const StrView& buf)
 }
 
 //一个日志队列，一个单独的写线程(每隔50ms输出下)
-void LoggerImpl::LogThread(size_t index, void* arg)
+void LoggerImpl::LogThread(void* arg)
 {
 	LoggerImpl* logger = (LoggerImpl*)arg;
 	

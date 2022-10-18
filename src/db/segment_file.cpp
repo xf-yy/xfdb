@@ -17,7 +17,7 @@ limitations under the License.
 #include "types.h"
 #include "segment_file.h"
 #include "table_writer_snapshot.h"
-#include "mem_writer_iterator.h"
+#include "memwriter_iterator.h"
 #include "table_writer.h"
 #include "table_reader_snapshot.h"
 #include "segment_iterator.h"

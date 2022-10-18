@@ -29,11 +29,6 @@ namespace xfdb
 #error "only support c++ 11 or later, use -std=c++11 option for compile"
 #endif
 
-//库版本号
-#define XFDB_MAJOR_VERSION		(0)
-#define XFDB_MINOR_VERSION		(1)
-#define XFDB_PATCH_VERSION		(0)
-
 //错误码
 enum Status
 {

@@ -20,7 +20,7 @@ limitations under the License.
 #include "types.h"
 #include "logger.h"
 #include "readonly_engine.h"
-#include "write_engine.h"
+#include "writable_engine.h"
 #include "process.h"
 
 namespace xfdb
@@ -28,6 +28,11 @@ namespace xfdb
 
 static std::mutex s_engine_mutex;
 static EnginePtr s_engine;
+
+const char* XfdbVersion()
+{
+	return XFDB_VERSION_DESC;
+}
 
 static inline EnginePtr NewEngine(const GlobalConfig& conf)
 {

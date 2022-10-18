@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfbase_types_h__
-#define __xfbase_types_h__
+#ifndef __xfutil_types_h__
+#define __xfutil_types_h__
 
 #include <cassert>
 #include <cstddef>

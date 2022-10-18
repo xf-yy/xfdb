@@ -50,7 +50,7 @@ private:
 	bool ParseConf(const char *conf_file);
 	bool Write(const StrView& buf);
 	
-	static void LogThread(size_t index, void* arg);
+	static void LogThread(void* arg);
 
 private:
 	LogConf m_conf;

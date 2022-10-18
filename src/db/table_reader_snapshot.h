@@ -14,14 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_reader_snapshot_h__
-#define __xfdb_reader_snapshot_h__
+#ifndef __xfdb_table_reader_snapshot_h__
+#define __xfdb_table_reader_snapshot_h__
 
 #include <algorithm>
 #include <set>
 #include "types.h"
 #include "segment_file.h"
-#include "bucket_meta_file.h"
+#include "bucket_metafile.h"
 
 namespace xfdb 
 {

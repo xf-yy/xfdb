@@ -26,26 +26,31 @@ limitations under the License.
 #include "xfdb/strutil.h"
 #include "hash.h"
 
-
 using namespace xfutil;
 
 namespace xfdb 
 {
+
+//库版本号
+#define XFDB_MAJOR_VERSION		0
+#define XFDB_MINOR_VERSION		1
+#define XFDB_PATCH_VERSION		0
+#define XFDB_VERSION_DESC		"0.1.0"
 
 typedef uint32_t bucketid_t;
 typedef uint64_t fileid_t;
 typedef uint64_t objectid_t;
 
 //segment fileid: 高60bit是segmentid，低4bit是level
-#define MAX_LEVEL_ID				(7)
-#define LEVEL_BITNUM				(4)
+#define MAX_LEVEL_ID				7
+#define LEVEL_BITNUM				4
 #define LEVEL_MASK					((1<<LEVEL_BITNUM) - 1)
 #define LEVEL_ID(id)				((id) & LEVEL_MASK)
 static_assert(MAX_LEVEL_ID > 2 && MAX_LEVEL_ID < 16, "invalid MAX_LEVEL_ID");
 static_assert(LEVEL_MASK == 15, "invalid LEVEL_MASK");
 
-#define MAX_FULLMERGE_NUM			(15)						//LEVEL达最大值时才开始计数，非严格意义上的合并最大数
-#define FULLMERGE_BITNUM			(4)
+#define MAX_FULLMERGE_NUM			15						//LEVEL达最大值时才开始计数，非严格意义上的合并最大数
+#define FULLMERGE_BITNUM			4
 #define FULLMERGE_MASK				((1<<FULLMERGE_BITNUM) - 1)
 #define FULLMERGE_COUNT(id)			(((id) >> LEVEL_BITNUM) & FULLMERGE_MASK)
 static_assert(FULLMERGE_MASK == 15, "invalid FULLMERGE_MASK");
@@ -56,17 +61,17 @@ static_assert(FULLMERGE_MASK == 15, "invalid FULLMERGE_MASK");
 #define SEGMENT_FILEID(id, level)			(((id) << SEGMENT_ID_SHIFT) | level)
 #define SEGMENT_FILEID2(id, cnt, level)		(((id) << SEGMENT_ID_SHIFT) | (cnt<<FULLMERGE_BITNUM) | level)
 
-#define INVALID_FILEID				(0)
+#define INVALID_FILEID				0
 #define MIN_FILEID					(INVALID_FILEID + 1)
 #define MAX_FILEID					(fileid_t(-1) - 1)
 static_assert(MIN_FILEID > 0, "invalid MIN_FILEID");
 
-#define INVALID_OBJECTID			(0)
+#define INVALID_OBJECTID			0
 #define MIN_OBJECTID				(INVALID_OBJECTID + 1)
 #define MAX_OBJECTID				(objectid_t(-1) - 1)		//64bit
 static_assert(MIN_OBJECTID > 0, "invalid MIN_OBJECTID");
 
-#define INVALID_BUCKETID			(0)
+#define INVALID_BUCKETID			0
 #define MIN_BUCKETID				(INVALID_BUCKETID + 1)
 #define MAX_BUCKETID				(bucketid_t(-1) - 1)		//32bit
 static_assert(MIN_BUCKETID > 0, "invalid MIN_BUCKETID");
@@ -76,7 +81,7 @@ static_assert(MIN_BUCKETID > 0, "invalid MIN_BUCKETID");
 static_assert(MAX_KEY_SIZE <= 64*1024, "invalid MAX_KEY_SIZE");				//不能超16bit大小
 static_assert(MAX_VALUE_SIZE <= 64*1024, "invalid MAX_VALUE_SIZE");			//待支持kv分离时，可支持大value
 
-#define EXTRA_OBJECT_SIZE			(256)		//object相关属性估值
+#define EXTRA_OBJECT_SIZE			256		//object相关属性估值
 #define MAX_OBJECT_SIZE				(MAX_KEY_SIZE + MAX_VALUE_SIZE + EXTRA_OBJECT_SIZE)
 #define MAX_UNCOMPRESS_BLOCK_SIZE	(32*1024)	//未启用压缩时的块大小
 #define MAX_COMPRESS_BLOCK_SIZE		(3*MAX_COMPRESS_BLOCK_SIZE)	//启用压缩时的块大小
@@ -85,15 +90,15 @@ static_assert(MAX_VALUE_SIZE <= 64*1024, "invalid MAX_VALUE_SIZE");			//待支�
 #define MEM_BLOCK_SIZE				(256*1024)
 
 #ifndef MAX_FILENAME_LEN
-#define MAX_FILENAME_LEN			(64)	//包括结束符'\0'
+#define MAX_FILENAME_LEN			64	//包括结束符'\0'
 #endif
 
 #ifndef MIN_BUCKET_NAME_LEN
-#define MIN_BUCKET_NAME_LEN			(3)		//不包含结束符'\0'
+#define MIN_BUCKET_NAME_LEN			3	//不包含结束符'\0'
 #endif
 
 #ifndef MAX_BUCKET_NAME_LEN
-#define MAX_BUCKET_NAME_LEN			(64)	//包含结束符'\0'
+#define MAX_BUCKET_NAME_LEN			64	//包含结束符'\0'
 #endif
 
 //NOTE:值必须小于32

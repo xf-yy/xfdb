@@ -15,11 +15,11 @@ limitations under the License.
 ***************************************************************************/
 
 #include "types.h"
-#include "write_engine.h"
+#include "writable_engine.h"
 #include "logger.h"
 #include "hash.h"
 #include "file.h"
-#include "write_db.h"
+#include "writable_db.h"
 #include "writeonly_bucket.h"
 #include "notify_file.h"
 
@@ -75,13 +75,13 @@ Status WritableEngine::Close()
 	m_clean_queue.Push(msg);
 	m_clean_thread.Join();
 
-	for(size_t i = 0; i < m_part_merge_threadgroup.Size(); ++i)
+	for(size_t i = 0; i < m_conf.part_merge_thread_num; ++i)
 	{
 		m_part_merge_queue.Push(msg);
 	}
 	m_part_merge_threadgroup.Join();
 
-	for(size_t i = 0; i < m_full_merge_threadgroup.Size(); ++i)
+	for(size_t i = 0; i < m_conf.full_merge_thread_num; ++i)
 	{
 		m_full_merge_queue.Push(msg);
 	}
@@ -90,13 +90,13 @@ Status WritableEngine::Close()
 	m_tryflush_queue.Push(msg);
 	m_tryflush_thread.Join();
 		
-	for(size_t i = 0; i < m_write_segment_threadgroup.Size(); ++i)
+	for(size_t i = 0; i < m_conf.write_segment_thread_num; ++i)
 	{
 		m_write_segment_queue.Push(msg);
 	}
 	m_write_segment_threadgroup.Join();
 	
-	for(size_t i = 0; i < m_write_metadata_threadgroup.Size(); ++i)
+	for(size_t i = 0; i < m_conf.write_metadata_thread_num; ++i)
 	{
 		m_write_metadata_queues[i].Push(msg);
 	}
@@ -128,7 +128,7 @@ void WritableEngine::PartMergeThread(size_t index, void* arg)
 	WritableEngine* engine = (WritableEngine*)arg;
 	assert(engine != nullptr);
 	
-	assert(index < engine->m_part_merge_threadgroup.Size());
+	assert(index < engine->m_conf.part_merge_thread_num);
 	
 	for(;;)
 	{
@@ -153,7 +153,7 @@ void WritableEngine::FullMergeThread(size_t index, void* arg)
 	WritableEngine* engine = (WritableEngine*)arg;
 	assert(engine != nullptr);
 	
-	assert(index < engine->m_full_merge_threadgroup.Size());
+	assert(index < engine->m_conf.full_merge_thread_num);
 	
 	for(;;)
 	{
@@ -191,7 +191,6 @@ void WritableEngine::WriteMetaThread(size_t index, void* arg)
 		NotifyMsg msg;
 		if(!engine->m_write_metadata_queues[index].Pop(msg, ms))
 		{
-			//clean操作;
 			continue;
 		}
 		if(msg.type == NOTIFY_EXIT)
@@ -208,7 +207,7 @@ void WritableEngine::WriteMetaThread(size_t index, void* arg)
 		{
 			WritableDBPtr db = std::dynamic_pointer_cast<WritableDB>(msg.db);
 			assert(db);
-			db->WriteDbInfo();
+			db->WriteDBInfo();
 		}
 		else
 		{
@@ -274,7 +273,7 @@ void WritableEngine::TryFlush(std::set<std::string>& clean_dbs)
 
 
 //try-flush结构体如何定义？
-void WritableEngine::TryFlushThread(size_t index, void* arg)
+void WritableEngine::TryFlushThread(void* arg)
 {
 	LogInfo("try flush thread started");
 	
@@ -416,7 +415,7 @@ void WritableEngine::CleanDB(std::set<std::string>& clean_dbs)
 	}
 }
 
-void WritableEngine::CleanThread(size_t index, void* arg)
+void WritableEngine::CleanThread(void* arg)
 {
 	LogInfo("clean thread started");
 	

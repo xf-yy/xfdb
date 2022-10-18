@@ -17,7 +17,7 @@ limitations under the License.
 #include "db_impl.h"
 #include "types.h"
 #include "bucket.h"
-#include "db_info_file.h"
+#include "db_infofile.h"
 #include "bucket_snapshot.h"
 #include "logger.h"
 #include "file_util.h"
@@ -100,7 +100,7 @@ Status DBImpl::OpenBucket(const BucketInfo& bi, BucketPtr& bptr)
 	return s;
 }
 
-void DBImpl::OpenBucket(const DbInfoData& bld, const BucketSnapshot* last_bucket_snapshot, std::map<std::string, BucketPtr>& buckets)
+void DBImpl::OpenBucket(const DBInfoData& bld, const BucketSnapshot* last_bucket_snapshot, std::map<std::string, BucketPtr>& buckets)
 {	
 	assert(last_bucket_snapshot != nullptr);
 	const auto& last_buckets = last_bucket_snapshot->Buckets();
@@ -120,7 +120,7 @@ void DBImpl::OpenBucket(const DbInfoData& bld, const BucketSnapshot* last_bucket
 	}
 }
 
-void DBImpl::OpenBucket(const DbInfoData& bld, std::map<std::string, BucketPtr>& buckets)
+void DBImpl::OpenBucket(const DBInfoData& bld, std::map<std::string, BucketPtr>& buckets)
 {	
 	BucketPtr bptr;
 	for(const auto& bi : bld.alive_buckets)
@@ -136,7 +136,7 @@ Status DBImpl::OpenBucket()
 {
 	//读取最新的bucket list
 	std::vector<FileName> file_names;
-	Status s = ListDbInfoFile(m_path.c_str(), file_names);
+	Status s = ListDBInfoFile(m_path.c_str(), file_names);
 	if(s != OK)
 	{
 		return s;
@@ -151,8 +151,8 @@ Status DBImpl::OpenBucket()
 Status DBImpl::OpenBucket(const char* dbinfo_filename)
 {
 	assert(dbinfo_filename != nullptr);
-	DbInfoData bld;
-	Status s = DbInfoFile::Read(m_path.c_str(), dbinfo_filename, bld);
+	DBInfoData bld;
+	Status s = DBInfoFile::Read(m_path.c_str(), dbinfo_filename, bld);
 	if(s != OK)
 	{
 		return s;
@@ -160,7 +160,7 @@ Status DBImpl::OpenBucket(const char* dbinfo_filename)
 	return OpenBucket(dbinfo_filename, bld);
 }
 
-Status DBImpl::OpenBucket(const char* dbinfo_filename, const DbInfoData& bld)
+Status DBImpl::OpenBucket(const char* dbinfo_filename, const DBInfoData& bld)
 {	
 	fileid_t fileid = strtoull(dbinfo_filename, nullptr, 10);
 	

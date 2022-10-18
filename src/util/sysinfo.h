@@ -17,11 +17,17 @@ limitations under the License.
 #ifndef __xfutil_sysinfo_h__
 #define __xfutil_sysinfo_h__
 
-//#include <stdint.h>
+#include <thread>
 
 namespace xfutil 
 {
 #ifdef __linux__
+
+static inline uint32_t GetCpuCoreNum()
+{
+	return std::thread::hardware_concurrency();
+	//sysconf (_SC_NPROCESSORS_CONF);
+}
 
 static inline uint64_t GetPhyMemSize()
 {

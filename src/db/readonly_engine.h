@@ -49,7 +49,7 @@ private:
 	static void ProcessNotifyThread(size_t index, void* arg);
 	void ProcessNotifyData(const NotifyData& nd);
 	
-	static void ReadNotifyThread(size_t index, void* arg);
+	static void ReadNotifyThread(void* arg);
 	
 	Status Close();
 	

@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_bucket_meta_file_h__
-#define __xfdb_bucket_meta_file_h__
+#ifndef __xfdb_bucket_metafile_h__
+#define __xfdb_bucket_metafile_h__
 
 #include <set>
 #include "types.h"

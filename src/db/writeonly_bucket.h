@@ -18,8 +18,8 @@ limitations under the License.
 #define __xfdb_writeonly_bucket_h__
 
 #include "types.h"
-#include "write_engine.h"
-#include "writeonly_mem_writer.h"
+#include "writable_engine.h"
+#include "writeonly_memwriter.h"
 #include "table_writer_snapshot.h"
 #include "table_reader_snapshot.h"
 #include "bucket.h"

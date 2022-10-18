@@ -21,7 +21,7 @@ limitations under the License.
 #include <map>
 #include "types.h"
 #include "table_writer.h"
-#include "writeonly_mem_writer.h"
+#include "writeonly_memwriter.h"
 
 namespace xfdb
 {

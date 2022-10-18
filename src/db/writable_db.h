@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_write_db_h__
-#define __xfdb_write_db_h__
+#ifndef __xfdb_writable_db_h__
+#define __xfdb_writable_db_h__
 
 #include <set>
 #include <map>
@@ -25,8 +25,8 @@ limitations under the License.
 #include "rwlock.h"
 #include "lock_file.h"
 #include "db_impl.h"
-#include "write_engine.h"
-#include "db_info_file.h"
+#include "writable_engine.h"
+#include "db_infofile.h"
 
 namespace xfdb 
 {
@@ -78,9 +78,9 @@ private:
 	Status Clean();
 	Status CleanBucket();
 
-	Status CleanDbInfo();
-	Status WriteDbInfo();
-	void WriteDbInfoData(DbInfoData& bd);
+	Status CleanDBInfo();
+	Status WriteDBInfo();
+	void WriteDBInfoData(DBInfoData& bd);
 
 private:
 	//engine

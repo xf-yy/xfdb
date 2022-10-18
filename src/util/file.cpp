@@ -49,7 +49,10 @@ bool File::Open(const char* file_path, uint32_t flags)
 	if(flags & OF_TRUNCATE)	f |= O_TRUNC;
 	if(flags & OF_CREATE)	f |= O_CREAT;
 
-	fd_t fd = open(file_path, f, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+	mode_t old_mask = umask(0);
+	fd_t fd = open(file_path, f, 0644);
+	umask(old_mask);
+
 	if(fd == INVALID_FD)
 	{
 		return false;

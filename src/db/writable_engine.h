@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_write_engine_h__
-#define __xfdb_write_engine_h__
+#ifndef __xfdb_writable_engine_h__
+#define __xfdb_writable_engine_h__
 
 #include <set>
 #include "xfdb/strutil.h"
@@ -42,7 +42,7 @@ public:
 	virtual Status RemoveDB(const std::string& db_path) override;
 
 public:	
-	inline void NotifyWriteDbInfo(DBImplPtr db)
+	inline void NotifyWriteDBInfo(DBImplPtr db)
 	{
 		NotifyMsg msg(NOTIFY_WRITE_DB_META, db);
 	
@@ -102,7 +102,7 @@ private:
 
 	void TryFlush(std::set<std::string>& clean_dbs);
 	bool TryFlush(const std::string& db_path);
-	static void TryFlushThread(size_t index, void* arg);
+	static void TryFlushThread(void* arg);
 	
 	static void PartMergeThread(size_t index, void* arg);
 	static void FullMergeThread(size_t index, void* arg);
@@ -111,7 +111,7 @@ private:
 	bool CleanDB(const std::string& db_path);
 	void CleanNotifyFile();
 	void ScanNotifyFile();
-	static void CleanThread(size_t index, void* arg);
+	static void CleanThread(void* arg);
 
 private:	
 	Status Close();

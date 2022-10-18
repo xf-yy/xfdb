@@ -24,7 +24,7 @@ limitations under the License.
 #include "types.h"
 #include "xfdb/strutil.h"
 #include "rwlock.h"
-#include "db_info_file.h"
+#include "db_infofile.h"
 
 namespace xfdb 
 {
@@ -102,10 +102,10 @@ public:
 protected:	
 	Status OpenBucket();
 	Status OpenBucket(const char* dbinfo_filename);
-	Status OpenBucket(const char* dbinfo_filename, const DbInfoData& bld);
+	Status OpenBucket(const char* dbinfo_filename, const DBInfoData& bld);
 
-	void OpenBucket(const DbInfoData& bld, const BucketSnapshot* last_bucket_snapshot, std::map<std::string, BucketPtr>& buckets);
-	void OpenBucket(const DbInfoData& bld, std::map<std::string, BucketPtr>& buckets);
+	void OpenBucket(const DBInfoData& bld, const BucketSnapshot* last_bucket_snapshot, std::map<std::string, BucketPtr>& buckets);
+	void OpenBucket(const DBInfoData& bld, std::map<std::string, BucketPtr>& buckets);
 
 	Status OpenBucket(const BucketInfo& bi, BucketPtr& bptr);
 	bool GetBucket(const std::string& bucket_name, BucketPtr& ptr) const;

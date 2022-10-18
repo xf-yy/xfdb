@@ -16,12 +16,12 @@ limitations under the License.
 
 #include "types.h"
 #include "readwrite_bucket.h"
-#include "readwrite_mem_writer.h"
+#include "readwrite_memwriter.h"
 #include "table_writer_snapshot.h"
-#include "bucket_meta_file.h"
+#include "bucket_metafile.h"
 #include "notify_file.h"
 #include "table_reader_snapshot.h"
-#include "write_db.h"
+#include "writable_db.h"
 
 namespace xfdb 
 {

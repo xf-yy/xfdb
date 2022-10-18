@@ -18,14 +18,14 @@ limitations under the License.
 #define __xfdb_readwrite_bucket_h__
 
 #include "types.h"
-#include "readwrite_mem_writer.h"
+#include "readwrite_memwriter.h"
 #include "table_writer_snapshot.h"
 #include "table_reader_snapshot.h"
 #include "bucket.h"
 #include <deque>
 #include <mutex>
 #include <set>
-#include "write_engine.h"
+#include "writable_engine.h"
 #include "writeonly_bucket.h"
 
 namespace xfdb 

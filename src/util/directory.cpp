@@ -40,7 +40,7 @@ bool Directory::CreateR(const char* path)
 		
 		if(access(tmp_path, F_OK) != 0)
 		{
-			if(mkdir(tmp_path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == -1 && LastError != EEXIST)
+			if(mkdir(tmp_path, 0644) == -1 && LastError != EEXIST)
 			{
 				return false;
 			}

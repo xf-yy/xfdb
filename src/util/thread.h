@@ -28,29 +28,24 @@ limitations under the License.
 namespace xfutil
 {
 
-static inline uint32_t GetCpuCoreNum()
-{
-	return std::thread::hardware_concurrency();
-	//sysconf (_SC_NPROCESSORS_CONF);
-}
-typedef void (*ThreadFunc)(size_t index, void* arg);	
+typedef void (*ThreadFunc)(void* arg);	
 
 class Thread
 {
 public:
-	Thread(){}
+	Thread()
+	{}
 		
 public:
-	void Start(ThreadFunc func, void* arg, size_t index = 0, bool detach = false)
+	void Start(ThreadFunc func, void* arg = nullptr)
 	{
-		std::thread t(func, index, arg);
-		if(detach)
-		{
-			t.detach();
-		}
+		std::thread t(func, arg);
 		m_thread.swap(t);
 	}
-	
+	void Detach()
+	{
+		m_thread.detach();
+	}
 	void Join()
 	{
 		m_thread.join();
@@ -77,52 +72,23 @@ private:
 	Thread& operator=(const Thread&) = delete;
 };
 
-typedef std::shared_ptr<Thread> ThreadPtr;
-#define NewThread 	std::make_shared<Thread>
+typedef void (*GThreadFunc)(size_t index, void* arg);	
 
 class ThreadGroup
 {
 public:
 	ThreadGroup()
-	{}
+	{
+	}
 		
 public:
-	void Start(size_t thread_count, ThreadFunc func, void* arg = nullptr, bool detach = false)
-	{
-		std::lock_guard<std::mutex> lock(m_mutex);
-		
-		m_threads.reserve(thread_count);
-		for(size_t i = 0; i < thread_count; ++i)
-		{
-			ThreadPtr thread = NewThread();
-			thread->Start(func, arg, i, detach);
-			m_threads.push_back(thread);
-		}
-	}
-	
-	void Join()
-	{
-		std::vector<ThreadPtr> tmp_threads;
-		{
-			std::lock_guard<std::mutex> lock(m_mutex);
-			tmp_threads = m_threads;
-		}
-		
-		for(size_t i = 0; i < tmp_threads.size(); ++i)
-		{
-			tmp_threads[i]->Join();
-		}
-	}
-	
-	size_t Size() const
-	{
-		std::lock_guard<std::mutex> lock(m_mutex);
-		return m_threads.size();
-	}
+	void Start(size_t thread_count, GThreadFunc func, void* arg = nullptr);
+	void Detach();
+	void Join();
 	
 private:
 	mutable std::mutex m_mutex;
-	std::vector<ThreadPtr> m_threads;
+	std::vector<std::thread> m_threads;
 	
 private:
   ThreadGroup(const ThreadGroup&) = delete;

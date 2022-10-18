@@ -90,7 +90,7 @@ Status ReadOnlyEngine::Close()
 	
 	//往reload队列中写入退出标记
 	NotifyData nd;	
-	for(size_t i = 0; i < m_reload_threadgroup.Size(); ++i)
+	for(size_t i = 0; i < m_conf.reload_db_thread_num; ++i)
 	{
 		m_reload_queues[i].Push(nd);
 	}
@@ -151,7 +151,7 @@ void ReadOnlyEngine::ProcessNotifyData(const NotifyData& nd)
 	case NOTIFY_UPDATE_DB_META:
 		if(nd.file_id != MIN_FILEID)
 		{
-			MakeDbInfoFileName(nd.file_id, file_name);
+			MakeDBInfoFileName(nd.file_id, file_name);
 			db->OpenBucket(file_name);
 		}
 		else
@@ -188,7 +188,7 @@ void ReadOnlyEngine::ProcessNotifyThread(size_t index, void* arg)
 	
 }
 
-void ReadOnlyEngine::ReadNotifyThread(size_t index, void* arg)
+void ReadOnlyEngine::ReadNotifyThread(void* arg)
 {
 	LogInfo("notify thread started");
 	

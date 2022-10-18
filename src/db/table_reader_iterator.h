@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_iterator_set_h__
-#define __xfdb_iterator_set_h__
+#ifndef __xfdb_table_reader_iterator_h__
+#define __xfdb_table_reader_iterator_h__
 
 #include "types.h"
 #include "iterator.h"

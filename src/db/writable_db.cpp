@@ -16,10 +16,10 @@ limitations under the License.
 
 #include <atomic>
 #include "types.h"
-#include "write_db.h"
+#include "writable_db.h"
 #include "writeonly_bucket.h"
-#include "bucket_meta_file.h"
-#include "db_info_file.h"
+#include "bucket_metafile.h"
+#include "db_infofile.h"
 #include "bucket_snapshot.h"
 #include "file.h"
 #include "directory.h"
@@ -64,13 +64,13 @@ Status WritableDB::Remove(const std::string& db_path)
 		}
 		//获取bucket文件列表，依次删除bucket及数据
 		std::vector<FileName> file_names;
-		ListDbInfoFile(db_path.c_str(), file_names);
+		ListDBInfoFile(db_path.c_str(), file_names);
 		for(size_t i = 0; i < file_names.size(); ++i)
 		{
 			const FileName& fn = file_names[i];
 			
-			DbInfoData bd;
-			s = DbInfoFile::Read(db_path.c_str(), fn.str, bd);
+			DBInfoData bd;
+			s = DBInfoFile::Read(db_path.c_str(), fn.str, bd);
 			if(s != OK)
 			{
 				return s;
@@ -142,7 +142,7 @@ Status WritableDB::Open()
 	
 	//读取最新的bucket list
 	std::vector<FileName> file_infos;
-	s = ListDbInfoFile(m_path.c_str(), file_infos);
+	s = ListDBInfoFile(m_path.c_str(), file_infos);
 	if(s != OK) 
 	{
 		return s;
@@ -156,8 +156,8 @@ Status WritableDB::Open()
 		m_tobe_delete_dbinfo_files.push_back(file_infos[i]);
 	}
 
-	DbInfoData bld;
-	s = DbInfoFile::Read(m_path.c_str(), file_infos.back().str, bld);
+	DBInfoData bld;
+	s = DBInfoFile::Read(m_path.c_str(), file_infos.back().str, bld);
 	if(s != OK)
 	{
 		return s;
@@ -175,12 +175,12 @@ void WritableDB::BeforeClose()
 
 Status WritableDB::Clean()
 {
-	Status s1 = CleanDbInfo();
+	Status s1 = CleanDBInfo();
 	Status s2 = CleanBucket();
 	return (s1 == ERR_NOMORE_DATA && s2 == ERR_NOMORE_DATA) ? ERR_NOMORE_DATA : OK;
 }
 
-Status WritableDB::CleanDbInfo()
+Status WritableDB::CleanDBInfo()
 {
 	//尝试清除bucket list，保证deleted的bucket已被清理
 	//保证一次只有一个线程在执行clean操作
@@ -196,7 +196,7 @@ Status WritableDB::CleanDbInfo()
 			clean_filename = m_tobe_delete_dbinfo_files.front();
 		}
 		
-		Status s = DbInfoFile::Remove(m_path.c_str(), clean_filename.str);
+		Status s = DBInfoFile::Remove(m_path.c_str(), clean_filename.str);
 		if(s != OK)
 		{
 			return s;
@@ -228,9 +228,9 @@ Status WritableDB::CleanBucket()
 	return OK;
 }
 
-Status WritableDB::WriteDbInfo()
+Status WritableDB::WriteDBInfo()
 {
-	DbInfoData bd;
+	DBInfoData bd;
 	fileid_t dbinfo_fileid;
 
 	{
@@ -245,14 +245,14 @@ Status WritableDB::WriteDbInfo()
 
 		m_bucket_changed_cnt = 0;
 		dbinfo_fileid = m_next_dbinfo_fileid++;
-		WriteDbInfoData(bd);
+		WriteDBInfoData(bd);
 	}	
 	
 	//写bucket文件
 	char dbinfo_filename[MAX_FILENAME_LEN];
-	MakeDbInfoFileName(dbinfo_fileid, dbinfo_filename);
+	MakeDBInfoFileName(dbinfo_fileid, dbinfo_filename);
 	
-	Status s = DbInfoFile::Write(m_path.c_str(), dbinfo_filename, bd);
+	Status s = DBInfoFile::Write(m_path.c_str(), dbinfo_filename, bd);
 	if(s != OK)
 	{
 		//LogWarn(msg_fmt, ...);
@@ -266,7 +266,7 @@ Status WritableDB::WriteDbInfo()
 	if(dbinfo_fileid != MIN_FILEID)
 	{
 		FileName name;
-		MakeDbInfoFileName(dbinfo_fileid-1, name.str);
+		MakeDBInfoFileName(dbinfo_fileid-1, name.str);
 
 		{
 		std::lock_guard<std::mutex> lock(m_mutex);
@@ -322,7 +322,7 @@ Status WritableDB::CreateBucket(const std::string& bucket_name, BucketPtr& bptr)
 		++m_bucket_changed_cnt;
 	}
 	
-	((WritableEngine*)m_engine)->NotifyWriteDbInfo(shared_from_this());
+	((WritableEngine*)m_engine)->NotifyWriteDBInfo(shared_from_this());
 	return OK;
 }
 
@@ -375,7 +375,7 @@ Status WritableDB::DeleteBucket(const std::string& bucket_name)
 
 		++m_bucket_changed_cnt;
 	}
-	((WritableEngine*)m_engine)->NotifyWriteDbInfo(shared_from_this());
+	((WritableEngine*)m_engine)->NotifyWriteDBInfo(shared_from_this());
 	return OK;
 }
 
@@ -528,8 +528,10 @@ Status WritableDB::PartMerge(const std::string& bucket_name)
 	return bucket->PartMerge();
 }
 
-void WritableDB::WriteDbInfoData(DbInfoData& bd)
+void WritableDB::WriteDBInfoData(DBInfoData& bd)
 {
+	//已经获取到锁
+	
 	m_bucket_rwlock.ReadLock();
 	BucketSnapshotPtr bs_ptr = m_bucket_snapshot;
 	m_bucket_rwlock.ReadUnlock();
@@ -550,11 +552,7 @@ void WritableDB::WriteDbInfoData(DbInfoData& bd)
 		bd.deleted_buckets.push_back(binfo);
 	}
 	m_deleting_buckets.clear();
-	//for(auto it = m_deleted_buckets.begin(); it != m_deleted_buckets.end(); ++it)
-	//{
-	//	BucketInfo binfo(it->second, it->first);
-	//	bd.deleted_buckets.push_back(binfo);
-	//}
+
 	bd.next_bucketid = m_next_bucket_id;
 }
 

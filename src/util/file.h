@@ -81,6 +81,7 @@ public:
 	{
 		return m_fd;
 	}
+	//-1:错误，0表示已存在，1表示成功
 	bool Open(const char* file_path, uint32_t flags);
 	inline void Close()
 	{

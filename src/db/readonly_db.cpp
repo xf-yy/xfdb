@@ -20,8 +20,8 @@ limitations under the License.
 #include "table_reader_snapshot.h"
 #include "bucket.h"
 #include "segment_file.h"
-#include "db_info_file.h"
-#include "bucket_meta_file.h"
+#include "db_infofile.h"
+#include "bucket_metafile.h"
 #include "lock_file.h"
 #include "file.h"
 

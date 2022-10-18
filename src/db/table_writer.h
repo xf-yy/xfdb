@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_memwriter_h__
-#define __xfdb_memwriter_h__
+#ifndef __xfdb_table_writer_h__
+#define __xfdb_table_writer_h__
 
 #include "buffer.h"
 #include "xfdb/strutil.h"

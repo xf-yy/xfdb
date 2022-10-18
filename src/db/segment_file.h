@@ -21,7 +21,7 @@ limitations under the License.
 #include "data_file.h"
 #include "index_file.h"
 #include "segment_iterator.h"
-#include "mem_writer_iterator.h"
+#include "memwriter_iterator.h"
 #include "file.h"
 #include "table_reader.h"
 

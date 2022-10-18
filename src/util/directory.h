@@ -28,14 +28,16 @@ namespace xfutil
 
 typedef int (*ListCallback)(const char* dirname, const char* filename, void* arg);
 
-
 class Directory
 {
 public:	
 	//创建目录，必须保证父目录存在
 	static inline bool Create(const char* path)
 	{
-		return (mkdir(path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) == 0) || (LastError == EEXIST);
+		mode_t old_mask = umask(0);
+		int ret = mkdir(path, 0644);
+		umask(old_mask);
+		return (ret == 0);
 	}
 	//static bool CreateR(const char* path);
 	//递归移除目录

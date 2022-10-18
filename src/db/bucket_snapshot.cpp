@@ -17,7 +17,7 @@ limitations under the License.
 #include "db_impl.h"
 #include "types.h"
 #include "bucket.h"
-#include "db_info_file.h"
+#include "db_infofile.h"
 #include "bucket_snapshot.h"
 #include "logger.h"
 

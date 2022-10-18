@@ -15,9 +15,9 @@ limitations under the License.
 ***************************************************************************/
 
 #include "types.h"
-#include "mem_writer_iterator.h"
-#include "writeonly_mem_writer.h"
-#include "readwrite_mem_writer.h"
+#include "memwriter_iterator.h"
+#include "writeonly_memwriter.h"
+#include "readwrite_memwriter.h"
 #include "table_writer_snapshot.h"
 
 namespace xfdb 

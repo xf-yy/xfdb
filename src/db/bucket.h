@@ -23,7 +23,7 @@ limitations under the License.
 #include "table_writer.h"
 #include "rwlock.h"
 #include "path.h"
-#include "bucket_meta_file.h"
+#include "bucket_metafile.h"
 #include "db_impl.h"
 
 namespace xfdb 
