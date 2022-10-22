@@ -44,6 +44,10 @@ BucketPtr ReadOnlyDB::NewBucket(const BucketInfo& bucket_info)
 
 Status ReadOnlyDB::Open()
 {
+	if(!m_conf.Check())
+	{
+		return ERR_INVALID_CONFIG;
+	}	
 	if(!LockFile::Exist(m_path))
 	{
 		return ERR_PATH_NOT_EXIST;

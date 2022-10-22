@@ -258,6 +258,9 @@ struct L0GroupIndex
 	}
 };
 
+class Engine;
+typedef std::shared_ptr<Engine> EnginePtr;
+
 class ReadOnlyEngine;
 typedef std::shared_ptr<ReadOnlyEngine> ReadOnlyEnginePtr;
 #define NewReadOnlyEngine 	std::make_shared<ReadOnlyEngine>

@@ -127,6 +127,10 @@ Status WritableDB::CreateIfMissing()
 
 Status WritableDB::Open()
 {	
+	if(!m_conf.Check())
+	{
+		return ERR_INVALID_CONFIG;
+	}	
 	Status s = CreateIfMissing();
 	if(s != OK) 
 	{

@@ -23,7 +23,7 @@ limitations under the License.
 #include "notify_msg.h"
 #include "file_util.h"
 #include "block_pool.h"
-#include "rwlock.h"
+#include <mutex>
 
 namespace xfdb 
 {
@@ -49,8 +49,7 @@ public:
 	virtual Status Start() = 0;
 
 	Status OpenDB(const DBConfig& conf, const std::string& db_path, DBPtr& db);
-	void CloseDB(DBImpl* db);
-	void CloseAllDB();
+	void CloseDB();
 	
 	virtual Status RemoveDB(const std::string& db_path)
 	{
@@ -59,14 +58,14 @@ public:
 
 protected:
 	virtual DBImplPtr NewDB(const DBConfig& conf, const std::string& db_path) = 0;
-	bool QueryDB(const std::string& db_path, DBImplPtr& dbptr, bool erased = false);
+	bool QueryDB(const std::string& db_path, DBImplPtr& dbptr);
 
 protected:
 	const GlobalConfig m_conf;
 	BlockPool m_pool;
 	
-	mutable ReadWriteLock m_db_rwlock;
-	std::map<std::string, DBImplPtr> m_dbs;	//key: db path
+	mutable std::mutex m_db_mutex;
+	std::map<std::string, DBImplWptr> m_dbs;	//key: db path
 	
 private:	
 	Engine(const Engine&) = delete;

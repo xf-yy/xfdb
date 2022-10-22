@@ -262,9 +262,6 @@ class DBImpl;
 typedef std::shared_ptr<DBImpl> DBImplPtr;
 typedef std::weak_ptr<DBImpl> DBImplWptr;
 
-class Engine;
-typedef std::shared_ptr<Engine> EnginePtr;
-
 }
 
 #endif

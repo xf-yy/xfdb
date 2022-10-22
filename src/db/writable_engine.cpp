@@ -64,11 +64,9 @@ Status WritableEngine::Start()
  
 
 Status WritableEngine::Close()
-{
-	assert(m_dbs.empty());
-	
+{	
 	//尝试关闭所有的db
-	CloseAllDB();
+	CloseDB();
 
 	NotifyMsg msg;
 

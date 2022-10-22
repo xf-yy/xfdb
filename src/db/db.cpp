@@ -66,16 +66,14 @@ Status XfdbStart(const GlobalConfig& gconf)
 	return OK;
 }
 
-DB::DB(EnginePtr engine, DBImpl* db)
-	: m_engine(engine), m_db(db)
+DB::DB(DBImplPtr& db) : m_db(db)
 {
-	assert(db != nullptr);
+	assert(db);
 }
 
 DB::~DB()
 {
-	assert(m_db != nullptr);
-	m_engine->CloseDB(m_db);
+	m_db->Flush();
 }
 
 Status DB::Open(const DBConfig& dbconf, const std::string& db_path, DBPtr& db)
@@ -115,11 +113,13 @@ Status DB::CreateBucket(const std::string& bucket_name)
 	assert(m_db != nullptr);
 	return m_db->CreateBucket(bucket_name);
 }
+
 Status DB::DeleteBucket(const std::string& bucket_name)
 {
 	assert(m_db != nullptr);
 	return m_db->DeleteBucket(bucket_name);
 }
+
 bool DB::ExistBucket(const std::string& bucket_name)
 {
 	assert(m_db != nullptr);
@@ -149,6 +149,7 @@ Status DB::Set(const std::string& bucket_name, const StrView& key, const StrView
 	assert(m_db != nullptr);
 	return m_db->Set(bucket_name, key, value);
 }
+
 Status DB::Delete(const std::string& bucket_name, const StrView& key)
 {
 	assert(m_db != nullptr);
@@ -168,6 +169,7 @@ Status DB::Flush()
 	assert(m_db != nullptr);
 	return m_db->Flush();
 }
+
 Status DB::Flush(const std::string& bucket_name)
 {
 	assert(m_db != nullptr);

@@ -76,11 +76,10 @@ public:
 
 private:
 	friend class Engine;
-	DB(EnginePtr engine, DBImpl* db);
+	DB(DBImplPtr& db);
 
 private:
-	EnginePtr m_engine;
-	DBImpl* m_db;
+	DBImplPtr m_db;
 	
 private:
 	DB(const DB&) = delete;

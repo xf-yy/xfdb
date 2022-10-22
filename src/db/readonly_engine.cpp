@@ -71,8 +71,7 @@ Status ReadOnlyEngine::Start()
 Status ReadOnlyEngine::Close()
 {
 	//关闭所有的db
-	assert(m_dbs.empty());
-	CloseAllDB();
+	CloseDB();
 	
 	if(!m_conf.auto_reload_db)
 	{
