@@ -44,7 +44,7 @@ Status Bucket::Open(const char* bucket_meta_filename)
 
 	//读锁打开最新的segment list
 	BucketMetaFilePtr bucket_meta_file = NewBucketMetaFile();
-	Status s = bucket_meta_file->Open(m_bucket_path.c_str(), bucket_meta_filename, LOCK_TRY_READ);
+	Status s = bucket_meta_file->Open(m_bucket_path.c_str(), bucket_meta_filename, LF_TRY_READ);
 	if(s != OK) 
 	{
 		return s;

@@ -49,8 +49,8 @@ public:
 	~BucketMetaFile();
 	
 public:	
-	Status Open(const char* bucket_path, fileid_t fileid, LockFlag type = LOCK_NONE);
-	Status Open(const char* bucket_path, const char* filename, LockFlag type = LOCK_NONE);
+	Status Open(const char* bucket_path, fileid_t fileid, LockFlag type = LF_NONE);
+	Status Open(const char* bucket_path, const char* filename, LockFlag type = LF_NONE);
 	Status Read(BucketMetaData& bmd);
 	inline fileid_t FileID()
 	{

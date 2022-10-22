@@ -57,7 +57,7 @@ Status WritableDB::Remove(const std::string& db_path)
 	//获取写锁
 	{
 		LockFile lockfile;
-		Status s = lockfile.Open(db_path, LOCK_TRY_WRITE);
+		Status s = lockfile.Open(db_path, LF_TRY_WRITE);
 		if(s != OK) 
 		{
 			return s;
@@ -133,7 +133,7 @@ Status WritableDB::Open()
 		return s;
 	}
 	//打开锁文件
-	s = m_lock_file.Open(m_path, LOCK_TRY_WRITE);
+	s = m_lock_file.Open(m_path, LF_TRY_WRITE);
 	if(s != OK) 
 	{
 		return s;
@@ -164,11 +164,6 @@ Status WritableDB::Open()
 	}
 	
 	return OpenBucket(file_infos.back().str, bld);
-}
-
-void WritableDB::BeforeClose()
-{
-	Flush();
 }
 
 ////////////////////////////////////////////////////////////////////////////

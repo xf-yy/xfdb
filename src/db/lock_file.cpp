@@ -15,6 +15,7 @@ limitations under the License.
 ***************************************************************************/
 
 #include "lock_file.h"
+#include "thread.h"
 
 namespace xfdb 
 {
@@ -35,7 +36,7 @@ bool LockFile::Exist(const std::string& db_path)
 	return File::Exist(file_path);
 }
 
-Status LockFile::Open(const std::string& db_path, LockFlag type/* = LOCK_NONE*/)
+Status LockFile::Open(const std::string& db_path, LockFlag type/* = LF_NONE*/, int lock_timeout_ms/* = 0*/)
 {
 	char file_path[MAX_PATH_LEN];
 	MakeLockFilePath(db_path.c_str(), file_path);
@@ -44,7 +45,21 @@ Status LockFile::Open(const std::string& db_path, LockFlag type/* = LOCK_NONE*/)
 	{
 		return ERR_FILE_READ;
 	}
-	return m_file.Lock(type) ? OK : ERR_FILE_LOCK;
+	while(type != LF_NONE)
+	{
+		if(m_file.Lock(type))
+		{
+			return OK;
+		}
+		if(lock_timeout_ms <= 0)
+		{
+			break;
+		}
+		Thread::Sleep(10);
+		lock_timeout_ms -= 10;
+	}
+
+	return ERR_FILE_LOCK;
 }
 	
 	

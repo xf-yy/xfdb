@@ -68,7 +68,7 @@ void Engine::CloseDB(DBImpl* db)
 	{
 		return;
 	}
-	db->BeforeClose();
+	db->Flush();
 	
 	//如果是最后一个实例，将在这里释放
 	DBImplPtr dbptr;
@@ -80,7 +80,7 @@ void Engine::CloseAllDB()
     WriteLockGuard guard(m_db_rwlock);
 	for(auto it = m_dbs.begin(); it != m_dbs.end(); ++it)
 	{
-		it->second->BeforeClose();
+		it->second->Flush();
 	}
 	m_dbs.clear();
 }

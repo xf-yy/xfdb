@@ -111,7 +111,6 @@ protected:
 	bool GetBucket(const std::string& bucket_name, BucketPtr& ptr) const;
 
 	virtual BucketPtr NewBucket(const BucketInfo& bucket_info) = 0;
-	virtual void BeforeClose() = 0;
 
 protected:
 	DBImpl(Engine* engine, const DBConfig& conf, const std::string& db_path);

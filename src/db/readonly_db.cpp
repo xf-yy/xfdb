@@ -63,10 +63,6 @@ Status ReadOnlyDB::Open()
 	return OK;
 }
 
-void ReadOnlyDB::BeforeClose()
-{
-}
-
 Status ReadOnlyDB::Get(const std::string& bucket_name, const StrView& key, String& value) const
 {	
 	BucketPtr bptr;

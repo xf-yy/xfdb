@@ -66,7 +66,6 @@ protected:
 	Status PartMerge(const std::string& bucket_name);		//同步merge
 	
 	BucketPtr NewBucket(const BucketInfo& bucket_info) override;
-	void BeforeClose() override;
 
 private:
 	Status CreateIfMissing();

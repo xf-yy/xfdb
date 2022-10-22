@@ -35,7 +35,7 @@ public:
 	static bool Create(const std::string& db_path);
 	static bool Exist(const std::string& db_path);
 	
-	Status Open(const std::string& db_path, LockFlag type = LOCK_NONE);
+	Status Open(const std::string& db_path, LockFlag type = LF_NONE, int lock_timeout_ms = 0);
 
 private:
 	File m_file;

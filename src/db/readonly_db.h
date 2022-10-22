@@ -36,7 +36,6 @@ public:
 
 protected:
 	BucketPtr NewBucket(const BucketInfo& bucket_info) override;
-	void BeforeClose() override;
 		
 private:
 	friend class ReadOnlyEngine;

@@ -633,7 +633,7 @@ Status WriteOnlyBucket::WriteBucketMeta()
 	}
 	//只读打开segment list file，并替换当前list file
 	BucketMetaFilePtr bucket_meta_file = NewBucketMetaFile();
-	bucket_meta_file->Open(m_bucket_path.c_str(), bucket_meta_fileid, xfutil::LOCK_TRY_READ);
+	bucket_meta_file->Open(m_bucket_path.c_str(), bucket_meta_fileid, xfutil::LF_TRY_READ);
 	{
 		WriteLockGuard lock_guard(m_segment_rwlock);
 		m_reader_snapshot.meta_file.swap(bucket_meta_file);

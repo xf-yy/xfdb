@@ -43,9 +43,9 @@ enum OpenFlag
 
 enum LockFlag : uint8_t
 {
-	LOCK_NONE = 0,
-	LOCK_TRY_READ,
-	LOCK_TRY_WRITE,
+	LF_NONE = 0,
+	LF_TRY_READ,
+	LF_TRY_WRITE,
 };	
 
 struct FileTime
@@ -144,13 +144,13 @@ public:
 		struct stat st;
 		return (stat(path, &st) == 0) ? st.st_mtime : 0;
 	}
-	inline bool Lock(LockFlag type = LOCK_TRY_READ)	//文件必须被打开
+	inline bool Lock(LockFlag type = LF_TRY_READ)	//文件必须被打开
 	{
 		int oper = LOCK_NB;
 		switch(type)
 		{
-		case LOCK_TRY_READ: 	oper |= LOCK_SH;	break;
-		case LOCK_TRY_WRITE: 	oper |= LOCK_EX;	break;
+		case LF_TRY_READ: 	oper |= LOCK_SH;	break;
+		case LF_TRY_WRITE: 	oper |= LOCK_EX;	break;
 		default: 				return true;		break;
 		}
 		return flock(m_fd, oper) == 0;

@@ -34,10 +34,18 @@ const char* XfdbVersion()
 	return XFDB_VERSION_DESC;
 }
 
+static inline EnginePtr GetEngine()
+{
+	std::lock_guard<std::mutex> lock(s_engine_mutex);
+	return s_engine;
+}
+
 static inline EnginePtr NewEngine(const GlobalConfig& conf)
 {
 	if(conf.mode == MODE_READONLY)
+	{
 		return NewReadOnlyEngine(conf);
+	}
 	return NewWritableEngine(conf);
 }
 
@@ -76,11 +84,12 @@ Status DB::Open(const DBConfig& dbconf, const std::string& db_path, DBPtr& db)
 	{
 		return ERR_PATH_INVALID;
 	}
-	if(!s_engine)
+	EnginePtr engine = GetEngine();
+	if(!engine)
 	{
 		return ERR_UNINITIALIZED;
 	}
-	return s_engine->OpenDB(dbconf, db_path, db);
+	return engine->OpenDB(dbconf, db_path, db);
 }
 
 Status DB::Remove(const std::string& db_path)
@@ -89,11 +98,12 @@ Status DB::Remove(const std::string& db_path)
 	{
 		return ERR_PATH_INVALID;
 	}
-	if(!s_engine)
+	EnginePtr engine = GetEngine();
+	if(!engine)
 	{
 		return ERR_UNINITIALIZED;
 	}
-	return s_engine->RemoveDB(db_path);
+	return engine->RemoveDB(db_path);
 }
 
 Status DB::CreateBucket(const std::string& bucket_name)

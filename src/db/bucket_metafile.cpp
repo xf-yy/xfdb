@@ -48,7 +48,7 @@ BucketMetaFile::~BucketMetaFile()
 }
 
 //
-Status BucketMetaFile::Open(const char* bucket_path, fileid_t fileid, LockFlag flag/* = LOCK_NONE*/)
+Status BucketMetaFile::Open(const char* bucket_path, fileid_t fileid, LockFlag flag/* = LF_NONE*/)
 {
 	char filename[MAX_FILENAME_LEN];
 	MakeBucketMetaFileName(fileid, filename);
@@ -56,7 +56,7 @@ Status BucketMetaFile::Open(const char* bucket_path, fileid_t fileid, LockFlag f
 	return Open(bucket_path, filename, flag);
 }
 
-Status BucketMetaFile::Open(const char* bucket_path, const char* filename, LockFlag flag/* = LOCK_NONE*/)
+Status BucketMetaFile::Open(const char* bucket_path, const char* filename, LockFlag flag/* = LF_NONE*/)
 {
 	char filepath[MAX_PATH_LEN];
 	MakeBucketMetaFilePath(bucket_path, filename, filepath);
@@ -266,7 +266,7 @@ uint32_t BucketMetaFile::EstimateSize(const BucketMetaData& md)
 
 Status BucketMetaFile::Remove(const char* bucket_path, const char* file_name)
 {
-	Status s = Clean(bucket_path, file_name, LOCK_TRY_WRITE);
+	Status s = Clean(bucket_path, file_name, LF_TRY_WRITE);
 	if(s != OK)
 	{
 		return s;
@@ -279,7 +279,7 @@ Status BucketMetaFile::Remove(const char* bucket_path, const char* file_name)
 
 Status BucketMetaFile::Clean(const char* bucket_path, const char* file_name)
 {
-	return Clean(bucket_path, file_name, LOCK_TRY_READ);
+	return Clean(bucket_path, file_name, LF_TRY_READ);
 }
 
 Status BucketMetaFile::Clean(const char* bucket_path, const char* file_name, LockFlag flag)
