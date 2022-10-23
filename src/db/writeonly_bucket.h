@@ -91,9 +91,12 @@ protected:
 
 	std::deque<fileid_t> m_tobe_delete_bucket_meta_fileids;				//待删除的bucket meta文件
 	fileid_t m_tobe_clean_bucket_meta_fileid;							//待清理的bucket meta文件
-		
+
+private:		
 	friend class WritableDB;
 	friend class WritableEngine;
+	WriteOnlyBucket(const WriteOnlyBucket&) = delete;
+  	WriteOnlyBucket& operator=(const WriteOnlyBucket&) = delete;	
 };
 
 

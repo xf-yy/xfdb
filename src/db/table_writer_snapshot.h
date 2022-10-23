@@ -54,10 +54,9 @@ public:
 private:
 	std::vector<TableWriterPtr> m_memwriters;
 	StrView m_upmost_key;
-	
-	friend class IteratorSet;
-	
+		
 private:
+	friend class IteratorSet;
 	TableWriterSnapshot(const TableWriterSnapshot&) = delete;
 	TableWriterSnapshot& operator=(const TableWriterSnapshot&) = delete;
 };

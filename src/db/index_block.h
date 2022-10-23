@@ -119,8 +119,8 @@ private:
 	std::vector<SegmentL0Index> m_L0indexs;
 	size_t m_idx;
 
-	friend class IndexBlockReader;
 private:
+	friend class IndexBlockReader;
 	IndexBlockReaderIterator(const IndexBlockReaderIterator&) = delete;
 	IndexBlockReaderIterator& operator=(const IndexBlockReaderIterator&) = delete;
 };

@@ -42,8 +42,8 @@ private:
 	File m_file;
 	BlockPool& m_pool;
 
-	friend class SegmentReaderIterator;	
 private:
+	friend class SegmentReaderIterator;	
 	DataReader(const DataReader&) = delete;
 	DataReader& operator=(const DataReader&) = delete;
 };

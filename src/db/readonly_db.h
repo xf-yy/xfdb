@@ -39,8 +39,6 @@ protected:
 		
 private:
 	friend class ReadOnlyEngine;
-		
-private:
 	ReadOnlyDB(const ReadOnlyDB&) = delete;
 	ReadOnlyDB& operator=(const ReadOnlyDB&) = delete;
 	

@@ -106,10 +106,6 @@ Status DB::Remove(const std::string& db_path)
 
 Status DB::CreateBucket(const std::string& bucket_name)
 {
-	if(!CheckBucketName(bucket_name))
-	{
-		return ERR_BUCKET_NAME;
-	}
 	assert(m_db != nullptr);
 	return m_db->CreateBucket(bucket_name);
 }
@@ -120,7 +116,7 @@ Status DB::DeleteBucket(const std::string& bucket_name)
 	return m_db->DeleteBucket(bucket_name);
 }
 
-bool DB::ExistBucket(const std::string& bucket_name)
+bool DB::ExistBucket(const std::string& bucket_name) const
 {
 	assert(m_db != nullptr);
 	return m_db->ExistBucket(bucket_name);
@@ -132,13 +128,13 @@ void DB::ListBucket(std::vector<std::string>& bucket_names) const
 	m_db->ListBucket(bucket_names);
 }
 
-Status DB::GetBucketStat(const std::string& bucket_name, BucketStat& stat)
+Status DB::GetBucketStat(const std::string& bucket_name, BucketStat& stat) const
 {
 	assert(m_db != nullptr);
 	return m_db->GetBucketStat(bucket_name, stat);
 }
 
-Status DB::Get(const std::string& bucket_name, const StrView& key, String& value)
+Status DB::Get(const std::string& bucket_name, const StrView& key, String& value) const
 {
 	assert(m_db != nullptr);
 	return m_db->Get(bucket_name, key, value);

@@ -117,7 +117,7 @@ Status WritableDB::CreateIfMissing()
 	{
 		return ERR_DB_NOT_EXIST;
 	}
-	//TODO: 使用全局锁?
+
 	if(!Directory::Create(m_path.c_str()))
 	{
 		return ERR_PATH_CREATE;
@@ -261,7 +261,6 @@ Status WritableDB::WriteDBInfo()
 	NotifyData nd(NOTIFY_UPDATE_DB_META, m_path, dbinfo_fileid);
 	((WritableEngine*)m_engine)->WriteNotifyFile(nd);
 
-	//TODO: 将旧的dbinfo写入delete队列
 	if(dbinfo_fileid != MIN_FILEID)
 	{
 		FileName name;
@@ -284,7 +283,11 @@ Status WritableDB::CreateBucket(const std::string& bucket_name)
 
 Status WritableDB::CreateBucket(const std::string& bucket_name, BucketPtr& bptr)
 {
-	//TODO:校验name字符"_-数字字母"
+	if(!CheckBucketName(bucket_name))
+	{
+		return ERR_BUCKET_NAME;
+	}
+
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
 		
@@ -494,37 +497,12 @@ Status WritableDB::Merge()
 
 Status WritableDB::Merge(const std::string& bucket_name)
 {
-	//TODO:是否要先判断是否满足full merge条件
 	BucketPtr bptr;
 	if(!GetBucket(bucket_name, bptr))
 	{
 		return ERR_BUCKET_NOT_EXIST;
 	}
 	return bptr->Merge();
-}
-
-Status WritableDB::FullMerge(const std::string& bucket_name)
-{
-	BucketPtr bptr;
-	if(!GetBucket(bucket_name, bptr))
-	{
-		return ERR_BUCKET_NOT_EXIST;
-	}
-
-	WriteOnlyBucket* bucket = (WriteOnlyBucket*)bptr.get();
-	return bucket->FullMerge();
-}
-
-Status WritableDB::PartMerge(const std::string& bucket_name)
-{
-	BucketPtr bptr;
-	if(!GetBucket(bucket_name, bptr))
-	{
-		return ERR_BUCKET_NOT_EXIST;
-	}
-
-	WriteOnlyBucket* bucket = (WriteOnlyBucket*)bptr.get();
-	return bucket->PartMerge();
 }
 
 void WritableDB::WriteDBInfoData(DBInfoData& bd)

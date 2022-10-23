@@ -119,8 +119,8 @@ private:
 	std::vector<Object> m_objects;
 	size_t m_idx;
 
-	friend class DataBlockReader;	
 private:
+	friend class DataBlockReader;	
 	DataBlockReaderIterator(const DataBlockReaderIterator&) = delete;
 	DataBlockReaderIterator& operator=(const DataBlockReaderIterator&) = delete;
 };

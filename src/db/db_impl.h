@@ -44,7 +44,7 @@ public:
 	{
 		return ERR_INVALID_MODE;
 	}
-	virtual bool ExistBucket(const std::string& bucket_name);	
+	virtual bool ExistBucket(const std::string& bucket_name) const;	
 	virtual Status GetBucketStat(const std::string& bucket_name, BucketStat& stat) const;
 	virtual void ListBucket(std::vector<std::string>& bucket_names) const;
 
@@ -127,10 +127,9 @@ protected:
 	mutable ReadWriteLock m_bucket_rwlock;	//bucket读写锁
 	BucketSnapshotPtr m_bucket_snapshot;	//bucket集
 	
+private:
 	friend class BucketSnapshot;
 	friend class Engine;
-	
-private:
 	DBImpl(const DBImpl&) = delete;
   	DBImpl& operator=(const DBImpl&) = delete;
 	

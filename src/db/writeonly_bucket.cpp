@@ -474,7 +474,6 @@ Status WriteOnlyBucket::FullMerge()
 		msinfo.reader_snapshot = m_reader_snapshot;
 		m_segment_rwlock.ReadUnlock();
 
-		//TODO:以超过阈值的segment为分割点，找到待合并的segment集
 		const auto& readers = msinfo.reader_snapshot.readers->Readers();
 		for(auto it = readers.begin(); it != readers.end(); ++it)
 		{

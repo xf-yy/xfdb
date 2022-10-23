@@ -74,9 +74,8 @@ private:
 	StrView m_upmost_key;
 	SegmentMeta m_meta;
 	
-	friend class SegmentReaderIterator;
-	
 private:
+	friend class SegmentReaderIterator;
 	IndexReader(const IndexReader&) = delete;
 	IndexReader& operator=(const IndexReader&) = delete;
 };

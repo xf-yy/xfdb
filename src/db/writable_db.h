@@ -61,10 +61,7 @@ public:
 	Status Merge() override;		//将所有的block表合并成最大block(异步)
 	Status Merge(const std::string& bucket_name) override;
 	
-protected:
-	Status FullMerge(const std::string& bucket_name);		//同步merge
-	Status PartMerge(const std::string& bucket_name);		//同步merge
-	
+protected:	
 	BucketPtr NewBucket(const BucketInfo& bucket_info) override;
 
 private:
@@ -82,9 +79,6 @@ private:
 	void WriteDBInfoData(DBInfoData& bd);
 
 private:
-	//engine
-	friend class WritableEngine;	
-
 	//锁文件
 	LockFile m_lock_file;
 
@@ -97,6 +91,8 @@ private:
 	int m_bucket_changed_cnt;
 	
 private:
+	//engine
+	friend class WritableEngine;	
 	WritableDB(const WritableDB&) = delete;
 	WritableDB& operator=(const WritableDB&) = delete;
 	

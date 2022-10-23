@@ -60,8 +60,8 @@ private:
 	IndexReader m_index_reader;
 	DataReader m_data_reader;
 	
-	friend class SegmentReaderIterator;
 private:
+	friend class SegmentReaderIterator;
 	SegmentReader(const SegmentReader&) = delete;
 	SegmentReader& operator=(const SegmentReader&) = delete;
 	

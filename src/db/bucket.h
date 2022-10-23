@@ -94,7 +94,10 @@ protected:
 
 	BucketReaderSnapshot m_reader_snapshot;
 
+private:
 	friend class DBImpl;
+	Bucket(const Bucket&) = delete;
+  	Bucket& operator=(const Bucket&) = delete;	
 };
 
 

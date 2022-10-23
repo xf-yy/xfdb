@@ -37,7 +37,7 @@ DBImpl::~DBImpl()
 {
 }
 
-bool DBImpl::ExistBucket(const std::string& bucket_name)
+bool DBImpl::ExistBucket(const std::string& bucket_name) const
 {
 	BucketPtr bptr;
 	return GetBucket(bucket_name, bptr);
@@ -193,14 +193,6 @@ Status DBImpl::OpenBucket(const char* dbinfo_filename, const DBInfoData& bld)
 	
 	return OK;
 }
-
-#if 0
-Status DBImpl::OpenBucket(const BucketPtr& bptr, const char* bucket_meta_filename)
-{
-	std::lock_guard<std::mutex> lock(m_mutex);
-	return bptr->Open(bucket_meta_filename);
-}
-#endif 
 
 }  
 

@@ -46,17 +46,17 @@ public:
 	Status DeleteBucket(const std::string& bucket_name);
 
 	//判断bucket是否存在
-	bool ExistBucket(const std::string& bucket_name);
+	bool ExistBucket(const std::string& bucket_name) const;
 
 	//获取bucket统计
-	Status GetBucketStat(const std::string& bucket_name, BucketStat& stat);
+	Status GetBucketStat(const std::string& bucket_name, BucketStat& stat) const;
 
 	//列举所有的bucket
 	void ListBucket(std::vector<std::string>& bucket_names) const;
 
 public:
 	//获取指定bucket中的记录
-	Status Get(const std::string& bucket_name, const xfutil::StrView& key, xfutil::String& value);
+	Status Get(const std::string& bucket_name, const xfutil::StrView& key, xfutil::String& value) const;
 
 	//设置指定bucket中的记录
 	Status Set(const std::string& bucket_name, const xfutil::StrView& key, const xfutil::StrView& value);
@@ -75,13 +75,13 @@ public:
 	Status Merge();						
 
 private:
-	friend class Engine;
 	DB(DBImplPtr& db);
 
 private:
 	DBImplPtr m_db;
 	
 private:
+	friend class Engine;
 	DB(const DB&) = delete;
   	DB& operator=(const DB&) = delete;
 	

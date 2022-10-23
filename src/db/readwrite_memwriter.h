@@ -43,10 +43,10 @@ public:
 	virtual StrView UpmostKey()    const override;
 
 private:
-	friend class ReadWriteMemWriterIterator;
 	std::map<StrView, Object*> m_objects;
 	
 private:
+	friend class ReadWriteMemWriterIterator;
 	ReadWriteMemWriter(const ReadWriteMemWriter&) = delete;
 	ReadWriteMemWriter& operator=(const ReadWriteMemWriter&) = delete;
 };

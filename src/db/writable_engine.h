@@ -117,10 +117,6 @@ private:
 	Status Close();
 	
 private:
-	friend class WritableDB;
-	friend class WriteOnlyBucket;
-	friend class ReadWriteBucket;
-	
 	std::mutex m_mutex;
 		
 	BlockingQueue<NotifyMsg> m_tryflush_queue;
@@ -143,6 +139,9 @@ private:
 	std::deque<FileName> m_tobe_delete_notifyfiles;//待删除的通知文件，超过一定时间后被删除
 	
 private:	
+	friend class WritableDB;
+	friend class WriteOnlyBucket;
+	friend class ReadWriteBucket;
 	WritableEngine(const WritableEngine&) = delete;
 	WritableEngine& operator=(const WritableEngine&) = delete;
 

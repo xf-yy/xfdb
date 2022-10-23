@@ -43,12 +43,12 @@ public:
 
 protected:
 	std::vector<Object*> m_objects;
-	friend class WriteOnlyMemWriterIterator;
 	#if _DEBUG
 	bool m_sorted;
 	#endif
 	
 private:
+	friend class WriteOnlyMemWriterIterator;
 	WriteOnlyMemWriter(const WriteOnlyMemWriter&) = delete;
 	WriteOnlyMemWriter& operator=(const WriteOnlyMemWriter&) = delete;
 };
