@@ -24,7 +24,7 @@ limitations under the License.
 namespace xfdb 
 {
 
-Bucket::Bucket(DBImplPtr db, const BucketInfo& info) 
+Bucket::Bucket(DBImplPtr& db, const BucketInfo& info) 
 	: m_db(db), m_info(info)
 {
 	char bucket_path[MAX_PATH_LEN];

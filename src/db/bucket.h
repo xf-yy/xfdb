@@ -32,7 +32,7 @@ namespace xfdb
 class Bucket : public std::enable_shared_from_this<Bucket>
 {
 public:
-	Bucket(DBImplPtr db, const BucketInfo& info);
+	Bucket(DBImplPtr& db, const BucketInfo& info);
 	virtual ~Bucket()
 	{
 	}

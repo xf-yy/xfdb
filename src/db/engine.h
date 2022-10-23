@@ -59,6 +59,7 @@ public:
 protected:
 	virtual DBImplPtr NewDB(const DBConfig& conf, const std::string& db_path) = 0;
 	bool QueryDB(const std::string& db_path, DBImplPtr& dbptr);
+	bool UpdateDB(const std::string& db_path, DBImplPtr& dbptr);
 
 protected:
 	const GlobalConfig m_conf;

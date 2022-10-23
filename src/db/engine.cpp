@@ -31,48 +31,16 @@ namespace xfdb
 Status Engine::OpenDB(const DBConfig& conf, const std::string& db_path, DBPtr& db)
 {
 	DBImplPtr dbptr;
-
-	m_db_mutex.lock();
-	auto it = m_dbs.find(db_path);
-	if(it != m_dbs.end())
+	if(!QueryDB(db_path, dbptr))
 	{
-		dbptr = it->second.lock();
-		if(!dbptr)
+		dbptr = NewDB(conf, db_path);
+		Status s = dbptr->Open();
+		if(s != OK)
 		{
-			m_dbs.erase(it);
+			return s;
 		}
+		UpdateDB(db_path, dbptr);
 	}
-	m_db_mutex.unlock();
-
-	if(dbptr)
-	{
-		db = std::shared_ptr<DB>(new DB(dbptr));
-		return OK;
-	}
-	
-	dbptr = NewDB(conf, db_path);
-	Status s = dbptr->Open();
-	if(s != OK)
-	{
-		return s;
-	}
-	DBImplWptr dbwptr(dbptr);
-
-	m_db_mutex.lock();
-	auto ret = m_dbs.insert(std::make_pair(dbptr->GetPath(), dbwptr));
-	if(!ret.second)
-	{
-		DBImplPtr prev_dbptr = ret.first->second.lock();
-		if(prev_dbptr)
-		{
-			dbptr = prev_dbptr;
-		}
-		else
-		{
-			ret.first->second = dbwptr;
-		}
-	}
-	m_db_mutex.unlock();
 	
 	db = std::shared_ptr<DB>(new DB(dbptr));
 	return OK;
@@ -96,9 +64,32 @@ void Engine::CloseDB()
 	}
 }
 
+bool Engine::UpdateDB(const std::string& db_path, DBImplPtr& dbptr)
+{
+	DBImplWptr dbwptr(dbptr);
+
+	m_db_mutex.lock();
+	auto ret = m_dbs.insert(std::make_pair(db_path, dbwptr));
+	if(!ret.second)
+	{
+		DBImplPtr prev_dbptr = ret.first->second.lock();
+		if(prev_dbptr)
+		{
+			dbptr = prev_dbptr;
+		}
+		else
+		{
+			ret.first->second = dbwptr;
+		}
+	}
+	m_db_mutex.unlock();
+
+	return ret.second;
+}
+
 bool Engine::QueryDB(const std::string& db_path, DBImplPtr& dbptr)
 {	
-	dbptr.reset();
+	bool found = false;
 
 	m_db_mutex.lock();
 	
@@ -106,14 +97,18 @@ bool Engine::QueryDB(const std::string& db_path, DBImplPtr& dbptr)
 	if(it != m_dbs.end())
 	{
 		dbptr = it->second.lock();
-		if(!dbptr)
+		if(dbptr)
+		{
+			found = true;
+		}
+		else
 		{
 			m_dbs.erase(it);
 		}
 	}
 	m_db_mutex.unlock();
 
-	return (bool)dbptr;
+	return found;
 }
 
 }  
