@@ -102,6 +102,7 @@ struct GlobalConfig
 	uint16_t reload_db_thread_num = 4;
 	
 	//WriteConfig
+	uint64_t write_cache_size = 128*1024*1024;	//写缓存大小
 	bool create_db_if_missing = true;
 	bool create_bucket_if_missing = true;
 	

@@ -32,6 +32,7 @@ namespace xfdb
 class DBImpl : public std::enable_shared_from_this<DBImpl>
 {
 public:
+	DBImpl(Engine* engine, const DBConfig& conf, const std::string& db_path);
 	virtual ~DBImpl();
 
 public:	
@@ -99,6 +100,7 @@ public:
 		return m_conf;
 	}
 
+
 protected:	
 	Status OpenBucket();
 	Status OpenBucket(const char* dbinfo_filename);
@@ -112,8 +114,6 @@ protected:
 
 	virtual BucketPtr NewBucket(const BucketInfo& bucket_info) = 0;
 
-protected:
-	DBImpl(Engine* engine, const DBConfig& conf, const std::string& db_path);
 
 protected:
 	Engine* const m_engine;
@@ -128,8 +128,6 @@ protected:
 	BucketSnapshotPtr m_bucket_snapshot;	//bucket集
 	
 private:
-	friend class BucketSnapshot;
-	friend class Engine;
 	DBImpl(const DBImpl&) = delete;
   	DBImpl& operator=(const DBImpl&) = delete;
 	

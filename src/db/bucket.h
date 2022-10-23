@@ -75,8 +75,7 @@ public:
 	Status Open(const char* bucket_meta_filename);	
 	
 protected:
-	Status OpenSegment(const char* bucket_path, const SegmentIndexInfo& sfi, SegmentReaderPtr& sr_ptr);
-	void OpenSegments(const BucketMetaData& bmd, const TableReaderSnapshot* last_snapshot, std::map<fileid_t, TableReaderPtr>& readers);
+	void OpenSegment(const BucketMetaData& bmd, const TableReaderSnapshot* last_snapshot, std::map<fileid_t, TableReaderPtr>& readers);
 
 protected:
 	const DBImplWptr m_db;

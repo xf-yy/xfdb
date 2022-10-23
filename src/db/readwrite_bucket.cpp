@@ -38,8 +38,8 @@ ReadWriteBucket::~ReadWriteBucket()
 
 TableWriterPtr ReadWriteBucket::NewTableWriter(WritableEngine* engine)
 {
-	assert(engine->m_conf.mode & MODE_READONLY);
-	return NewReadWriteMemWriter(engine->m_pool, engine->m_conf.max_memtable_objects);
+	assert(engine->GetConfig().mode & MODE_READONLY);
+	return NewReadWriteMemWriter(engine->GetBlockPool(), engine->GetConfig().max_memtable_objects);
 }
 
 Status ReadWriteBucket::Get(const StrView& key, String& value)

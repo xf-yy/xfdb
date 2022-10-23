@@ -36,6 +36,11 @@ public:
 public:	
 	static Status Read(const char* file_path, NotifyData& nd);
 	static Status Write(const char* file_dir, const NotifyData& nd, FileName& filename);
+	static inline Status Write(const char* file_dir, const NotifyData& nd)
+	{
+		FileName filename;
+		return Write(file_dir, nd, filename);
+	}
 	static xfutil::tid_t GetNotifyPID(const char* file_path);
 
 private:

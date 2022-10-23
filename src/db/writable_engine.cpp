@@ -39,7 +39,12 @@ WritableEngine::~WritableEngine()
 ////////////////////////////////////////////////////////////////////////////////
 Status WritableEngine::Start()
 {
-	m_pool.Init(MEM_BLOCK_SIZE, 128);
+	uint64_t cache_num = m_conf.write_cache_size / MEM_BLOCK_SIZE;
+	if(m_conf.write_cache_size % MEM_BLOCK_SIZE != 0)
+	{
+		++cache_num;
+	}
+	m_pool.Init(MEM_BLOCK_SIZE, cache_num);
 	
 	//TODO:读模式时需初始化cache
 	if(m_conf.mode & MODE_READONLY)

@@ -51,7 +51,12 @@ Status ReadOnlyEngine::Start()
 	//{
 		//return ERROR;
 	//}
-	m_pool.Init(MEM_BLOCK_SIZE, 128);
+	uint64_t cache_num = m_conf.write_cache_size / MEM_BLOCK_SIZE;
+	if(m_conf.write_cache_size % MEM_BLOCK_SIZE != 0)
+	{
+		++cache_num;
+	}
+	m_pool.Init(MEM_BLOCK_SIZE, cache_num);
 	
 	if(m_conf.auto_reload_db)
 	{
@@ -78,17 +83,12 @@ Status ReadOnlyEngine::Close()
 		return OK;
 	}
 
-	if(m_conf.auto_reload_db)
-	{
-		//FIXME:写个关闭的通知文件
-		NotifyData nd;
-		FileName fn;
-		NotifyFile::Write(m_conf.notify_dir.c_str(), nd, fn);
-		m_notify_thread.Join();
-	}
+	//FIXME:写个关闭的通知文件
+	NotifyData nd;
+	NotifyFile::Write(m_conf.notify_dir.c_str(), nd);
+	m_notify_thread.Join();
 	
 	//往reload队列中写入退出标记
-	NotifyData nd;	
 	for(size_t i = 0; i < m_conf.reload_db_thread_num; ++i)
 	{
 		m_reload_queues[i].Push(nd);

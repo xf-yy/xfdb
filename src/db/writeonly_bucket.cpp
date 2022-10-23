@@ -43,8 +43,8 @@ WriteOnlyBucket::~WriteOnlyBucket()
 
 TableWriterPtr WriteOnlyBucket::NewTableWriter(WritableEngine* engine)
 {
-	assert(!(engine->m_conf.mode & MODE_READONLY));
-	return NewWriteOnlyMemWriter(engine->m_pool, engine->m_conf.max_memtable_objects);
+	assert(!(engine->GetConfig().mode & MODE_READONLY));
+	return NewWriteOnlyMemWriter(engine->GetBlockPool(), engine->GetConfig().max_memtable_objects);
 }
 
 Status WriteOnlyBucket::Create()
@@ -162,7 +162,10 @@ Status WriteOnlyBucket::Write(const Object* object)
 	{			
 		m_memwriter = NewTableWriter(m_engine);
 		assert(m_memwriter);
-		m_engine->NotifyTryFlush(m_db.lock(), shared_from_this());
+
+		DBImplPtr db = m_db.lock();
+		assert(db);
+		m_engine->NotifyTryFlush(db, shared_from_this());
 	}
 	Status s = m_memwriter->Write(m_next_object_id, object);	//数量+大小
 	if(s != OK)
@@ -278,11 +281,10 @@ Status WriteOnlyBucket::WriteSegment(TableWriterSnapshotPtr& memwriter_snapshot,
 	SegmentIndexInfo seginfo;
 	seginfo.segment_fileid = fileid;
 
+	DBImplPtr db = m_db.lock();
+	assert(db);
 	{
-		DBImplPtr db = m_db.lock();
-		assert(db);
-		
-		SegmentWriter segment_writer(db->GetConfig(), m_engine->m_pool);
+		SegmentWriter segment_writer(db->GetConfig(), m_engine->GetBlockPool());
 		Status s = segment_writer.Create(m_bucket_path.c_str(), fileid);
 		if(s != OK)
 		{
@@ -294,8 +296,8 @@ Status WriteOnlyBucket::WriteSegment(TableWriterSnapshotPtr& memwriter_snapshot,
 			return s;
 		}
 	}
-
-	return OpenSegment(m_bucket_path.c_str(), seginfo, new_segment_reader);
+	new_segment_reader = NewSegmentReader(db->GetEngine()->GetBlockPool());
+	return new_segment_reader->Open(m_bucket_path.c_str(), seginfo);
 }
 
 //多线程同时执行
@@ -362,6 +364,7 @@ Status WriteOnlyBucket::WriteSegment()
 	if(writed_segment_inc != 0)
 	{
 		DBImplPtr db = m_db.lock();
+		assert(db);
 		
 		m_engine->NotifyWriteBucketMeta(db, shared_from_this());
 		//FIXME:判断是否需要merge
@@ -374,7 +377,8 @@ Status WriteOnlyBucket::WriteSegment()
 
 Status WriteOnlyBucket::Merge()
 {
-	m_engine->NotifyFullMerge(m_db.lock(), shared_from_this());
+	DBImplPtr db = m_db.lock();
+	m_engine->NotifyFullMerge(db, shared_from_this());
 	return OK;
 }
 
@@ -383,11 +387,12 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 	assert(msinfo.merging_segment_fileids.size() > 1);
 
 	DBImplPtr db = m_db.lock();
+	assert(db);
 
 	SegmentIndexInfo seginfo;
 	seginfo.segment_fileid = msinfo.new_segment_fileid;
 	{
-		SegmentWriter segment_writer(db->GetConfig(), m_engine->m_pool);
+		SegmentWriter segment_writer(db->GetConfig(), m_engine->GetBlockPool());
 		Status s = segment_writer.Create(m_bucket_path.c_str(), msinfo.new_segment_fileid);
 		if(s != OK)
 		{
@@ -401,7 +406,8 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 		}
 	}
 
-	Status s = OpenSegment(m_bucket_path.c_str(), seginfo, msinfo.new_segment_reader);
+	msinfo.new_segment_reader = NewSegmentReader(db->GetEngine()->GetBlockPool());
+	Status s = msinfo.new_segment_reader->Open(m_bucket_path.c_str(), seginfo);
 	if(s != OK)
 	{
 		return s;
@@ -455,11 +461,11 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 //单线程执行
 Status WriteOnlyBucket::FullMerge()
 {
-	//等待当前没有任何合并操作？	
 	std::vector<MergingSegmentInfo> msinfos;
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
 
+		//注：如果当前有合并操作则返回错误
 		for(int level = 0; level < MAX_LEVEL_ID; ++level)
 		{
 			if(!m_merging_segment_fileids[level].empty())
@@ -639,6 +645,7 @@ Status WriteOnlyBucket::WriteBucketMeta()
 	}
 
 	DBImplPtr db = m_db.lock();
+	assert(db);
 
 	//加入清理队列
 	if(bucket_meta_file)
@@ -666,7 +673,9 @@ void WriteOnlyBucket::FlushMemWriter()
 	m_memwriter.reset();
 	m_memwriter_snapshot = new_snapshot;
 	
-	m_engine->NotifyWriteSegment(m_db.lock(), shared_from_this());
+	DBImplPtr db = m_db.lock();
+	assert(db);
+	m_engine->NotifyWriteSegment(db, shared_from_this());
 }
 
 Status WriteOnlyBucket::Flush(bool force)

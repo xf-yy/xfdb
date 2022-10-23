@@ -70,7 +70,7 @@ Status Bucket::Open(const char* bucket_meta_filename)
 	m_segment_rwlock.ReadUnlock();
 
 	std::map<fileid_t, TableReaderPtr> new_readers;
-	OpenSegments(bmd, reader_snapshot.readers.get(), new_readers);
+	OpenSegment(bmd, reader_snapshot.readers.get(), new_readers);
 	
 	TableReaderSnapshotPtr new_ss_ptr = NewTableReaderSnapshot(new_readers);
 	
@@ -87,20 +87,14 @@ Status Bucket::Open(const char* bucket_meta_filename)
 	return OK;
 }
 
-Status Bucket::OpenSegment(const char* bucket_path, const SegmentIndexInfo& sfi, SegmentReaderPtr& sr_ptr)
-{
-	DBImplPtr db = m_db.lock();
-	sr_ptr = NewSegmentReader(db->GetEngine()->GetBlockPool());
-	
-	return sr_ptr->Open(bucket_path, sfi);
-}
-
-void Bucket::OpenSegments(const BucketMetaData& bmd, const TableReaderSnapshot* last_snapshot, std::map<fileid_t, TableReaderPtr>& readers)
+void Bucket::OpenSegment(const BucketMetaData& bmd, const TableReaderSnapshot* last_snapshot, std::map<fileid_t, TableReaderPtr>& readers)
 {
 	static const std::map<fileid_t, TableReaderPtr> empty_readers;
 	const std::map<fileid_t, TableReaderPtr>& last_readers = (last_snapshot != nullptr) ? last_snapshot->Readers() : empty_readers;
 	
-	SegmentReaderPtr sr_ptr;
+	DBImplPtr db = m_db.lock();
+	assert(db);
+	
 	for(const auto& seginfo : bmd.alive_segment_infos)
 	{		
 		auto it = last_readers.find(seginfo.segment_fileid);
@@ -108,9 +102,13 @@ void Bucket::OpenSegments(const BucketMetaData& bmd, const TableReaderSnapshot* 
 		{
 			readers[seginfo.segment_fileid] = it->second;
 		}
-		else if(OpenSegment(m_bucket_path.c_str(), seginfo, sr_ptr) == OK)
+		else
 		{
-			readers[seginfo.segment_fileid] = sr_ptr;
+			SegmentReaderPtr sr_ptr = NewSegmentReader(db->GetEngine()->GetBlockPool());
+			if(sr_ptr->Open(m_bucket_path.c_str(), seginfo) == OK)
+			{
+				readers[seginfo.segment_fileid] = sr_ptr;
+			}
 		}
 	}
 }

@@ -106,55 +106,55 @@ Status DB::Remove(const std::string& db_path)
 
 Status DB::CreateBucket(const std::string& bucket_name)
 {
-	assert(m_db != nullptr);
+	assert(m_db);
 	return m_db->CreateBucket(bucket_name);
 }
 
 Status DB::DeleteBucket(const std::string& bucket_name)
 {
-	assert(m_db != nullptr);
+	assert(m_db);
 	return m_db->DeleteBucket(bucket_name);
 }
 
 bool DB::ExistBucket(const std::string& bucket_name) const
 {
-	assert(m_db != nullptr);
+	assert(m_db);
 	return m_db->ExistBucket(bucket_name);
 }
 
 void DB::ListBucket(std::vector<std::string>& bucket_names) const
 {
-	assert(m_db != nullptr);
+	assert(m_db);
 	m_db->ListBucket(bucket_names);
 }
 
 Status DB::GetBucketStat(const std::string& bucket_name, BucketStat& stat) const
 {
-	assert(m_db != nullptr);
+	assert(m_db);
 	return m_db->GetBucketStat(bucket_name, stat);
 }
 
 Status DB::Get(const std::string& bucket_name, const StrView& key, String& value) const
 {
-	assert(m_db != nullptr);
+	assert(m_db);
 	return m_db->Get(bucket_name, key, value);
 }
 
 Status DB::Set(const std::string& bucket_name, const StrView& key, const StrView& value)
 {
-	assert(m_db != nullptr);
+	assert(m_db);
 	return m_db->Set(bucket_name, key, value);
 }
 
 Status DB::Delete(const std::string& bucket_name, const StrView& key)
 {
-	assert(m_db != nullptr);
+	assert(m_db);
 	return m_db->Delete(bucket_name, key);
 }
 #if 0
 Status DB::Write(const ObjectBatch& wb)
 {
-	assert(m_db != nullptr);
+	assert(m_db);
 	return m_db->Write(wb);
 }
 #endif
@@ -162,25 +162,25 @@ Status DB::Write(const ObjectBatch& wb)
 //将所有内存表（不限大小）刷盘(异步)，形成segment文件
 Status DB::Flush()					
 {
-	assert(m_db != nullptr);
+	assert(m_db);
 	return m_db->Flush();
 }
 
 Status DB::Flush(const std::string& bucket_name)
 {
-	assert(m_db != nullptr);
+	assert(m_db);
 	return m_db->Flush(bucket_name);
 }
 
 Status DB::Merge()
 {
-	assert(m_db != nullptr);
+	assert(m_db);
 	return m_db->Merge();
 }
 
 Status DB::Merge(const std::string& bucket_name)	
 {
-	assert(m_db != nullptr);
+	assert(m_db);
 	return m_db->Merge(bucket_name);
 }
 

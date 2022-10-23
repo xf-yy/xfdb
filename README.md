@@ -7,23 +7,24 @@
 ***   
     当前版本(V0.1.0)：   
         已实现：  
-          1、支持多种模式：只读，只写，读写   
-          2、支持桶的创建、删除、列举、统计值   
-          3、支持KV值的设置、删除、读取   
-          4、key的最大长度为16KB，value的最大长度为64KB  
+          0、支持linux环境
+          1、支持多种读写模式：只读模式，只写模式，读写模式   
+          2、支持桶的操作：创建、删除、列举、统计值   
+          3、支持Key/Value操作：设置、删除、读取；注：key长度最大16KB，value长度最大64KB
+          4、内存数据自动刷盘  
+          5、数据自动merge，手工merge
         实现中：  
-          1、自动merge
+          1、读Cache
    
     待实现：   
-        1、批量写      
-        2、Cache   
-        3、BloomFilter   
-        4、Scan   
-        5、Compress   
-        6、Append，Modify   
-        7、WAL+Log   
-        8、Backup   
-        9、Windows support   
+        1、批量写
+        2、BloomFilter   
+        3、Scan   
+        4、Compress   
+        5、Append，Modify   
+        6、WAL+Log   
+        7、Backup   
+        8、Windows support   
    
 # ●编译方法   
 ***   

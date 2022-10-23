@@ -68,8 +68,8 @@ private:
 	void FlushMemWriter();
 
 	Status Merge(MergingSegmentInfo& msinfo);
-	Status FullMerge();		//同步merge
-	Status PartMerge();		//同步merge，写入时合并降低速度？
+	Status FullMerge();				//同步merge
+	Status PartMerge();				//同步merge，写入时合并降低速度？
 	
 private:
 	void WriteAliveSegmentInfos(TableReaderSnapshotPtr& trs_ptr, BucketMetaData& md);
