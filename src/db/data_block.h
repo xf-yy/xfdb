@@ -36,11 +36,11 @@ typedef std::shared_ptr<DataBlockReaderIterator> DataBlockReaderIteratorPtr;
 class DataBlockReader
 {
 public:
-	DataBlockReader(BlockPool& pool);
+	DataBlockReader();
 	~DataBlockReader();
 	
 public:	
-	Status Read(const File& file, const SegmentL0Index& L0_index);
+	Status Read(const File& file, const std::string& file_path, const SegmentL0Index& L0_index);
 	Status Search(const StrView& key, ObjectType& type, String& value);
 	DataBlockReaderIteratorPtr NewIterator();
 
@@ -54,10 +54,9 @@ private:
 	Status ParseBlock(const byte_t* block, uint32_t block_size, const SegmentL0Index& L0_index, DataBlockReaderIteratorPtr& iter_ptr) const;
 
 private:
-	BlockPool& m_pool;
-	byte_t* m_data;
+	std::string m_data;
 	SegmentL0Index m_L0Index;
-	
+
 private:
 	DataBlockReader(const DataBlockReader&) = delete;
 	DataBlockReader& operator=(const DataBlockReader&) = delete;
@@ -69,8 +68,7 @@ typedef std::shared_ptr<DataBlockReader> DataBlockReaderPtr;
 class DataBlockReaderIterator 
 {
 public:
-	DataBlockReaderIterator(DataBlockReader& block, BlockPool& pool) : m_block(block), m_buf(pool)
-	{}
+	DataBlockReaderIterator(DataBlockReader& block);
 	~DataBlockReaderIterator()
 	{}
 

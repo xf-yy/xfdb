@@ -24,41 +24,45 @@ limitations under the License.
 #include "block_pool.h"
 #include "key_util.h"
 #include "coding.h"
+#include "engine.h"
 
 namespace xfdb 
 {
 
-DataBlockReader::DataBlockReader(BlockPool& pool) : m_pool(pool)
+DataBlockReader::DataBlockReader()
 {
-	m_data = nullptr;
+
 }
+
 DataBlockReader::~DataBlockReader()
 {
-	if(m_data != nullptr)
-	{
-		m_pool.Free(m_data);
-	}
 }
 
-Status DataBlockReader::Read(const File& file, const SegmentL0Index& L0_index)
+Status DataBlockReader::Read(const File& file, const std::string& file_path, const SegmentL0Index& L0_index)
 {
-	//TODO: 读cache
+	//读取L1块 cache
+	auto& cache = Engine::GetEngine()->GetDataCache();
 
-	//从文件中读取数据块
-	//printf("L0_index.L0compress_size:%u\n", L0_index.L0compress_size);
-	m_data = m_pool.Alloc();
-	if(m_data == nullptr)
+	std::string cache_key = file_path;
+	cache_key.append((char*)&L0_index.L0offset, sizeof(L0_index.L0offset));
+
+	std::string data;
+	if(!cache.Get(cache_key, data) || data.size() < L0_index.L0compress_size)
 	{
-		return ERR_MEMORY_NOT_ENOUGH;
+		data.resize(L0_index.L0compress_size);
+		int64_t r_size = file.Read(L0_index.L0offset, (void*)data.data(), L0_index.L0compress_size);
+		if((uint64_t)r_size != L0_index.L0compress_size)
+		{
+			assert(false);
+			return ERR_FILE_READ;
+		}
+		cache.Add(cache_key, data, data.size());
 	}
 	
 	//TODO: 是否要解压
-	
-	int64_t r_size = file.Read(L0_index.L0offset, m_data, L0_index.L0compress_size);
-	if((uint64_t)r_size != L0_index.L0compress_size)
-	{
-		return ERR_FILE_READ;
-	}
+
+	assert(!data.empty());
+	m_data = data;
 	m_L0Index = L0_index;
 	return OK;
 }
@@ -180,7 +184,7 @@ Status DataBlockReader::Search(const StrView& key, ObjectType& type, String& val
 	//TODO: 将bloom和data放入cache中
 	//TODO: 判断是否有bloom，有则判断bloom是否命中
 
-	return SearchBlock(m_data, m_L0Index.L0compress_size, m_L0Index, key, type, value);
+	return SearchBlock((byte_t*)m_data.data(), m_L0Index.L0compress_size, m_L0Index, key, type, value);
 }
 
 Status DataBlockReader::ParseGroup(const byte_t* group, uint32_t group_size, const L0GroupIndex& group_index, DataBlockReaderIteratorPtr& iter_ptr) const
@@ -277,14 +281,18 @@ Status DataBlockReader::ParseBlock(const byte_t* block, uint32_t block_size, con
 
 DataBlockReaderIteratorPtr DataBlockReader::NewIterator()
 {
-	DataBlockReaderIteratorPtr iter_ptr = NewDataBlockReaderIterator(*this, m_pool);
+	DataBlockReaderIteratorPtr iter_ptr = NewDataBlockReaderIterator(*this);
 
-	ParseBlock(m_data, m_L0Index.L0compress_size, m_L0Index, iter_ptr);
+	ParseBlock((byte_t*)m_data.data(), m_L0Index.L0compress_size, m_L0Index, iter_ptr);
 	iter_ptr->First();
 	return iter_ptr;
 }
 
+DataBlockReaderIterator::DataBlockReaderIterator(DataBlockReader& block) 
+	: m_block(block), m_buf(Engine::GetEngine()->GetBlockPool())
+{
 
+}
 
 }  
 

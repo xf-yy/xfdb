@@ -31,7 +31,7 @@ namespace xfdb
 class SegmentReader : public TableReader
 {
 public:
-	SegmentReader(BlockPool& pool);
+	SegmentReader();
 	virtual ~SegmentReader();
 
 public:
@@ -55,7 +55,6 @@ public:
 	}
 	
 private:
-	BlockPool& m_pool;
 	SegmentIndexInfo m_index_info;
 	IndexReader m_index_reader;
 	DataReader m_data_reader;

@@ -33,7 +33,7 @@ WritableEngine::WritableEngine(const GlobalConfig& conf) : Engine(conf)
 
 WritableEngine::~WritableEngine()
 {
-	Close();
+	//assert();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -44,12 +44,7 @@ Status WritableEngine::Start()
 	{
 		++cache_num;
 	}
-	m_pool.Init(MEM_BLOCK_SIZE, cache_num);
-	
-	//TODO:读模式时需初始化cache
-	if(m_conf.mode & MODE_READONLY)
-	{
-	}
+	m_block_pool.Init(MEM_BLOCK_SIZE, cache_num);
 	
 	m_part_merge_threadgroup.Start(m_conf.part_merge_thread_num, PartMergeThread, this);
 	m_full_merge_threadgroup.Start(m_conf.full_merge_thread_num, FullMergeThread, this);
@@ -67,8 +62,7 @@ Status WritableEngine::Start()
 	return OK;
 }
  
-
-Status WritableEngine::Close()
+void WritableEngine::Stop()
 {	
 	//尝试关闭所有的db
 	CloseDB();
@@ -105,17 +99,11 @@ Status WritableEngine::Close()
 	}
 	m_write_metadata_threadgroup.Join();
 	delete[] m_write_metadata_queues;
-	
-	//TODO:读模式时释放cache
-	if(m_conf.mode & MODE_READONLY)
-	{
-	}
-	return OK;
 }
 
 DBImplPtr WritableEngine::NewDB(const DBConfig& conf, const std::string& db_path)
 {
-	return NewWritableDB(this, conf, db_path);
+	return NewWritableDB(conf, db_path);
 }
 
 Status WritableEngine::RemoveDB(const std::string& db_path)
@@ -177,7 +165,6 @@ void WritableEngine::FullMergeThread(size_t index, void* arg)
 		}
 	}
 	LogInfo("merge db thread %d exit", index);
-	
 }
 
 ///////////////////////////////////////////////////////////////////

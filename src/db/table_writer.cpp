@@ -20,7 +20,7 @@ namespace xfdb
 {
 
 TableWriter::TableWriter(BlockPool& pool)
-	: m_create_time(time(nullptr)), m_pool(pool), m_buf(m_pool)
+	: m_create_time(time(nullptr)), m_block_pool(pool), m_buf(m_block_pool)
 {
 	memset(&m_object_stat, 0x00, sizeof(m_object_stat));
 }

@@ -16,12 +16,13 @@ limitations under the License.
 
 #include "segment_iterator.h"
 #include "segment_file.h"
+#include "engine.h"
 
 namespace xfdb 
 {
 
 SegmentReaderIterator::SegmentReaderIterator(SegmentReaderPtr& segment_reader) 
- 	: m_segment_reader(segment_reader), m_index_block_reader(segment_reader->m_pool), m_data_block_reader(segment_reader->m_pool)
+ 	: m_segment_reader(segment_reader)
 {
 	m_L1index_count = segment_reader->m_index_reader.m_L1indexs.size();
 	First();
@@ -38,11 +39,11 @@ void SegmentReaderIterator::First()
 	m_L1index_idx = 0;
 
 	IndexReader& ir = m_segment_reader->m_index_reader;
-	m_index_block_reader.Read(ir.m_file, ir.m_L1indexs[0]);
+	m_index_block_reader.Read(ir.m_file, ir.m_path, ir.m_L1indexs[0]);
 	m_index_block_iter = m_index_block_reader.NewIterator();
 
 	DataReader& dr = m_segment_reader->m_data_reader;
-	m_data_block_reader.Read(dr.m_file, m_index_block_iter->L0Index());
+	m_data_block_reader.Read(dr.m_file, dr.m_path, m_index_block_iter->L0Index());
 	m_data_block_iter = m_data_block_reader.NewIterator();
 }
 
@@ -67,17 +68,17 @@ void SegmentReaderIterator::Next()
 	m_index_block_iter->Next();
 	if(m_index_block_iter->Valid())
 	{
-		m_data_block_reader.Read(m_segment_reader->m_data_reader.m_file, m_index_block_iter->L0Index());
+		m_data_block_reader.Read(m_segment_reader->m_data_reader.m_file, m_segment_reader->m_data_reader.m_path, m_index_block_iter->L0Index());
 		m_data_block_iter = m_data_block_reader.NewIterator();
 		return;
 	}
 	++m_L1index_idx;
 	if(m_L1index_idx < m_L1index_count)
 	{
-		m_index_block_reader.Read(m_segment_reader->m_index_reader.m_file, m_segment_reader->m_index_reader.m_L1indexs[m_L1index_idx]);
+		m_index_block_reader.Read(m_segment_reader->m_index_reader.m_file, m_segment_reader->m_index_reader.m_path, m_segment_reader->m_index_reader.m_L1indexs[m_L1index_idx]);
 		m_index_block_iter = m_index_block_reader.NewIterator();
 
-		m_data_block_reader.Read(m_segment_reader->m_data_reader.m_file, m_index_block_iter->L0Index());
+		m_data_block_reader.Read(m_segment_reader->m_data_reader.m_file, m_segment_reader->m_data_reader.m_path, m_index_block_iter->L0Index());
 		m_data_block_iter = m_data_block_reader.NewIterator();
 	}
 }

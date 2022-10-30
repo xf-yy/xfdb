@@ -22,13 +22,14 @@ limitations under the License.
 #include "file_util.h"
 #include "key_util.h"
 #include "data_block.h"
+#include "engine.h"
 
 using namespace xfutil;
 
 namespace xfdb 
 {
 
-DataReader::DataReader(BlockPool& pool) : m_pool(pool)
+DataReader::DataReader() : m_block_pool(Engine::GetEngine()->GetBlockPool())
 {
 }
 DataReader::~DataReader()
@@ -44,14 +45,15 @@ Status DataReader::Open(const char* bucket_path, fileid_t fileid)
 	{
 		return ERR_FILE_READ;
 	}
+	m_path = data_path;
 	return OK;
 }
 
 
 Status DataReader::Search(const SegmentL0Index& L0_index, const StrView& key, ObjectType& type, String& value) const
 {
-	DataBlockReader block(m_pool);
-	Status s = block.Read(m_file, L0_index);
+	DataBlockReader block;
+	Status s = block.Read(m_file, m_path, L0_index);
 	if(s != OK)
 	{
 		return s;
@@ -64,11 +66,11 @@ Status DataReader::Search(const SegmentL0Index& L0_index, const StrView& key, Ob
 
 
 DataWriter::DataWriter(const DBConfig& db_conf, BlockPool& pool, IndexWriter& index_writer)
-	: m_db_conf(db_conf), m_index_writer(index_writer), m_pool(pool), m_key_buf(pool)
+	: m_db_conf(db_conf), m_index_writer(index_writer), m_block_pool(pool), m_key_buf(pool)
 {	
 	m_offset = 0;
-	m_block_start = m_pool.Alloc();
-	m_block_end = m_block_start + m_pool.BlockSize();
+	m_block_start = m_block_pool.Alloc();
+	m_block_end = m_block_start + m_block_pool.BlockSize();
 	m_block_ptr = m_block_start;
 }
 
@@ -82,7 +84,7 @@ DataWriter::~DataWriter()
 
 	File::Rename(tmp_file_path, file_path);
 
-	m_pool.Free(m_block_start);
+	m_block_pool.Free(m_block_start);
 }
 
 Status DataWriter::Create(const char* bucket_path, fileid_t fileid)

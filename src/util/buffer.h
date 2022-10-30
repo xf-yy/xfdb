@@ -54,7 +54,7 @@ public:
 	}
 		
 private:	
-	BlockPool& m_pool;
+	BlockPool& m_block_pool;
 	byte_t* m_ptr;				//当前待分配的指针
 	uint32_t m_size;			//当前可用的空间大小
 	

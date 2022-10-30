@@ -36,11 +36,11 @@ typedef std::shared_ptr<IndexBlockReaderIterator> IndexBlockReaderIteratorPtr;
 class IndexBlockReader
 {
 public:
-	IndexBlockReader(BlockPool& pool);
+	IndexBlockReader();
 	~IndexBlockReader();
 
 public:	
-	Status Read(const File& file, const SegmentL1Index& L1Index);
+	Status Read(const File& file, const std::string& file_path, const SegmentL1Index& L1Index);
 	Status Search(const StrView& key, SegmentL0Index& L0_index);
 	
 	IndexBlockReaderIteratorPtr NewIterator();
@@ -55,8 +55,7 @@ private:
 	Status ParseGroup(const byte_t* group, uint32_t group_size, const L0GroupIndex& group_index, IndexBlockReaderIteratorPtr& iter_ptr) const;
 
 private:
-	BlockPool& m_pool;
-	byte_t* m_data;
+	std::string m_data;
 	SegmentL1Index m_L1Index;
 	
 private:
@@ -67,13 +66,9 @@ private:
 class IndexBlockReaderIterator 
 {
 public:
-	IndexBlockReaderIterator(BlockPool& pool) : m_buf(pool)
-	{
-		m_L0indexs.reserve(MAX_OBJECT_NUM_OF_BLOCK);
-	}
+	IndexBlockReaderIterator();
 	~IndexBlockReaderIterator()
 	{
-
 	}
 
 public:

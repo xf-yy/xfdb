@@ -37,8 +37,9 @@ public:
 	virtual ~ReadOnlyEngine();
 
 public:	
-	virtual Status Start();
-	
+	virtual Status Start() override;
+	virtual void Stop() override;	
+
 public:
 	void PostNotifyData(const NotifyData& nd);
 
@@ -50,8 +51,6 @@ private:
 	void ProcessNotifyData(const NotifyData& nd);
 	
 	static void ReadNotifyThread(void* arg);
-	
-	Status Close();
 	
 private:	
 	BlockingQueue<NotifyData>* m_reload_queues;

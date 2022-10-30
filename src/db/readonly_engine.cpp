@@ -34,7 +34,7 @@ ReadOnlyEngine::ReadOnlyEngine(const GlobalConfig& conf) : Engine(conf)
 
 ReadOnlyEngine::~ReadOnlyEngine()
 {
-	Close();
+	//assert();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -56,7 +56,7 @@ Status ReadOnlyEngine::Start()
 	{
 		++cache_num;
 	}
-	m_pool.Init(MEM_BLOCK_SIZE, cache_num);
+	m_block_pool.Init(MEM_BLOCK_SIZE, cache_num);
 	
 	if(m_conf.auto_reload_db)
 	{
@@ -73,14 +73,14 @@ Status ReadOnlyEngine::Start()
 	return OK;
 }
 
-Status ReadOnlyEngine::Close()
+void ReadOnlyEngine::Stop()
 {
 	//关闭所有的db
 	CloseDB();
 	
 	if(!m_conf.auto_reload_db)
 	{
-		return OK;
+		return;
 	}
 
 	//FIXME:写个关闭的通知文件
@@ -99,13 +99,11 @@ Status ReadOnlyEngine::Close()
 
 	//LogWarn("xfdb stopped");
 	//Logger::Close();
-
-	return OK;
 }
 
 DBImplPtr ReadOnlyEngine::NewDB(const DBConfig& conf, const std::string& db_path)
 {
-	return NewReadOnlyDB(this, conf, db_path);
+	return NewReadOnlyDB(conf, db_path);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////

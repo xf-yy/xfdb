@@ -34,7 +34,7 @@ namespace xfdb
 class WritableDB : public DBImpl
 {
 public:
-	WritableDB(WritableEngine* engine, const DBConfig& conf, const std::string& db_path);
+	WritableDB(const DBConfig& conf, const std::string& db_path);
 	~WritableDB();
 	
 public:		

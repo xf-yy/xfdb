@@ -24,9 +24,69 @@ limitations under the License.
 #include "bucket.h"
 #include "process.h"
 #include "xfdb/db.h"
+#include "readonly_engine.h"
+#include "writable_engine.h"
 
 namespace xfdb 
 {
+
+class EngineWrapper
+{
+public:
+	~EngineWrapper()
+	{
+		if(m_engine)
+		{
+			m_engine->Stop();
+		}
+	}	
+
+	EnginePtr GetEngine()
+	{
+		std::lock_guard<std::mutex> lock(m_mutex);
+		return m_engine;
+	}
+
+	Status Start(const GlobalConfig& conf)
+	{
+		std::lock_guard<std::mutex> lock(m_mutex);
+		if(m_engine)
+		{
+			return ERR_STARTED;
+		}
+
+		if(conf.mode == MODE_READONLY)
+		{
+			m_engine = NewReadOnlyEngine(conf);
+		}
+		else
+		{
+			m_engine = NewWritableEngine(conf);
+		}
+		
+		return m_engine->Start();
+	}
+
+private:
+	std::mutex m_mutex;
+	EnginePtr m_engine;
+};
+static EngineWrapper s_engine_wrapper;
+
+const char* XfdbVersion()
+{
+	return XFDB_VERSION_DESC;
+}
+
+Status XfdbStart(const GlobalConfig& gconf)
+{
+	return s_engine_wrapper.Start(gconf);
+}
+
+EnginePtr Engine::GetEngine()
+{
+	return s_engine_wrapper.GetEngine();
+}
 
 Status Engine::OpenDB(const DBConfig& conf, const std::string& db_path, DBPtr& db)
 {

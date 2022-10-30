@@ -19,52 +19,12 @@ limitations under the License.
 #include "xfdb/db.h"
 #include "types.h"
 #include "logger.h"
-#include "readonly_engine.h"
-#include "writable_engine.h"
 #include "process.h"
+#include "db_impl.h"
+#include "engine.h"
 
 namespace xfdb
 {
-
-static std::mutex s_engine_mutex;
-static EnginePtr s_engine;
-
-const char* XfdbVersion()
-{
-	return XFDB_VERSION_DESC;
-}
-
-static inline EnginePtr GetEngine()
-{
-	std::lock_guard<std::mutex> lock(s_engine_mutex);
-	return s_engine;
-}
-
-static inline EnginePtr NewEngine(const GlobalConfig& conf)
-{
-	if(conf.mode == MODE_READONLY)
-	{
-		return NewReadOnlyEngine(conf);
-	}
-	return NewWritableEngine(conf);
-}
-
-Status XfdbStart(const GlobalConfig& gconf)
-{
-	std::lock_guard<std::mutex> lock(s_engine_mutex);
-	if(s_engine)
-	{
-		return ERR_INITIALIZED;
-	}
-	EnginePtr engine = NewEngine(gconf);
-	Status s = engine->Start();
-	if(s != OK)
-	{
-		return s;
-	}
-	s_engine.swap(engine);
-	return OK;
-}
 
 DB::DB(DBImplPtr& db) : m_db(db)
 {
@@ -82,10 +42,10 @@ Status DB::Open(const DBConfig& dbconf, const std::string& db_path, DBPtr& db)
 	{
 		return ERR_PATH_INVALID;
 	}
-	EnginePtr engine = GetEngine();
+	EnginePtr engine = Engine::GetEngine();
 	if(!engine)
 	{
-		return ERR_UNINITIALIZED;
+		return ERR_STOPPED;
 	}
 	return engine->OpenDB(dbconf, db_path, db);
 }
@@ -96,10 +56,10 @@ Status DB::Remove(const std::string& db_path)
 	{
 		return ERR_PATH_INVALID;
 	}
-	EnginePtr engine = GetEngine();
+	EnginePtr engine = Engine::GetEngine();
 	if(!engine)
 	{
-		return ERR_UNINITIALIZED;
+		return ERR_STOPPED;
 	}
 	return engine->RemoveDB(db_path);
 }

@@ -296,7 +296,7 @@ Status WriteOnlyBucket::WriteSegment(TableWriterSnapshotPtr& memwriter_snapshot,
 			return s;
 		}
 	}
-	new_segment_reader = NewSegmentReader(db->GetEngine()->GetBlockPool());
+	new_segment_reader = NewSegmentReader();
 	return new_segment_reader->Open(m_bucket_path.c_str(), seginfo);
 }
 
@@ -406,7 +406,7 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 		}
 	}
 
-	msinfo.new_segment_reader = NewSegmentReader(db->GetEngine()->GetBlockPool());
+	msinfo.new_segment_reader = NewSegmentReader();
 	Status s = msinfo.new_segment_reader->Open(m_bucket_path.c_str(), seginfo);
 	if(s != OK)
 	{

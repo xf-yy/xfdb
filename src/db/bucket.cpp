@@ -104,7 +104,7 @@ void Bucket::OpenSegment(const BucketMetaData& bmd, const TableReaderSnapshot* l
 		}
 		else
 		{
-			SegmentReaderPtr sr_ptr = NewSegmentReader(db->GetEngine()->GetBlockPool());
+			SegmentReaderPtr sr_ptr = NewSegmentReader();
 			if(sr_ptr->Open(m_bucket_path.c_str(), seginfo) == OK)
 			{
 				readers[seginfo.segment_fileid] = sr_ptr;

@@ -38,7 +38,9 @@ public:
 	virtual ~WritableEngine();
 	
 public:	
-	virtual Status Start();
+	virtual Status Start() override;
+	virtual void Stop() override;
+
 	virtual Status RemoveDB(const std::string& db_path) override;
 
 public:	
@@ -112,9 +114,6 @@ private:
 	void CleanNotifyFile();
 	void ScanNotifyFile();
 	static void CleanThread(void* arg);
-
-private:	
-	Status Close();
 	
 private:
 	std::mutex m_mutex;

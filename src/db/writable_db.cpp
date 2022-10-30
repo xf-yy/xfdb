@@ -33,8 +33,8 @@ namespace xfdb
 
 
 /////////////////////////////////////////////////////////////////////
-WritableDB::WritableDB(WritableEngine* engine, const DBConfig& conf, const std::string& db_path) 
-	: DBImpl(engine, conf, db_path)
+WritableDB::WritableDB(const DBConfig& conf, const std::string& db_path) 
+	: DBImpl(conf, db_path)
 {
 	m_bucket_changed_cnt = 0;
 }
@@ -45,11 +45,13 @@ WritableDB::~WritableDB()
 
 BucketPtr WritableDB::NewBucket(const BucketInfo& bucket_info)
 {
-	if(m_engine->GetConfig().mode & MODE_READONLY)
+	EnginePtr engine = Engine::GetEngine();
+
+	if(engine->GetConfig().mode & MODE_READONLY)
 	{
-		return NewReadWriteBucket((WritableEngine*)m_engine, shared_from_this(), bucket_info);
+		return NewReadWriteBucket((WritableEngine*)engine.get(), shared_from_this(), bucket_info);
 	}
-	return NewWriteOnlyBucket((WritableEngine*)m_engine, shared_from_this(), bucket_info);
+	return NewWriteOnlyBucket((WritableEngine*)engine.get(), shared_from_this(), bucket_info);
 }
 
 Status WritableDB::Remove(const std::string& db_path)
@@ -113,7 +115,8 @@ Status WritableDB::CreateIfMissing()
 	{
 		return OK;
 	}
-	if(!m_engine->GetConfig().create_db_if_missing) 
+	EnginePtr engine = Engine::GetEngine();
+	if(!engine->GetConfig().create_db_if_missing) 
 	{
 		return ERR_DB_NOT_EXIST;
 	}
@@ -259,7 +262,9 @@ Status WritableDB::WriteDBInfo()
 	}
 	
 	NotifyData nd(NOTIFY_UPDATE_DB_META, m_path, dbinfo_fileid);
-	((WritableEngine*)m_engine)->WriteNotifyFile(nd);
+
+	EnginePtr engine = Engine::GetEngine();
+	((WritableEngine*)engine.get())->WriteNotifyFile(nd);
 
 	if(dbinfo_fileid != MIN_FILEID)
 	{
@@ -270,7 +275,7 @@ Status WritableDB::WriteDBInfo()
 		std::lock_guard<std::mutex> lock(m_mutex);
 		m_tobe_delete_dbinfo_files.push_back(name);
 		}
-		((WritableEngine*)m_engine)->NotifyClean(shared_from_this());
+		((WritableEngine*)engine.get())->NotifyClean(shared_from_this());
 	}
 	return OK;
 }
@@ -323,8 +328,8 @@ Status WritableDB::CreateBucket(const std::string& bucket_name, BucketPtr& bptr)
 
 		++m_bucket_changed_cnt;
 	}
-	
-	((WritableEngine*)m_engine)->NotifyWriteDBInfo(shared_from_this());
+	EnginePtr engine = Engine::GetEngine();
+	((WritableEngine*)engine.get())->NotifyWriteDBInfo(shared_from_this());
 	return OK;
 }
 
@@ -334,7 +339,8 @@ Status WritableDB::CreateBucketIfMissing(const std::string& bucket_name, BucketP
 	{
 		return OK;
 	}
-	if(!m_engine->GetConfig().create_bucket_if_missing)
+	EnginePtr engine = Engine::GetEngine();
+	if(!engine->GetConfig().create_bucket_if_missing)
 	{
 		return ERR_BUCKET_NOT_EXIST;
 	}
@@ -377,7 +383,8 @@ Status WritableDB::DeleteBucket(const std::string& bucket_name)
 
 		++m_bucket_changed_cnt;
 	}
-	((WritableEngine*)m_engine)->NotifyWriteDBInfo(shared_from_this());
+	EnginePtr engine = Engine::GetEngine();
+	((WritableEngine*)engine.get())->NotifyWriteDBInfo(shared_from_this());
 	return OK;
 }
 

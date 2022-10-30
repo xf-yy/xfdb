@@ -21,6 +21,7 @@ limitations under the License.
 #include "index_file.h"
 #include "file_util.h"
 #include "index_block.h"
+#include "engine.h"
 
 using namespace xfutil;
 
@@ -44,7 +45,7 @@ static bool UpperCmp(const StrView& key, const SegmentL1Index& index)
 	return key.Compare(index.start_key) < 0;
 }
 
-IndexReader::IndexReader(BlockPool& pool) : m_pool(pool), m_buf(pool)
+IndexReader::IndexReader() : m_buf(Engine::GetEngine()->GetBlockPool())
 {
 }
 
@@ -61,6 +62,8 @@ Status IndexReader::Open(const char* bucket_path, const SegmentIndexInfo& info)
 	{
 		return ERR_FILE_READ;
 	}
+	m_path = index_path;
+
 	String str;	
 	uint64_t offset = info.index_filesize - info.L2index_meta_size;
 	Status s = ReadFile(m_file, offset, info.L2index_meta_size, str);
@@ -212,9 +215,6 @@ Status IndexReader::ParseMeta(const byte_t* data, uint32_t meta_size)
 	return OK;
 }
 
-
-
-
 const SegmentL1Index* IndexReader::Search(const StrView& key) const
 {
 	if(key.Compare(m_L1indexs[0].start_key) < 0 || key.Compare(m_upmost_key) > 0)
@@ -234,10 +234,9 @@ Status IndexReader::Search(const StrView& key, SegmentL0Index& L0_index) const
 	{
 		return ERR_OBJECT_NOT_EXIST;
 	}
-	
-	//printf("L1Index->L1compress_size:%u\n", L1Index->L1compress_size);
-	IndexBlockReader block(m_pool);
-	Status s = block.Read(m_file, *L1Index);
+		
+	IndexBlockReader block;
+	Status s = block.Read(m_file, m_path, *L1Index);
 	if(s != OK)
 	{
 		return s;
@@ -249,7 +248,7 @@ Status IndexReader::Search(const StrView& key, SegmentL0Index& L0_index) const
 
 ////////////////////////////////////////////////////////////
 IndexWriter::IndexWriter(const DBConfig& db_conf, BlockPool& pool)
-	: m_db_conf(db_conf), m_pool(pool), m_L1key_buf(pool), m_L0key_buf(pool)
+	: m_db_conf(db_conf), m_block_pool(pool), m_L1key_buf(pool), m_L0key_buf(pool)
 {
 	m_offset = 0;
 	m_L1offset_start = 0;
@@ -260,7 +259,7 @@ IndexWriter::IndexWriter(const DBConfig& db_conf, BlockPool& pool)
 	m_writing_size = 0;
 	
 	m_block_start = pool.Alloc();
-	m_block_end = m_block_start + m_pool.BlockSize();
+	m_block_end = m_block_start + m_block_pool.BlockSize();
 	m_block_ptr = m_block_start;
 }
 
@@ -274,7 +273,7 @@ IndexWriter::~IndexWriter()
 
 	File::Rename(tmp_file_path, file_path);
 
-	m_pool.Free(m_block_start);
+	m_block_pool.Free(m_block_start);
 	delete[] m_L0indexs;
 }
 

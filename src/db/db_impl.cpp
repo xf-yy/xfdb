@@ -26,8 +26,8 @@ limitations under the License.
 namespace xfdb 
 {
 
-DBImpl::DBImpl(Engine* engine, const DBConfig& conf, const std::string& db_path)
-	: m_engine(engine), m_conf(conf), m_path(db_path)
+DBImpl::DBImpl(const DBConfig& conf, const std::string& db_path)
+	: m_conf(conf), m_path(db_path)
 {
 	m_next_bucket_id = MIN_BUCKETID;
 	m_next_dbinfo_fileid = MIN_FILEID;

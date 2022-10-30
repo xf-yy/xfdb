@@ -31,7 +31,7 @@ namespace xfdb
 class DataReader
 {
 public:
-	DataReader(BlockPool& pool);
+	DataReader();
 	~DataReader();
 	
 public:	
@@ -40,7 +40,8 @@ public:
 
 private:
 	File m_file;
-	BlockPool& m_pool;
+	std::string m_path;
+	BlockPool& m_block_pool;
 
 private:
 	friend class SegmentReaderIterator;	
@@ -78,7 +79,7 @@ private:
 private:
 	const DBConfig& m_db_conf;
 	IndexWriter& m_index_writer;
-	BlockPool& m_pool;
+	BlockPool& m_block_pool;
 
 	char m_bucket_path[MAX_PATH_LEN];
 	fileid_t m_segment_fileid;

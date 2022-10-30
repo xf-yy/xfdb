@@ -27,7 +27,7 @@ namespace xfdb
 class ReadOnlyDB : public DBImpl
 {
 public:
-	ReadOnlyDB(ReadOnlyEngine* engine, const DBConfig& conf, const std::string& db_path);
+	ReadOnlyDB(const DBConfig& conf, const std::string& db_path);
 	~ReadOnlyDB();
 
 public:		

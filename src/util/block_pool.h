@@ -78,27 +78,6 @@ private:
 	BlockPool& operator=(const BlockPool&) = delete;
 };
 
-class BlockPoolGuard
-{
-public:
-	BlockPoolGuard(BlockPool& pool, byte_t* buf) : m_pool(pool), m_buf(buf)
-	{
-		assert(buf != nullptr);
-	}
-	~BlockPoolGuard()
-	{
-		m_pool.Free(m_buf);
-	}
-	
-private:
-	BlockPool& m_pool;
-	byte_t* m_buf;
-	
-private:
-	BlockPoolGuard(const BlockPoolGuard&) = delete;
-	BlockPoolGuard& operator=(const BlockPoolGuard&) = delete;
-};
-
 #if 0
 //小块内存池
 class MemPool

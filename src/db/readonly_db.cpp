@@ -28,8 +28,8 @@ limitations under the License.
 namespace xfdb
 {
 
-ReadOnlyDB::ReadOnlyDB(ReadOnlyEngine* engine, const DBConfig& conf, const std::string& db_path) 
-	: DBImpl(engine, conf, db_path)
+ReadOnlyDB::ReadOnlyDB(const DBConfig& conf, const std::string& db_path) 
+	: DBImpl(conf, db_path)
 {
 }
 
@@ -57,11 +57,13 @@ Status ReadOnlyDB::Open()
 	{
 		return s;
 	}
+	EnginePtr engine = Engine::GetEngine();
+
 	//再尝试重新加载一次，以防有所遗漏
-	if(m_engine->GetConfig().auto_reload_db)
+	if(engine->GetConfig().auto_reload_db)
 	{
 		NotifyData nd(NOTIFY_UPDATE_DB_META, m_path, MIN_FILEID);
-		((ReadOnlyEngine*)m_engine)->PostNotifyData(nd);
+		((ReadOnlyEngine*)engine.get())->PostNotifyData(nd);
 	}
 	
 	return OK;

@@ -24,6 +24,7 @@ limitations under the License.
 #include "file_util.h"
 #include "block_pool.h"
 #include <mutex>
+#include "lru_cache.h"
 
 namespace xfdb 
 {
@@ -31,22 +32,35 @@ namespace xfdb
 class Engine : public std::enable_shared_from_this<Engine>
 {	
 public:
-	explicit Engine(const GlobalConfig& conf) : m_conf(conf)
+	explicit Engine(const GlobalConfig& conf) 
+		: m_conf(conf), m_index_cache(conf.index_cache_size), m_data_cache(conf.data_cache_size)
 	{}
 	virtual ~Engine()
 	{}
 	
+	static EnginePtr GetEngine();
+
 	inline const GlobalConfig& GetConfig() const
 	{
 		return m_conf;
 	}
 	
-	BlockPool& GetBlockPool()
+	inline BlockPool& GetBlockPool()
 	{
-		return m_pool;
+		return m_block_pool;
 	}
+	inline LruCache<std::string, std::string>& GetIndexCache()
+	{
+		return m_index_cache;
+	}	
+	inline LruCache<std::string, std::string>& GetDataCache()
+	{
+		return m_data_cache;
+	}	
+
 public:	
 	virtual Status Start() = 0;
+	virtual void Stop() = 0;
 
 	Status OpenDB(const DBConfig& conf, const std::string& db_path, DBPtr& db);
 	void CloseDB();
@@ -63,7 +77,13 @@ protected:
 
 protected:
 	const GlobalConfig m_conf;
-	BlockPool m_pool;
+
+	//
+	BlockPool m_block_pool;
+
+	//key:, value:
+	LruCache<std::string, std::string> m_index_cache;
+	LruCache<std::string, std::string> m_data_cache;
 	
 	mutable std::mutex m_db_mutex;
 	std::map<std::string, DBImplWptr> m_dbs;	//key: db path

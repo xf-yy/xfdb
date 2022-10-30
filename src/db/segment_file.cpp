@@ -21,11 +21,12 @@ limitations under the License.
 #include "table_writer.h"
 #include "table_reader_snapshot.h"
 #include "segment_iterator.h"
+#include "engine.h"
 
 namespace xfdb 
 {
 
-SegmentReader::SegmentReader(BlockPool& pool) : m_pool(pool), m_index_reader(pool), m_data_reader(pool)
+SegmentReader::SegmentReader()
 {
 }
 

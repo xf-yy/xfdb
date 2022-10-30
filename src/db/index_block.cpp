@@ -21,37 +21,42 @@ limitations under the License.
 #include "block_pool.h"
 #include "file_util.h"
 #include "coding.h"
+#include "engine.h"
 
 namespace xfdb 
 {
 
-IndexBlockReader::IndexBlockReader(BlockPool& pool) : m_pool(pool)
+IndexBlockReader::IndexBlockReader()
 {
-	m_data = nullptr;
 }
 IndexBlockReader::~IndexBlockReader()
 {
-	if(m_data != nullptr)
-	{
-		m_pool.Free(m_data);
-	}
 }
 
-Status IndexBlockReader::Read(const File& file, const SegmentL1Index& L1Index)
+Status IndexBlockReader::Read(const File& file, const std::string& file_path, const SegmentL1Index& L1Index)
 {
 	//TODO: 读取bloom cache
-	//TODO: 读取L1块 cache
 
-	m_data = m_pool.Alloc();
-	if(m_data == nullptr)
+	//读取L1块 cache
+	auto& cache = Engine::GetEngine()->GetIndexCache();
+
+	std::string cache_key = file_path;
+	cache_key.append((char*)&L1Index.L1offset, sizeof(L1Index.L1offset));
+
+	std::string data;
+	if(!cache.Get(cache_key, data) || data.size() < L1Index.L1compress_size)
 	{
-		return ERR_MEMORY_NOT_ENOUGH;
+		data.resize(L1Index.L1compress_size);
+		int64_t r_size = file.Read(L1Index.L1offset, (void*)data.data(), L1Index.L1compress_size);
+		if((uint64_t)r_size != L1Index.L1compress_size)
+		{
+			return ERR_FILE_READ;
+		}
+		cache.Add(cache_key, data, data.size());
 	}
-	int64_t r_size = file.Read(L1Index.L1offset, m_data, L1Index.L1compress_size);
-	if((uint64_t)r_size != L1Index.L1compress_size)
-	{
-		return ERR_FILE_READ;
-	}
+	
+	assert(!data.empty());
+	m_data = data;
 	m_L1Index = L1Index;
 	return OK;
 }
@@ -62,7 +67,7 @@ Status IndexBlockReader::Search(const StrView& key, SegmentL0Index& L0_index)
 	//TODO: 将bloom和data放入cache中
 	//TODO: 判断是否有bloom，有则判断bloom是否命中
 
-	const byte_t* block = m_data + m_L1Index.bloom_size;
+	const byte_t* block = (byte_t*)m_data.data() + m_L1Index.bloom_size;
 	uint32_t block_size = m_L1Index.L1compress_size - m_L1Index.bloom_size;
 
 	return SearchBlock(block, block_size, &m_L1Index, key, L0_index);
@@ -298,12 +303,16 @@ Status IndexBlockReader::ParseGroup(const byte_t* group, uint32_t group_size, co
 	return OK;
 }
 
+IndexBlockReaderIterator::IndexBlockReaderIterator() : m_buf(Engine::GetEngine()->GetBlockPool())
+{
+	m_L0indexs.reserve(MAX_OBJECT_NUM_OF_BLOCK);
+}
 
 IndexBlockReaderIteratorPtr IndexBlockReader::NewIterator()
 {
-	IndexBlockReaderIteratorPtr iter_ptr = NewIndexBlockReaderIterator(m_pool);
+	IndexBlockReaderIteratorPtr iter_ptr = NewIndexBlockReaderIterator();
 
-	const byte_t* block = m_data + m_L1Index.bloom_size;
+	const byte_t* block = (byte_t*)m_data.data() + m_L1Index.bloom_size;
 	uint32_t block_size = m_L1Index.L1compress_size - m_L1Index.bloom_size;
 
 	ParseBlock(block, block_size, &m_L1Index, iter_ptr);

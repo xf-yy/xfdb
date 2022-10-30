@@ -73,7 +73,7 @@ private:
 protected:
 	const second_t m_create_time;		//创建时间，秒
 	ObjectStat m_object_stat;			//统计值
-	BlockPool& m_pool;					//内存块池
+	BlockPool& m_block_pool;					//内存块池
 	WriteBuffer m_buf;					//内存分配器
 	
 private:

@@ -52,8 +52,8 @@ enum Status
 	ERR_NOMORE_DATA,
 	ERR_RES_EXHAUST,
 
-	ERR_INITIALIZED = 40,
-	ERR_UNINITIALIZED,
+	ERR_STARTED = 40,
+	ERR_STOPPED,
 	ERR_INVALID_MODE,
 	ERR_INVALID_CONFIG,
 	ERR_IN_PROCESSING,
@@ -97,12 +97,15 @@ struct GlobalConfig
 	std::string notify_dir;				//通知文件目录，不能以'/'结尾
 	uint16_t notify_file_ttl_s = 30;	//通知文件生存周期，单位秒
 
+	uint64_t index_cache_size = 512ULL*1024*1024;
+	uint64_t data_cache_size = 1024ULL*1024*1024;
+
 	//ReadConfig
 	bool auto_reload_db = true;
 	uint16_t reload_db_thread_num = 4;
 	
 	//WriteConfig
-	uint64_t write_cache_size = 128*1024*1024;	//写缓存大小
+	uint64_t write_cache_size = 128ULL*1024*1024;	//写缓存大小
 	bool create_db_if_missing = true;
 	bool create_bucket_if_missing = true;
 	
