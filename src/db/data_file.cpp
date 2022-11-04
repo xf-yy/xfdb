@@ -29,7 +29,7 @@ using namespace xfutil;
 namespace xfdb 
 {
 
-DataReader::DataReader() : m_block_pool(Engine::GetEngine()->GetBlockPool())
+DataReader::DataReader() : m_large_pool(Engine::GetEngine()->GetLargePool())
 {
 }
 DataReader::~DataReader()
@@ -66,11 +66,11 @@ Status DataReader::Search(const SegmentL0Index& L0_index, const StrView& key, Ob
 
 
 DataWriter::DataWriter(const DBConfig& db_conf, BlockPool& pool, IndexWriter& index_writer)
-	: m_db_conf(db_conf), m_index_writer(index_writer), m_block_pool(pool), m_key_buf(pool)
+	: m_db_conf(db_conf), m_index_writer(index_writer), m_large_pool(pool), m_key_buf(pool)
 {	
 	m_offset = 0;
-	m_block_start = m_block_pool.Alloc();
-	m_block_end = m_block_start + m_block_pool.BlockSize();
+	m_block_start = m_large_pool.Alloc();
+	m_block_end = m_block_start + m_large_pool.BlockSize();
 	m_block_ptr = m_block_start;
 }
 
@@ -84,7 +84,7 @@ DataWriter::~DataWriter()
 
 	File::Rename(tmp_file_path, file_path);
 
-	m_block_pool.Free(m_block_start);
+	m_large_pool.Free(m_block_start);
 }
 
 Status DataWriter::Create(const char* bucket_path, fileid_t fileid)

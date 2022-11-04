@@ -43,7 +43,20 @@ Status ReadWriteMemWriter::Write(objectid_t start_seqid, const Object* object)
 	return OK;
 }
 
-void ReadWriteMemWriter::Sort()
+Status ReadWriteMemWriter::Write(objectid_t start_seqid, const WriteOnlyMemWriterPtr& memtable)
+{
+	AddWriter(memtable);
+
+	auto& objs = memtable->m_objects;
+	for(size_t i = 0; i < objs.size(); ++i)
+	{
+		objs[i]->id = start_seqid + i;
+		m_objects[objs[i]->key] = objs[i];
+	}
+	return OK;
+}
+
+void ReadWriteMemWriter::Finish()
 {
 	//map已经是排序好的，无需再排序
 }

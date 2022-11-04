@@ -87,7 +87,7 @@ static_assert(MAX_VALUE_SIZE <= 64*1024, "invalid MAX_VALUE_SIZE");			//待支�
 #define MAX_COMPRESS_BLOCK_SIZE		(3*MAX_COMPRESS_BLOCK_SIZE)	//启用压缩时的块大小
 #define MAX_BUFFER_SIZE				(MAX_COMPRESS_BLOCK_SIZE + MAX_OBJECT_SIZE)
 
-#define MEM_BLOCK_SIZE				(256*1024)
+#define LARGE_BLOCK_SIZE			(256*1024)
 
 #ifndef MAX_FILENAME_LEN
 #define MAX_FILENAME_LEN			64	//包括结束符'\0'
@@ -313,8 +313,8 @@ class ReadWriteMemWriter;
 typedef std::shared_ptr<ReadWriteMemWriter> ReadWriteMemWriterPtr;
 #define NewReadWriteMemWriter 	std::make_shared<ReadWriteMemWriter>
 
-class WriteOnlyMemWriter;
-typedef std::shared_ptr<WriteOnlyMemWriter> WriteOnlyMemWriterPtr;
+//class WriteOnlyMemWriter;
+//typedef std::shared_ptr<WriteOnlyMemWriter> WriteOnlyMemWriterPtr;
 #define NewWriteOnlyMemWriter 	std::make_shared<WriteOnlyMemWriter>
 
 class TableWriterSnapshot;

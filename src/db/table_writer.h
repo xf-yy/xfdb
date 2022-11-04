@@ -17,6 +17,7 @@ limitations under the License.
 #ifndef __xfdb_table_writer_h__
 #define __xfdb_table_writer_h__
 
+#include <list>
 #include "buffer.h"
 #include "xfdb/strutil.h"
 #include "types.h"
@@ -34,17 +35,18 @@ public:
 
 public:
 	virtual Status Write(objectid_t start_seqid, const Object* object) = 0;
-	virtual void Sort() = 0;
+	virtual Status Write(objectid_t start_seqid, const WriteOnlyMemWriterPtr& memtable) = 0;
+	virtual void Finish() = 0;
 	
 	virtual Status Get(const StrView& key, ObjectType& type, String& value) const
 	{
 		return ERR_INVALID_MODE;
 	}
 
-	uint64_t Size() const
+	inline uint64_t Size() const
 	{
-		return m_buf.Usage();
-	}
+		return m_buf.Usage() + m_ex_size;
+	}	
 	
 	void GetStat(BucketStat& stat) const
 	{
@@ -66,16 +68,25 @@ public:
 	
 protected:	
 	Object* CloneObject(objectid_t seqid, const Object* object);
+	void AddWriter(TableWriterPtr writer)
+	{
+		m_ex_writers.push_back(writer);
+		m_ex_size += writer->m_ex_size;
+		m_object_stat.Add(writer->m_object_stat);
+	}
 
 private:	
 	StrView CloneString(const StrView& str);
 
 protected:
 	const second_t m_create_time;		//创建时间，秒
+
 	ObjectStat m_object_stat;			//统计值
-	BlockPool& m_block_pool;					//内存块池
 	WriteBuffer m_buf;					//内存分配器
-	
+
+	uint64_t m_ex_size;
+	std::list<TableWriterPtr> m_ex_writers;
+
 private:
 	TableWriter(const TableWriter&) = delete;
 	TableWriter& operator=(const TableWriter&) = delete;

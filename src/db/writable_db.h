@@ -51,7 +51,7 @@ public:
 	Status Get(const std::string& bucket_name, const StrView& key, String& value) const override;
 	Status Set(const std::string& bucket_name, const StrView& key, const StrView& value) override;
 	Status Delete(const std::string& bucket_name, const StrView& key) override;
-	//Status Write(const ObjectBatch& rb) override;
+	Status Write(const ObjectBatch& ob) override;
 		
 	Status TryFlush();
 	Status TryFlush(const std::string& bucket_name);

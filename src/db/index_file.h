@@ -117,7 +117,7 @@ private:
 
 private:
 	const DBConfig& m_db_conf;
-	BlockPool& m_block_pool;
+	BlockPool& m_large_pool;
 
 	char m_bucket_path[MAX_PATH_LEN];
 	fileid_t m_segment_fileid;

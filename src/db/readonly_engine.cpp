@@ -40,24 +40,12 @@ ReadOnlyEngine::~ReadOnlyEngine()
 ////////////////////////////////////////////////////////////////////////////////
 Status ReadOnlyEngine::Start()
 {
-	if(!m_conf.Check()) 
+	Status s = Init();
+	if(s != OK)
 	{
-		return ERR_INVALID_CONFIG;
+		return s;
 	}
-	//如果多个进程同时打开日志呢？写锁
-	//xfutil::LogConf log_conf;
-	//conf.log_file_path;
-	//if(Logger::Init(log_conf) != 0) 
-	//{
-		//return ERROR;
-	//}
-	uint64_t cache_num = m_conf.write_cache_size / MEM_BLOCK_SIZE;
-	if(m_conf.write_cache_size % MEM_BLOCK_SIZE != 0)
-	{
-		++cache_num;
-	}
-	m_block_pool.Init(MEM_BLOCK_SIZE, cache_num);
-	
+
 	if(m_conf.auto_reload_db)
 	{
 		m_reload_queues = new BlockingQueue<NotifyData>[m_conf.reload_db_thread_num];
@@ -70,35 +58,38 @@ Status ReadOnlyEngine::Start()
 		m_notify_thread.Start(ReadNotifyThread, this);
 	}	
 	LogInfo("xfdb started");
+
+	m_started = true;
 	return OK;
 }
 
 void ReadOnlyEngine::Stop()
 {
-	//关闭所有的db
-	CloseDB();
-	
-	if(!m_conf.auto_reload_db)
+	if(!m_started)
 	{
 		return;
 	}
-
-	//FIXME:写个关闭的通知文件
-	NotifyData nd;
-	NotifyFile::Write(m_conf.notify_dir.c_str(), nd);
-	m_notify_thread.Join();
 	
-	//往reload队列中写入退出标记
-	for(size_t i = 0; i < m_conf.reload_db_thread_num; ++i)
+	//关闭所有的db
+	CloseAllDB();
+	
+	if(m_conf.auto_reload_db)
 	{
-		m_reload_queues[i].Push(nd);
+		//FIXME:写个关闭的通知文件
+		NotifyData nd;
+		NotifyFile::Write(m_conf.notify_dir.c_str(), nd);
+		m_notify_thread.Join();
+		
+		//往reload队列中写入退出标记
+		for(size_t i = 0; i < m_conf.reload_db_thread_num; ++i)
+		{
+			m_reload_queues[i].Push(nd);
+		}
+		m_reload_threadgroup.Join();
+		delete[] m_reload_queues;
+		m_reload_queues = nullptr;
 	}
-	m_reload_threadgroup.Join();
-	delete[] m_reload_queues;
-	m_reload_queues = nullptr;
-
-	//LogWarn("xfdb stopped");
-	//Logger::Close();
+	Uninit();
 }
 
 DBImplPtr ReadOnlyEngine::NewDB(const DBConfig& conf, const std::string& db_path)

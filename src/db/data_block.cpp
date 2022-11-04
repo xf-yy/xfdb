@@ -289,7 +289,7 @@ DataBlockReaderIteratorPtr DataBlockReader::NewIterator()
 }
 
 DataBlockReaderIterator::DataBlockReaderIterator(DataBlockReader& block) 
-	: m_block(block), m_buf(Engine::GetEngine()->GetBlockPool())
+	: m_block(block), m_buf(Engine::GetEngine()->GetLargePool())
 {
 
 }

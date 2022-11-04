@@ -33,7 +33,7 @@ public:
 	~TableWriterSnapshot(){}
 	
 public:	
-	void Sort();
+	void Finish();
 	
 	Status Get(const StrView& key, ObjectType& type, String& value) const override;
 	

@@ -427,6 +427,22 @@ Status WritableDB::Delete(const std::string& bucket_name, const StrView& key)
 	return Write(bucket_name, &obj);
 }
 
+Status WritableDB::Write(const ObjectBatch& ob)
+{
+	auto& data = ob.Data();
+
+	for(auto it = data.begin(); it != data.end(); ++it)
+	{
+		BucketPtr bptr;
+		Status s = CreateBucketIfMissing(it->first, bptr);
+		if(s == OK)
+		{
+			WriteOnlyBucket* bucket = (WriteOnlyBucket*)bptr.get();
+			bucket->Write(it->second);
+		}
+	}
+	return OK;
+}
 
 Status WritableDB::Get(const std::string& bucket_name, const StrView& key, String& value) const
 {	

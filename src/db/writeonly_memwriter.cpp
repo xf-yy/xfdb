@@ -21,14 +21,11 @@ limitations under the License.
 namespace xfdb
 {
 
-//批量写object的最大数
-#define MAX_BATCH_NUM	(4096)
-
 WriteOnlyMemWriter::WriteOnlyMemWriter(BlockPool& pool, uint32_t max_object_num)
 	: TableWriter(pool)
 {
-	m_objects.reserve(max_object_num+MAX_BATCH_NUM/*额外数量*/);
-	
+	m_objects.reserve(max_object_num+1024/*额外数量*/);
+
 #if _DEBUG
 	m_sorted = false;
 #endif
@@ -50,7 +47,22 @@ Status WriteOnlyMemWriter::Write(objectid_t start_seqid, const Object* object)
 	return OK;
 }
 
-void WriteOnlyMemWriter::Sort()
+Status WriteOnlyMemWriter::Write(objectid_t start_seqid, const WriteOnlyMemWriterPtr& memtable)
+{
+	AddWriter(memtable);
+
+	auto& objs = memtable->m_objects;
+
+	m_objects.reserve(objs.size() + m_objects.size());
+	for(size_t i = 0; i < objs.size(); ++i)
+	{
+		objs[i]->id = start_seqid + i;
+		m_objects.push_back(objs[i]);
+	}
+	return OK;
+}
+
+void WriteOnlyMemWriter::Finish()
 {
 #if _DEBUG
 	m_sorted = true;

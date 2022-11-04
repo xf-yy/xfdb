@@ -131,6 +131,14 @@ public:
 		switch(mode)
 		{
 		case MODE_READONLY:
+			if(auto_reload_db)
+			{
+				if(notify_dir.empty())
+				{
+					return false;
+				}
+			}
+			break;
 		case MODE_WRITEONLY:
 		case MODE_READWRITE:
 			break;
@@ -145,13 +153,6 @@ public:
 		if(!notify_dir.empty() && notify_dir.back() == '/')
 		{
 			return false;
-		}
-		if(auto_reload_db)
-		{
-			if(notify_dir.empty())
-			{
-				return false;
-			}
 		}
 		return true;
 	}
@@ -258,6 +259,9 @@ union test
 	int a;
 };
 #endif
+
+class WriteOnlyMemWriter;
+typedef std::shared_ptr<WriteOnlyMemWriter> WriteOnlyMemWriterPtr;
 
 class DB;
 typedef std::shared_ptr<DB> DBPtr;

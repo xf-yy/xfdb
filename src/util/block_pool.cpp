@@ -23,10 +23,12 @@ limitations under the License.
 namespace xfutil
 {
 
+#define BLOCK_ALGIN		4096
+
 bool BlockPool::Init(uint32_t block_size, uint32_t cache_num)
 {
-	assert(block_size % 4096 == 0);
-	if(block_size % 4096 != 0)
+	assert(block_size % BLOCK_ALGIN == 0);
+	if(block_size < BLOCK_ALGIN || block_size % BLOCK_ALGIN != 0)
 	{
 		return false;
 	}

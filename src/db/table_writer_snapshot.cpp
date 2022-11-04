@@ -32,14 +32,14 @@ TableWriterSnapshot::TableWriterSnapshot(TableWriterPtr& mem_table,        Table
 	m_memwriters.push_back(mem_table);
 }
 
-void TableWriterSnapshot::Sort()
+void TableWriterSnapshot::Finish()
 {
 	assert(!m_memwriters.empty());
 	
 	//先排序
 	for(size_t i = 0; i < m_memwriters.size(); ++i)
 	{
-		m_memwriters[i]->Sort();
+		m_memwriters[i]->Finish();
 	}
 
 	//找最大的key

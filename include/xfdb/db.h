@@ -21,6 +21,7 @@ limitations under the License.
 #include "xfdb/util_types.h"
 #include "xfdb/db_types.h"
 #include "xfdb/strutil.h"
+#include "xfdb/batch.h"
 
 namespace xfdb 
 {
@@ -64,7 +65,9 @@ public:
 
 	//删除指定bucket中的记录
 	Status Delete(const std::string& bucket_name, const xfutil::StrView& key);
-	//Status Write(const ObjectBatch& rb);
+
+	//批量写
+	Status Write(const ObjectBatch& ob);
 
 	//将所有内存表（不限大小）刷盘(异步操作)
 	Status Flush(const std::string& bucket_name);	

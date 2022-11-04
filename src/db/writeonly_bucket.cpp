@@ -44,7 +44,7 @@ WriteOnlyBucket::~WriteOnlyBucket()
 TableWriterPtr WriteOnlyBucket::NewTableWriter(WritableEngine* engine)
 {
 	assert(!(engine->GetConfig().mode & MODE_READONLY));
-	return NewWriteOnlyMemWriter(engine->GetBlockPool(), engine->GetConfig().max_memtable_objects);
+	return NewWriteOnlyMemWriter(engine->GetLargePool(), engine->GetConfig().max_memtable_objects);
 }
 
 Status WriteOnlyBucket::Create()
@@ -182,6 +182,32 @@ Status WriteOnlyBucket::Write(const Object* object)
 
 }
 
+Status WriteOnlyBucket::Write(const WriteOnlyMemWriterPtr& memtable)
+{
+	WriteLockGuard lock_guard(m_segment_rwlock);
+	if(!m_memwriter)
+	{			
+		m_memwriter = NewTableWriter(m_engine);
+		assert(m_memwriter);
+
+		DBImplPtr db = m_db.lock();
+		assert(db);
+		m_engine->NotifyTryFlush(db, shared_from_this());
+	}
+	Status s = m_memwriter->Write(m_next_object_id, memtable);	//数量+大小
+	if(s != OK)
+	{
+		return s;
+	}
+	m_next_object_id += memtable->GetObjectCount();
+	
+	if(m_memwriter->Size() >= m_engine->GetConfig().max_memtable_size || m_memwriter->GetObjectCount() >= m_engine->GetConfig().max_memtable_objects)
+	{
+		FlushMemWriter();
+	}
+	return OK;
+}
+
 //OK表示有数据待落盘，NOMORE_DATA表示没有数据
 Status WriteOnlyBucket::TryFlush()
 {
@@ -276,7 +302,7 @@ Status WriteOnlyBucket::Clean()
 
 Status WriteOnlyBucket::WriteSegment(TableWriterSnapshotPtr& memwriter_snapshot, fileid_t fileid, SegmentReaderPtr& new_segment_reader)
 {
-	memwriter_snapshot->Sort();
+	memwriter_snapshot->Finish();
 	
 	SegmentIndexInfo seginfo;
 	seginfo.segment_fileid = fileid;
@@ -284,7 +310,7 @@ Status WriteOnlyBucket::WriteSegment(TableWriterSnapshotPtr& memwriter_snapshot,
 	DBImplPtr db = m_db.lock();
 	assert(db);
 	{
-		SegmentWriter segment_writer(db->GetConfig(), m_engine->GetBlockPool());
+		SegmentWriter segment_writer(db->GetConfig(), m_engine->GetLargePool());
 		Status s = segment_writer.Create(m_bucket_path.c_str(), fileid);
 		if(s != OK)
 		{
@@ -392,7 +418,7 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 	SegmentIndexInfo seginfo;
 	seginfo.segment_fileid = msinfo.new_segment_fileid;
 	{
-		SegmentWriter segment_writer(db->GetConfig(), m_engine->GetBlockPool());
+		SegmentWriter segment_writer(db->GetConfig(), m_engine->GetLargePool());
 		Status s = segment_writer.Create(m_bucket_path.c_str(), msinfo.new_segment_fileid);
 		if(s != OK)
 		{

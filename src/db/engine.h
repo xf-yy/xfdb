@@ -34,9 +34,13 @@ class Engine : public std::enable_shared_from_this<Engine>
 public:
 	explicit Engine(const GlobalConfig& conf) 
 		: m_conf(conf), m_index_cache(conf.index_cache_size), m_data_cache(conf.data_cache_size)
-	{}
+	{
+		m_started = false;
+	}
 	virtual ~Engine()
-	{}
+	{
+		
+	}
 	
 	static EnginePtr GetEngine();
 
@@ -45,10 +49,14 @@ public:
 		return m_conf;
 	}
 	
-	inline BlockPool& GetBlockPool()
+	inline BlockPool& GetLargePool()
 	{
-		return m_block_pool;
+		return m_large_pool;
 	}
+	inline BlockPool& GetSmallPool()
+	{
+		return m_small_pool;
+	}	
 	inline LruCache<std::string, std::string>& GetIndexCache()
 	{
 		return m_index_cache;
@@ -63,7 +71,7 @@ public:
 	virtual void Stop() = 0;
 
 	Status OpenDB(const DBConfig& conf, const std::string& db_path, DBPtr& db);
-	void CloseDB();
+	void CloseAllDB();
 	
 	virtual Status RemoveDB(const std::string& db_path)
 	{
@@ -71,6 +79,9 @@ public:
 	}
 
 protected:
+	Status Init();
+	void Uninit();
+
 	virtual DBImplPtr NewDB(const DBConfig& conf, const std::string& db_path) = 0;
 	bool QueryDB(const std::string& db_path, DBImplPtr& dbptr);
 	bool UpdateDB(const std::string& db_path, DBImplPtr& dbptr);
@@ -78,8 +89,10 @@ protected:
 protected:
 	const GlobalConfig m_conf;
 
-	//
-	BlockPool m_block_pool;
+	volatile bool m_started;
+
+	BlockPool m_large_pool;
+	BlockPool m_small_pool;
 
 	//key:, value:
 	LruCache<std::string, std::string> m_index_cache;

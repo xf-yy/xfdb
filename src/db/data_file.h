@@ -41,7 +41,7 @@ public:
 private:
 	File m_file;
 	std::string m_path;
-	BlockPool& m_block_pool;
+	BlockPool& m_large_pool;
 
 private:
 	friend class SegmentReaderIterator;	
@@ -79,7 +79,7 @@ private:
 private:
 	const DBConfig& m_db_conf;
 	IndexWriter& m_index_writer;
-	BlockPool& m_block_pool;
+	BlockPool& m_large_pool;
 
 	char m_bucket_path[MAX_PATH_LEN];
 	fileid_t m_segment_fileid;

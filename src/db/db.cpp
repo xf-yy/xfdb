@@ -111,13 +111,12 @@ Status DB::Delete(const std::string& bucket_name, const StrView& key)
 	assert(m_db);
 	return m_db->Delete(bucket_name, key);
 }
-#if 0
-Status DB::Write(const ObjectBatch& wb)
+
+Status DB::Write(const ObjectBatch& ob)
 {
 	assert(m_db);
-	return m_db->Write(wb);
+	return m_db->Write(ob);
 }
-#endif
 
 //将所有内存表（不限大小）刷盘(异步)，形成segment文件
 Status DB::Flush()					

@@ -34,17 +34,19 @@ public:
 
 public:	
 	virtual Status Get(const StrView& key, ObjectType& type, String& value) const override;
+
 	virtual Status Write(objectid_t start_seqid, const Object* object) override;
-	virtual void Sort() override;
+	virtual Status Write(objectid_t start_seqid, const WriteOnlyMemWriterPtr& memtable) override;
+	virtual void Finish() override;
 	
 	virtual IteratorPtr NewIterator() override;
 
 	//大于最大key的key
-	virtual StrView UpmostKey()    const override;
+	virtual StrView UpmostKey() const override;
 
 private:
 	std::map<StrView, Object*> m_objects;
-	
+
 private:
 	friend class ReadWriteMemWriterIterator;
 	ReadWriteMemWriter(const ReadWriteMemWriter&) = delete;

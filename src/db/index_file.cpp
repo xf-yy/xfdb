@@ -45,7 +45,7 @@ static bool UpperCmp(const StrView& key, const SegmentL1Index& index)
 	return key.Compare(index.start_key) < 0;
 }
 
-IndexReader::IndexReader() : m_buf(Engine::GetEngine()->GetBlockPool())
+IndexReader::IndexReader() : m_buf(Engine::GetEngine()->GetLargePool())
 {
 }
 
@@ -248,7 +248,7 @@ Status IndexReader::Search(const StrView& key, SegmentL0Index& L0_index) const
 
 ////////////////////////////////////////////////////////////
 IndexWriter::IndexWriter(const DBConfig& db_conf, BlockPool& pool)
-	: m_db_conf(db_conf), m_block_pool(pool), m_L1key_buf(pool), m_L0key_buf(pool)
+	: m_db_conf(db_conf), m_large_pool(pool), m_L1key_buf(pool), m_L0key_buf(pool)
 {
 	m_offset = 0;
 	m_L1offset_start = 0;
@@ -259,7 +259,7 @@ IndexWriter::IndexWriter(const DBConfig& db_conf, BlockPool& pool)
 	m_writing_size = 0;
 	
 	m_block_start = pool.Alloc();
-	m_block_end = m_block_start + m_block_pool.BlockSize();
+	m_block_end = m_block_start + m_large_pool.BlockSize();
 	m_block_ptr = m_block_start;
 }
 
@@ -273,7 +273,7 @@ IndexWriter::~IndexWriter()
 
 	File::Rename(tmp_file_path, file_path);
 
-	m_block_pool.Free(m_block_start);
+	m_large_pool.Free(m_block_start);
 	delete[] m_L0indexs;
 }
 

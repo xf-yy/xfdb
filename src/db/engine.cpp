@@ -55,18 +55,25 @@ public:
 			return ERR_STARTED;
 		}
 
-		if(conf.mode == MODE_READONLY)
+		EnginePtr engine = NewEngine(conf);
+		Status s = engine->Start();
+		if(s == OK)
 		{
-			m_engine = NewReadOnlyEngine(conf);
+			m_engine = engine;
 		}
-		else
-		{
-			m_engine = NewWritableEngine(conf);
-		}
-		
-		return m_engine->Start();
+		return s;
 	}
 
+private:
+	EnginePtr NewEngine(const GlobalConfig& conf)
+	{
+		if(conf.mode == MODE_READONLY)
+		{
+			return NewReadOnlyEngine(conf);
+		}
+		return NewWritableEngine(conf);
+	}
+	
 private:
 	std::mutex m_mutex;
 	EnginePtr m_engine;
@@ -88,6 +95,37 @@ EnginePtr Engine::GetEngine()
 	return s_engine_wrapper.GetEngine();
 }
 
+Status Engine::Init()
+{
+	if(!m_conf.Check()) 
+	{
+		return ERR_INVALID_CONFIG;
+	}
+	//如果多个进程同时打开日志呢？写锁
+	//xfutil::LogConf log_conf;
+	//conf.log_file_path;
+	//if(Logger::Init(log_conf) != 0) 
+	//{
+		//return ERROR;
+	//}
+	uint64_t cache_num = m_conf.write_cache_size / LARGE_BLOCK_SIZE;
+	if(m_conf.write_cache_size % LARGE_BLOCK_SIZE != 0)
+	{
+		++cache_num;
+	}
+	m_large_pool.Init(LARGE_BLOCK_SIZE, cache_num);
+	m_small_pool.Init(4096, 16384);
+
+	return OK;
+}
+
+void Engine::Uninit()
+{
+	//LogWarn("xfdb stopped");
+	//Logger::Close();
+
+}
+
 Status Engine::OpenDB(const DBConfig& conf, const std::string& db_path, DBPtr& db)
 {
 	DBImplPtr dbptr;
@@ -106,7 +144,7 @@ Status Engine::OpenDB(const DBConfig& conf, const std::string& db_path, DBPtr& d
 	return OK;
 }
 
-void Engine::CloseDB()
+void Engine::CloseAllDB()
 {
 	std::map<std::string, DBImplWptr> dbs;
 

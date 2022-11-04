@@ -303,7 +303,7 @@ Status IndexBlockReader::ParseGroup(const byte_t* group, uint32_t group_size, co
 	return OK;
 }
 
-IndexBlockReaderIterator::IndexBlockReaderIterator() : m_buf(Engine::GetEngine()->GetBlockPool())
+IndexBlockReaderIterator::IndexBlockReaderIterator() : m_buf(Engine::GetEngine()->GetLargePool())
 {
 	m_L0indexs.reserve(MAX_OBJECT_NUM_OF_BLOCK);
 }

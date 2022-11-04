@@ -42,6 +42,7 @@ public:
 	virtual void GetStat(BucketStat& stat) const override;
 
 	Status Write(const Object* object);
+	Status Write(const WriteOnlyMemWriterPtr& memtable);
 	
 	//异步
 	virtual Status TryFlush() override;

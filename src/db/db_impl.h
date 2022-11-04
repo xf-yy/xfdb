@@ -21,8 +21,9 @@ limitations under the License.
 #include <map>
 #include <mutex>
 #include "xfdb/util_types.h"
-#include "types.h"
 #include "xfdb/strutil.h"
+#include "xfdb/batch.h"
+#include "types.h"
 #include "rwlock.h"
 #include "db_infofile.h"
 
@@ -63,7 +64,10 @@ public:
 	{
 		return ERR_INVALID_MODE;
 	}
-	//virtual Status Write(const ObjectBatch& rb);
+	virtual Status Write(const ObjectBatch& ob)
+	{
+		return ERR_INVALID_MODE;
+	}
 	//Append(...)
 
 	//将所有内存表（不限大小）刷盘(异步)，形成segment文件

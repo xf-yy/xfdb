@@ -34,21 +34,24 @@ public:
 
 public:	
 	virtual Status Write(objectid_t start_seqid, const Object* object) override;
-	virtual void Sort() override;
+	virtual Status Write(objectid_t start_seqid, const WriteOnlyMemWriterPtr& memtable) override;
+	virtual void Finish() override;
 	
 	virtual IteratorPtr NewIterator() override;
 	
 	//大于最大key的key
-	virtual StrView UpmostKey()    const override;
+	virtual StrView UpmostKey() const override;
 
 protected:
 	std::vector<Object*> m_objects;
+
 	#if _DEBUG
 	bool m_sorted;
 	#endif
 	
 private:
 	friend class WriteOnlyMemWriterIterator;
+	friend class ReadWriteMemWriter;
 	WriteOnlyMemWriter(const WriteOnlyMemWriter&) = delete;
 	WriteOnlyMemWriter& operator=(const WriteOnlyMemWriter&) = delete;
 };
