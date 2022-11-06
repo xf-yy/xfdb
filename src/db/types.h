@@ -211,7 +211,7 @@ struct SegmentL1Index
 {
 	StrView start_key;
 	uint64_t L1offset;			//仅读取时有效
-	uint32_t bloom_size;
+	uint32_t bloom_filter_size;
 	uint32_t L1compress_size;
 	uint32_t L1origin_size;
 	uint32_t L1index_size;

@@ -65,8 +65,8 @@ Status DataReader::Search(const SegmentL0Index& L0_index, const StrView& key, Ob
 ///////////////////////////////////////////////////////////////////////////////
 
 
-DataWriter::DataWriter(const DBConfig& db_conf, BlockPool& pool, IndexWriter& index_writer)
-	: m_db_conf(db_conf), m_index_writer(index_writer), m_large_pool(pool), m_key_buf(pool)
+DataWriter::DataWriter(const BucketConfig& bucket_conf, BlockPool& pool, IndexWriter& index_writer)
+	: m_bucket_conf(bucket_conf), m_index_writer(index_writer), m_large_pool(pool), m_key_buf(pool)
 {	
 	m_offset = 0;
 	m_block_start = m_large_pool.Alloc();

@@ -22,7 +22,7 @@ limitations under the License.
 namespace xfdb 
 {
 
-TableWriterSnapshot::TableWriterSnapshot(TableWriterPtr& mem_table,        TableWriterSnapshot* last_snapshot/* = nullptr*/)
+TableWriterSnapshot::TableWriterSnapshot(TableWriterPtr& mem_table, TableWriterSnapshot* last_snapshot/* = nullptr*/)
 {
 	if(last_snapshot != nullptr)
 	{

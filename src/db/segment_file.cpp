@@ -82,8 +82,8 @@ void SegmentReader::GetStat(BucketStat& stat) const
 }
 
 
-SegmentWriter::SegmentWriter(const DBConfig& db_conf, BlockPool& pool)
-	: m_index_writer(db_conf, pool), m_data_writer(db_conf, pool, m_index_writer)
+SegmentWriter::SegmentWriter(const BucketConfig& bucket_conf, BlockPool& pool)
+	: m_index_writer(bucket_conf, pool), m_data_writer(bucket_conf, pool, m_index_writer)
 {
 }
 

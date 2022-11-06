@@ -20,6 +20,7 @@ limitations under the License.
 #include <string>
 #include <atomic>
 #include <memory>
+#include <map>
 #include "xfdb/util_types.h"
 #include "xfdb/strutil.h"
 
@@ -99,15 +100,16 @@ struct GlobalConfig
 
 	uint64_t index_cache_size = 512ULL*1024*1024;
 	uint64_t data_cache_size = 1024ULL*1024*1024;
+	uint64_t bloom_filter_cache_size = 256ULL*1024*1024;
 
 	//ReadConfig
 	bool auto_reload_db = true;
 	uint16_t reload_db_thread_num = 4;
 	
 	//WriteConfig
-	uint64_t write_cache_size = 128ULL*1024*1024;	//写缓存大小
 	bool create_db_if_missing = true;
-	bool create_bucket_if_missing = true;
+
+	uint64_t write_cache_size = 256ULL*1024*1024;	//写缓存大小
 	
 	uint16_t write_segment_thread_num = 8;
 	uint16_t write_metadata_thread_num = 4;
@@ -161,8 +163,8 @@ public:
 //bucket配置
 struct BucketConfig
 {
+	uint8_t bloom_filter_bitnum = 10;				//布隆bit数每key, 0关闭
 	//CompressionType compress_type = COMPRESSION_NONE;//只用在超过filter_size的块中;//暂不支持
-	//uint8_t bloom_bitnum; //0表示不启用，默认10; 暂不支持
 
 public:
 	bool Check() const
@@ -175,29 +177,40 @@ public:
 struct DBConfig
 {
 	//std::string wal_path; 				//暂不支持
-	//BucketConfig default_bucket_conf;
+	bool create_bucket_if_missing = true;
 
 public:
 	bool Check() const
 	{
 		return true;
 	}
-	//void SetBucketConfig(const std::string& bucket_name, const BucketConfig& bucket_conf);
-	//BucketConfig* GetBucketConfig(const std::string& bucket_name);
+	void SetBucketConfig(const std::string& bucket_name, const BucketConfig& bucket_conf)
+	{
+		bucket_confs[bucket_name] = bucket_conf;
+	}
+	const BucketConfig& GetBucketConfig(const std::string& bucket_name) const
+	{
+		auto it = bucket_confs.find(bucket_name);
+		if(it != bucket_confs.end())
+		{
+			return it->second;
+		}
+		return default_bucket_conf;
+	}
 
 private:
-	//std::map<std::string, BucketConfig> bucket_confs;
-
+	BucketConfig default_bucket_conf;
+	std::map<std::string, BucketConfig> bucket_confs;
 };
 
 
-struct ObjectStatItem
+struct ObjectTypeStat
 {
 	uint64_t count;
 	uint64_t key_size;
 	uint64_t value_size;
 
-	inline void Add(const ObjectStatItem& stat)
+	inline void Add(const ObjectTypeStat& stat)
 	{
 		count += stat.count;
 		key_size += stat.key_size;
@@ -213,8 +226,8 @@ struct ObjectStatItem
 
 struct ObjectStat
 {
-	ObjectStatItem set_stat;		//set的统计
-	ObjectStatItem delete_stat; 	//删除的次数
+	ObjectTypeStat set_stat;		//set的统计
+	ObjectTypeStat delete_stat; 	//删除的次数
 
 	inline uint64_t Count() const
 	{

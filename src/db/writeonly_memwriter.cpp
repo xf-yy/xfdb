@@ -27,16 +27,19 @@ WriteOnlyMemWriter::WriteOnlyMemWriter(BlockPool& pool, uint32_t max_object_num)
 	m_objects.reserve(max_object_num+1024/*额外数量*/);
 
 #if _DEBUG
-	m_sorted = false;
+	m_finished = false;
 #endif
 }
 
 WriteOnlyMemWriter::~WriteOnlyMemWriter()
 {
+	//FIXME: 无需析构
+	#if 0
 	for(size_t i = 0; i < m_objects.size(); ++i)
 	{
 		m_objects[i]->~Object();
 	}
+	#endif
 }
 
 
@@ -64,19 +67,19 @@ Status WriteOnlyMemWriter::Write(objectid_t start_seqid, const WriteOnlyMemWrite
 
 void WriteOnlyMemWriter::Finish()
 {
-#if _DEBUG
-	m_sorted = true;
-#endif
 	if(m_objects.size() > 1)
 	{
 		std::sort(m_objects.begin(), m_objects.end(), ObjectCmp());
 	}
+#if _DEBUG
+	m_finished = true;
+#endif
 }
 
 IteratorPtr WriteOnlyMemWriter::NewIterator()
 {
 #if _DEBUG
-	assert(m_sorted);
+	assert(m_finished);
 #endif
 	WriteOnlyMemWriterPtr ptr = std::dynamic_pointer_cast<WriteOnlyMemWriter>(shared_from_this());
 
@@ -87,7 +90,7 @@ IteratorPtr WriteOnlyMemWriter::NewIterator()
 StrView WriteOnlyMemWriter::UpmostKey() const
 {
 #if _DEBUG
-	assert(m_sorted);
+	assert(m_finished);
 #endif
 	return m_objects.empty() ? StrView() : m_objects.back()->key;
 }

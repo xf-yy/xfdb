@@ -53,7 +53,7 @@ private:
 class DataWriter
 {
 public:
-	DataWriter(const DBConfig& db_conf, BlockPool& pool, IndexWriter& index_writer);
+	DataWriter(const BucketConfig& bucket_conf, BlockPool& pool, IndexWriter& index_writer);
 	~DataWriter();
 	
 public:	
@@ -77,7 +77,7 @@ private:
 	StrView ClonePrevKey(const StrView& str);
 
 private:
-	const DBConfig& m_db_conf;
+	const BucketConfig m_bucket_conf;
 	IndexWriter& m_index_writer;
 	BlockPool& m_large_pool;
 

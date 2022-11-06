@@ -28,11 +28,13 @@ using namespace xfutil;
 namespace xfdb 
 {
 
+
 enum
 {
-	//MID_BLOOM_BITNUM = MID_START,
+	MID_BLOOM_FILTER_BITNUM = MID_START,
 	//MID_COMPRESS_TYPE,
 };
+
 
 #if 0
 static bool LowerCmp(const SegmentL1Index index, const StrView key)
@@ -47,6 +49,7 @@ static bool UpperCmp(const StrView& key, const SegmentL1Index& index)
 
 IndexReader::IndexReader() : m_buf(Engine::GetEngine()->GetLargePool())
 {
+	m_conf.bloom_filter_bitnum = 0;
 }
 
 IndexReader::~IndexReader()
@@ -97,7 +100,7 @@ bool IndexReader::ParseObjectStat(const byte_t* &data, const byte_t* data_end)
 	for(uint32_t i = 0; i < cnt; ++i)
 	{
 		byte_t type = *data++;
-		ObjectStatItem* object_stat = (type == SetType) ? &m_meta.object_stat.set_stat : &m_meta.object_stat.delete_stat;
+		ObjectTypeStat* object_stat = (type == SetType) ? &m_meta.object_stat.set_stat : &m_meta.object_stat.delete_stat;
 
 		object_stat->count = DecodeV64(data, data_end);
 		object_stat->key_size = DecodeV64(data, data_end);
@@ -126,9 +129,9 @@ bool IndexReader::ParseOtherMeta(const byte_t* &data, const byte_t* data_end)
 		uint32_t id = DecodeV32(data, data_end);
 		switch(id)
 		{
-		//case MID_BLOOM_BITNUM:
-		//	m_conf.bloom_bitnum = *data++;
-		//	break;
+		case MID_BLOOM_FILTER_BITNUM:
+			m_conf.bloom_filter_bitnum = *data++;
+			break;
 		//case MID_COMPRESS_TYPE:
 		//	m_conf.compress_type = (CompressionType)(*data++);
 		//	break;
@@ -150,14 +153,14 @@ bool IndexReader::ParseKeyIndex(const byte_t* &data, const byte_t* data_end, uin
 
 	L1Index.L1offset = last_offset;
 	
-	//if(m_conf.bloom_bitnum != 0)
-	//{
-	//	L1Index.bloom_size = DecodeV32(data, data_end);
-	//}
-	//else
-	//{
-		L1Index.bloom_size = 0;
-	//}
+	if(m_conf.bloom_filter_bitnum != 0)
+	{
+		L1Index.bloom_filter_size = DecodeV32(data, data_end);
+	}
+	else
+	{
+		L1Index.bloom_filter_size = 0;
+	}
 	L1Index.L1compress_size = DecodeV32(data, data_end);
 	
 	uint32_t diff_size = DecodeV32(data, data_end);
@@ -247,8 +250,8 @@ Status IndexReader::Search(const StrView& key, SegmentL0Index& L0_index) const
 
 
 ////////////////////////////////////////////////////////////
-IndexWriter::IndexWriter(const DBConfig& db_conf, BlockPool& pool)
-	: m_db_conf(db_conf), m_large_pool(pool), m_L1key_buf(pool), m_L0key_buf(pool)
+IndexWriter::IndexWriter(const BucketConfig& bucket_conf, BlockPool& pool)
+	: m_bucket_conf(bucket_conf), m_large_pool(pool), m_L1key_buf(pool), m_L0key_buf(pool)
 {
 	m_offset = 0;
 	m_L1offset_start = 0;
@@ -481,7 +484,7 @@ Status IndexWriter::WriteBlock()
 	
 	//TODO: 压缩
 	
-	L1_index.bloom_size = 0;
+	L1_index.bloom_filter_size = 0;
 	L1_index.L1compress_size = block_size;
 	L1_index.L1origin_size = block_size;
 	L1_index.L1index_size = index_size;
@@ -547,7 +550,10 @@ Status IndexWriter::WriteL2Index(const StrView& upmost_key, uint32_t& L2index_si
 		
 		m_block_ptr = EncodeString(m_block_ptr, it->start_key.data, it->start_key.size);
 		//如果bloom_len不为空
-		//m_block_ptr = EncodeV32(m_block_ptr, it->bloom_size);
+		if(m_bucket_conf.bloom_filter_bitnum != 0)
+		{
+			m_block_ptr = EncodeV32(m_block_ptr, it->bloom_filter_size);
+		}
 		m_block_ptr = EncodeV32(m_block_ptr, it->L1compress_size);
 		m_block_ptr = EncodeV32(m_block_ptr, it->L1origin_size - it->L1compress_size);
 		m_block_ptr = EncodeV32(m_block_ptr, it->L1index_size);
@@ -569,7 +575,7 @@ Status IndexWriter::WriteL2Index(const StrView& upmost_key, uint32_t& L2index_si
 	return OK;
 }
 
-void IndexWriter::WriteObjectStat(ObjectType type, const ObjectStatItem& stat)
+void IndexWriter::WriteObjectStat(ObjectType type, const ObjectTypeStat& stat)
 {
 	*m_block_ptr++ = (byte_t)type;
 	m_block_ptr = EncodeV64(m_block_ptr, stat.count);
@@ -589,7 +595,10 @@ void IndexWriter::WriteMeta(const SegmentMeta& meta)
 	WriteObjectStat(SetType, meta.object_stat.set_stat);
 	WriteObjectStat(DeleteType, meta.object_stat.delete_stat);
 
-	//FIXME:暂没有其他属性
+	if(m_bucket_conf.bloom_filter_bitnum != 0)
+	{
+		m_block_ptr = EncodeV32(m_block_ptr, MID_BLOOM_FILTER_BITNUM, m_bucket_conf.bloom_filter_bitnum);
+	}
 	m_block_ptr = EncodeV32(m_block_ptr, MID_END);
 	
 	m_block_ptr = Encode32(m_block_ptr, 0);//FIXME:crc填0

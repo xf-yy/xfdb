@@ -29,7 +29,9 @@ namespace xfdb
 {
 
 WriteOnlyBucket::WriteOnlyBucket(WritableEngine* engine, DBImplPtr db, const BucketInfo& info) 
-	: Bucket(db, info), m_engine(engine)
+	: Bucket(db, info), m_engine(engine), 
+	  m_max_memtable_size(engine->GetConfig().max_memtable_size), 
+	  m_max_memtable_objects(engine->GetConfig().max_memtable_objects)
 {	
 	m_merged_segment_fileids.reserve(engine->GetConfig().merge_factor * engine->GetConfig().part_merge_thread_num);
 	m_tobe_clean_bucket_meta_fileid = INVALID_FILEID;
@@ -44,7 +46,7 @@ WriteOnlyBucket::~WriteOnlyBucket()
 TableWriterPtr WriteOnlyBucket::NewTableWriter(WritableEngine* engine)
 {
 	assert(!(engine->GetConfig().mode & MODE_READONLY));
-	return NewWriteOnlyMemWriter(engine->GetLargePool(), engine->GetConfig().max_memtable_objects);
+	return NewWriteOnlyMemWriter(engine->GetLargePool(), m_max_memtable_objects);
 }
 
 Status WriteOnlyBucket::Create()
@@ -59,6 +61,7 @@ Status WriteOnlyBucket::Create()
 	fileid_t bucket_meta_fileid;
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
+
 		md.next_segment_id = m_next_segment_id;
 		md.next_object_id = m_next_object_id;
 		md.max_level_num = m_max_level_num;
@@ -85,6 +88,7 @@ Status WriteOnlyBucket::Open()
 	{
 		return s;
 	}
+	//至少有一个meta文件
 	if(file_names.empty()) 
 	{
 		return ERR_BUCKET_EMPTY;
@@ -174,12 +178,11 @@ Status WriteOnlyBucket::Write(const Object* object)
 	}
 	++m_next_object_id;
 	
-	if(m_memwriter->Size() >= m_engine->GetConfig().max_memtable_size || m_memwriter->GetObjectCount() >= m_engine->GetConfig().max_memtable_objects)
+	if(m_memwriter->Size() >= m_max_memtable_size || m_memwriter->GetObjectCount() >= m_max_memtable_objects)
 	{
 		FlushMemWriter();
 	}
 	return OK;
-
 }
 
 Status WriteOnlyBucket::Write(const WriteOnlyMemWriterPtr& memtable)
@@ -201,7 +204,7 @@ Status WriteOnlyBucket::Write(const WriteOnlyMemWriterPtr& memtable)
 	}
 	m_next_object_id += memtable->GetObjectCount();
 	
-	if(m_memwriter->Size() >= m_engine->GetConfig().max_memtable_size || m_memwriter->GetObjectCount() >= m_engine->GetConfig().max_memtable_objects)
+	if(m_memwriter->Size() >= m_max_memtable_size || m_memwriter->GetObjectCount() >= m_max_memtable_objects)
 	{
 		FlushMemWriter();
 	}
@@ -310,7 +313,7 @@ Status WriteOnlyBucket::WriteSegment(TableWriterSnapshotPtr& memwriter_snapshot,
 	DBImplPtr db = m_db.lock();
 	assert(db);
 	{
-		SegmentWriter segment_writer(db->GetConfig(), m_engine->GetLargePool());
+		SegmentWriter segment_writer(db->GetConfig().GetBucketConfig(m_info.name), m_engine->GetLargePool());
 		Status s = segment_writer.Create(m_bucket_path.c_str(), fileid);
 		if(s != OK)
 		{
@@ -418,7 +421,7 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 	SegmentIndexInfo seginfo;
 	seginfo.segment_fileid = msinfo.new_segment_fileid;
 	{
-		SegmentWriter segment_writer(db->GetConfig(), m_engine->GetLargePool());
+		SegmentWriter segment_writer(db->GetConfig().GetBucketConfig(m_info.name), m_engine->GetLargePool());
 		Status s = segment_writer.Create(m_bucket_path.c_str(), msinfo.new_segment_fileid);
 		if(s != OK)
 		{

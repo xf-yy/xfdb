@@ -33,7 +33,10 @@ class Engine : public std::enable_shared_from_this<Engine>
 {	
 public:
 	explicit Engine(const GlobalConfig& conf) 
-		: m_conf(conf), m_index_cache(conf.index_cache_size), m_data_cache(conf.data_cache_size)
+		: m_conf(conf), 
+		m_index_cache(conf.index_cache_size), 
+		m_data_cache(conf.data_cache_size),
+		m_bloom_filter_cache(conf.bloom_filter_cache_size)
 	{
 		m_started = false;
 	}
@@ -65,7 +68,10 @@ public:
 	{
 		return m_data_cache;
 	}	
-
+	inline LruCache<std::string, std::string>& GetBloomFilterCache()
+	{
+		return m_bloom_filter_cache;
+	}	
 public:	
 	virtual Status Start() = 0;
 	virtual void Stop() = 0;
@@ -97,7 +103,8 @@ protected:
 	//key:, value:
 	LruCache<std::string, std::string> m_index_cache;
 	LruCache<std::string, std::string> m_data_cache;
-	
+	LruCache<std::string, std::string> m_bloom_filter_cache;
+
 	mutable std::mutex m_db_mutex;
 	std::map<std::string, DBImplWptr> m_dbs;	//key: db path
 	

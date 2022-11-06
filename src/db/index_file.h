@@ -66,7 +66,7 @@ private:
 	bool ParseKeyIndex(const byte_t* &data, const byte_t* data_end, uint64_t& last_offset, SegmentL1Index& L1Index);
 
 private:
-	DBConfig m_conf;
+	BucketConfig m_conf;
 	File m_file;
 	std::string m_path;
 	
@@ -84,7 +84,7 @@ private:
 class IndexWriter
 {
 public:
-	IndexWriter(const DBConfig& db_conf, BlockPool& pool);
+	IndexWriter(const BucketConfig& bucket_conf, BlockPool& pool);
 	~IndexWriter();
 	
 public:	
@@ -111,12 +111,13 @@ private:
 	Status WriteL2Index(const StrView& upmost_key, uint32_t& L2index_size);
 	Status WriteMeta(uint32_t L2index_size, const SegmentMeta& meta);
 	void WriteMeta(const SegmentMeta& meta);
-	void WriteObjectStat(ObjectType type, const ObjectStatItem& stat);
+	void WriteObjectStat(ObjectType type, const ObjectTypeStat& stat);
 	
 	Status WriteL2IndexMeta(const StrView& upmost_key, const SegmentMeta& meta);
 
 private:
-	const DBConfig& m_db_conf;
+	const BucketConfig m_bucket_conf;
+
 	BlockPool& m_large_pool;
 
 	char m_bucket_path[MAX_PATH_LEN];

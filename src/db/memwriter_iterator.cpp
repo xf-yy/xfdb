@@ -24,13 +24,12 @@ namespace xfdb
 {
 
 WriteOnlyMemWriterIterator::WriteOnlyMemWriterIterator(WriteOnlyMemWriterPtr& table)
-	: m_table(table)
+	: m_table(table), m_max_num(table->m_objects.size())
 {
-	m_max_num = table->m_objects.size();
 	First();
 }
 
-StrView WriteOnlyMemWriterIterator::UpmostKey()    const
+StrView WriteOnlyMemWriterIterator::UpmostKey() const
 {
 	return m_table->UpmostKey();
 }

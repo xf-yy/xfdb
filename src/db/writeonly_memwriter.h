@@ -46,12 +46,13 @@ protected:
 	std::vector<Object*> m_objects;
 
 	#if _DEBUG
-	bool m_sorted;
+	bool m_finished;
 	#endif
-	
+
 private:
 	friend class WriteOnlyMemWriterIterator;
 	friend class ReadWriteMemWriter;
+	
 	WriteOnlyMemWriter(const WriteOnlyMemWriter&) = delete;
 	WriteOnlyMemWriter& operator=(const WriteOnlyMemWriter&) = delete;
 };

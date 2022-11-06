@@ -39,9 +39,10 @@ Status ReadOnlyBucket::Open()
 	{
 		return s;
 	}
+	//至少有一个meta文件
 	if(file_names.empty()) 
 	{
-		return OK;
+		return ERR_BUCKET_EMPTY;
 	}
 	return Bucket::Open(file_names.back().str);
 }

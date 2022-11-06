@@ -28,10 +28,13 @@ ReadWriteMemWriter::ReadWriteMemWriter(BlockPool& pool, uint32_t max_object_num)
 
 ReadWriteMemWriter::~ReadWriteMemWriter()
 {
+	//FIXME: 无需析构
+	#if 0
 	for(auto it = m_objects.begin(); it != m_objects.end(); ++it)
 	{
 		it->second->~Object();
 	}
+	#endif
 }
 
 Status ReadWriteMemWriter::Write(objectid_t start_seqid, const Object* object)

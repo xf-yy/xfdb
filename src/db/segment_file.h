@@ -69,7 +69,7 @@ private:
 class SegmentWriter
 {
 public:
-	SegmentWriter(const DBConfig& db_conf, BlockPool& pool);
+	SegmentWriter(const BucketConfig& bucket_conf, BlockPool& pool);
 	~SegmentWriter();
 	
 public:	

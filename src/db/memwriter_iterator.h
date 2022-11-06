@@ -59,8 +59,8 @@ public:
 private:
 	WriteOnlyMemWriterPtr m_table;
 
+	const size_t m_max_num;
 	size_t m_index;
-	size_t m_max_num;
 	
 private:
 	WriteOnlyMemWriterIterator(const WriteOnlyMemWriterIterator&) = delete;

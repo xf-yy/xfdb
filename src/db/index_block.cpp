@@ -67,8 +67,8 @@ Status IndexBlockReader::Search(const StrView& key, SegmentL0Index& L0_index)
 	//TODO: 将bloom和data放入cache中
 	//TODO: 判断是否有bloom，有则判断bloom是否命中
 
-	const byte_t* block = (byte_t*)m_data.data() + m_L1Index.bloom_size;
-	uint32_t block_size = m_L1Index.L1compress_size - m_L1Index.bloom_size;
+	const byte_t* block = (byte_t*)m_data.data() + m_L1Index.bloom_filter_size;
+	uint32_t block_size = m_L1Index.L1compress_size - m_L1Index.bloom_filter_size;
 
 	return SearchBlock(block, block_size, &m_L1Index, key, L0_index);
 }
@@ -312,8 +312,8 @@ IndexBlockReaderIteratorPtr IndexBlockReader::NewIterator()
 {
 	IndexBlockReaderIteratorPtr iter_ptr = NewIndexBlockReaderIterator();
 
-	const byte_t* block = (byte_t*)m_data.data() + m_L1Index.bloom_size;
-	uint32_t block_size = m_L1Index.L1compress_size - m_L1Index.bloom_size;
+	const byte_t* block = (byte_t*)m_data.data() + m_L1Index.bloom_filter_size;
+	uint32_t block_size = m_L1Index.L1compress_size - m_L1Index.bloom_filter_size;
 
 	ParseBlock(block, block_size, &m_L1Index, iter_ptr);
 

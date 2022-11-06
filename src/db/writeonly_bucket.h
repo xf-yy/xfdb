@@ -48,6 +48,7 @@ public:
 	virtual Status TryFlush() override;
 	virtual Status Flush() override;
 	virtual Status Merge() override;
+
 	virtual	Status Clean() override;
 
 	static Status Remove(const char* bucket_path);
@@ -55,9 +56,10 @@ public:
 protected:	
 	virtual TableWriterPtr NewTableWriter(WritableEngine* engine);
 
+	Status Flush(bool force);
+
 	//清理内存table
 	void Clear();
-	Status Flush(bool force);
 	    
 private:
 	Status Create();
@@ -77,6 +79,9 @@ private:
 
 protected:
 	WritableEngine* m_engine;
+	const uint32_t m_max_memtable_size;									//1~1024
+	const uint32_t m_max_memtable_objects;								//1000~100*10000
+
 				
 	TableWriterPtr m_memwriter;											//当前正在写的memwriter
 	TableWriterSnapshotPtr m_memwriter_snapshot;						//只读待落盘的memwriter集
@@ -96,6 +101,7 @@ protected:
 private:		
 	friend class WritableDB;
 	friend class WritableEngine;
+
 	WriteOnlyBucket(const WriteOnlyBucket&) = delete;
   	WriteOnlyBucket& operator=(const WriteOnlyBucket&) = delete;	
 };

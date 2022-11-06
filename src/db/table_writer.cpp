@@ -38,7 +38,7 @@ StrView TableWriter::CloneString(const StrView& str)
 
 Object* TableWriter::CloneObject(objectid_t seqid, const Object* object)
 {	
-	ObjectStatItem* stat = (object->type == SetType) ? &m_object_stat.set_stat : &m_object_stat.delete_stat;
+	ObjectTypeStat* stat = (object->type == SetType) ? &m_object_stat.set_stat : &m_object_stat.delete_stat;
 	stat->Add(object->key.size, object->value.size);
 	
 	byte_t* obj_buf = m_buf.Write(sizeof(Object));
