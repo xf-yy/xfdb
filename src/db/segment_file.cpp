@@ -117,7 +117,7 @@ Status SegmentWriter::Write(IteratorPtr& iter, const BucketStat& stat, SegmentIn
 	SegmentMeta meta;
 	meta.object_stat = stat.object_stat;
 
-	s = m_index_writer.Finish(iter->UpmostKey(), meta);
+	s = m_index_writer.Finish(m_data_writer.m_key_hashs, iter->UpmostKey(), meta);
 	if(s != OK)
 	{
 		return s;

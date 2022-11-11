@@ -29,7 +29,8 @@ limitations under the License.
 namespace xfdb 
 {
 
-DataBlockReader::DataBlockReader()
+DataBlockReader::DataBlockReader(const File& file, const std::string& file_path) 
+	: m_file(file), m_file_path(file_path)
 {
 
 }
@@ -38,19 +39,19 @@ DataBlockReader::~DataBlockReader()
 {
 }
 
-Status DataBlockReader::Read(const File& file, const std::string& file_path, const SegmentL0Index& L0_index)
+Status DataBlockReader::Read(const SegmentL0Index& L0_index)
 {
 	//读取L1块 cache
 	auto& cache = Engine::GetEngine()->GetDataCache();
 
-	std::string cache_key = file_path;
+	std::string cache_key = m_file_path;
 	cache_key.append((char*)&L0_index.L0offset, sizeof(L0_index.L0offset));
 
 	std::string data;
 	if(!cache.Get(cache_key, data) || data.size() < L0_index.L0compress_size)
 	{
 		data.resize(L0_index.L0compress_size);
-		int64_t r_size = file.Read(L0_index.L0offset, (void*)data.data(), L0_index.L0compress_size);
+		int64_t r_size = m_file.Read(L0_index.L0offset, (void*)data.data(), L0_index.L0compress_size);
 		if((uint64_t)r_size != L0_index.L0compress_size)
 		{
 			assert(false);
@@ -181,9 +182,6 @@ Status DataBlockReader::SearchBlock(const byte_t* block, uint32_t block_size, co
 
 Status DataBlockReader::Search(const StrView& key, ObjectType& type, String& value)
 {
-	//TODO: 将bloom和data放入cache中
-	//TODO: 判断是否有bloom，有则判断bloom是否命中
-
 	return SearchBlock((byte_t*)m_data.data(), m_L0Index.L0compress_size, m_L0Index, key, type, value);
 }
 
@@ -289,7 +287,7 @@ DataBlockReaderIteratorPtr DataBlockReader::NewIterator()
 }
 
 DataBlockReaderIterator::DataBlockReaderIterator(DataBlockReader& block) 
-	: m_block(block), m_buf(Engine::GetEngine()->GetLargePool())
+	: m_block(block), m_buf(Engine::GetEngine()->GetSmallPool())
 {
 
 }

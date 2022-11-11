@@ -37,6 +37,7 @@ public:
 	
 public:	
 	Status Open(const char* bucket_path, const SegmentIndexInfo& info);
+	bool Read(const SegmentL1Index* L1Index, std::string& bf_data, std::string& index_data) const;
 
 	Status Search(const StrView& key, SegmentL0Index& idx) const;
 
@@ -65,7 +66,11 @@ private:
 	bool ParseKeyIndex(const byte_t* &data, const byte_t* data_end);
 	bool ParseKeyIndex(const byte_t* &data, const byte_t* data_end, uint64_t& last_offset, SegmentL1Index& L1Index);
 
+	bool CheckBloomFilter(const SegmentL1Index* L1Index, const StrView& key) const;
+
 private:
+	BlockPool& m_large_pool;
+
 	BucketConfig m_conf;
 	File m_file;
 	std::string m_path;
@@ -77,6 +82,8 @@ private:
 	
 private:
 	friend class SegmentReaderIterator;
+	friend class IndexBlockReader;
+	
 	IndexReader(const IndexReader&) = delete;
 	IndexReader& operator=(const IndexReader&) = delete;
 };
@@ -89,8 +96,8 @@ public:
 	
 public:	
 	Status Create(const char* bucket_path, fileid_t fileid);
-	Status Write(const SegmentL0Index& L0_index);
-	Status Finish(const StrView& upmost_key, const SegmentMeta& meta);
+	Status Write(const SegmentL0Index& L0_index, std::deque<uint32_t>& key_hashs);
+	Status Finish(std::deque<uint32_t>& key_hashs, const StrView& upmost_key, const SegmentMeta& meta);
 	inline uint64_t FileSize()
 	{
 		return m_file.Size();
@@ -107,7 +114,7 @@ private:
 	Status WriteL2Group(uint32_t& L0_idx, LnGroupIndex& ci);
 	Status WriteL2GroupIndex(const LnGroupIndex* group_indexs, int index_cnt);
 	Status WriteBlock(uint32_t& index_size);
-	Status WriteBlock();
+	Status WriteBlock(std::deque<uint32_t>& key_hashs);
 	Status WriteL2Index(const StrView& upmost_key, uint32_t& L2index_size);
 	Status WriteMeta(uint32_t L2index_size, const SegmentMeta& meta);
 	void WriteMeta(const SegmentMeta& meta);
@@ -130,8 +137,7 @@ private:
 	std::list<SegmentL1Index> m_L1indexs;
 	WriteBuffer m_L1key_buf;
 	
-	SegmentL0Index* m_L0indexs;
-	uint32_t m_L0index_cnt;
+	std::vector<SegmentL0Index> m_L0indexs;
 	uint32_t m_writing_size;
 	String m_prev_key;
 

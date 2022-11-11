@@ -20,6 +20,7 @@ limitations under the License.
 #include <string>
 #include <malloc.h>
 #include <string.h>
+#include <deque>
 #include "xfdb/util_types.h"
 
 namespace xfutil
@@ -35,6 +36,7 @@ public:
 public:
 	/**申请空间，返回数据指针*/
 	bool Create(const uint32_t* hash_ptr, uint32_t count);
+	bool Create(std::deque<uint32_t>& hashs);
 	
 	/**申请空间，并写入数据，返回数据指针*/
 	void Attach(const std::string& data)
@@ -42,8 +44,13 @@ public:
 		m_data = data;
 	}
 
-	/**清除所有数据*/
+	/**校验布隆值*/
 	bool Check(uint32_t hc);
+
+	const std::string& Data()
+	{
+		return m_data;
+	}
 		
 private:	
 	const uint32_t m_bitnum_perkey;

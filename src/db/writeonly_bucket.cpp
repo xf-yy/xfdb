@@ -34,6 +34,7 @@ WriteOnlyBucket::WriteOnlyBucket(WritableEngine* engine, DBImplPtr db, const Buc
 	  m_max_memtable_objects(engine->GetConfig().max_memtable_objects)
 {	
 	m_merged_segment_fileids.reserve(engine->GetConfig().merge_factor * engine->GetConfig().part_merge_thread_num);
+	m_writed_segment_cnt = 0;
 	m_tobe_clean_bucket_meta_fileid = INVALID_FILEID;
 }
 

@@ -32,15 +32,16 @@ namespace xfdb
 class IndexBlockReaderIterator;
 typedef std::shared_ptr<IndexBlockReaderIterator> IndexBlockReaderIteratorPtr;
 #define NewIndexBlockReaderIterator 	std::make_shared<IndexBlockReaderIterator>
+class IndexReader;
 
 class IndexBlockReader
 {
 public:
-	IndexBlockReader();
+	IndexBlockReader(const IndexReader& index_reader);
 	~IndexBlockReader();
 
 public:	
-	Status Read(const File& file, const std::string& file_path, const SegmentL1Index& L1Index);
+	Status Read(const SegmentL1Index& L1Index);
 	Status Search(const StrView& key, SegmentL0Index& L0_index);
 	
 	IndexBlockReaderIteratorPtr NewIterator();
@@ -48,15 +49,18 @@ public:
 private:
 	Status SearchGroup(const byte_t* group, uint32_t group_size, const L0GroupIndex& group_index, const StrView& key, SegmentL0Index& L0_index) const;
 	Status SearchL2Group(const byte_t* group_start, uint32_t group_size, const LnGroupIndex& lngroup_index, const StrView& key, SegmentL0Index& L0_index) const;
-	Status SearchBlock(const byte_t* block, uint32_t block_size, const SegmentL1Index* L1Index, const StrView& key, SegmentL0Index& L0_index) const;
+	Status SearchBlock(const StrView& key, SegmentL0Index& L0_index) const;
 
-	Status ParseBlock(const byte_t* block, uint32_t block_size, const SegmentL1Index* L1Index, IndexBlockReaderIteratorPtr& iter_ptr) const;
+	Status ParseBlock(IndexBlockReaderIteratorPtr& iter_ptr) const;
 	Status ParseL2Group(const byte_t* group_start, uint32_t group_size, const LnGroupIndex& lngroup_index, IndexBlockReaderIteratorPtr& iter_ptr) const;
 	Status ParseGroup(const byte_t* group, uint32_t group_size, const L0GroupIndex& group_index, IndexBlockReaderIteratorPtr& iter_ptr) const;
 
 private:
+	const IndexReader& m_index_reader;
+
 	std::string m_data;
-	SegmentL1Index m_L1Index;
+	StrView m_L1Index_start_key;
+	uint32_t m_L1Index_size;
 	
 private:
 	IndexBlockReader(const IndexBlockReader&) = delete;

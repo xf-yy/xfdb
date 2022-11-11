@@ -52,8 +52,8 @@ Status DataReader::Open(const char* bucket_path, fileid_t fileid)
 
 Status DataReader::Search(const SegmentL0Index& L0_index, const StrView& key, ObjectType& type, String& value) const
 {
-	DataBlockReader block;
-	Status s = block.Read(m_file, m_path, L0_index);
+	DataBlockReader block(m_file, m_path);
+	Status s = block.Read(L0_index);
 	if(s != OK)
 	{
 		return s;
@@ -142,7 +142,11 @@ Status DataWriter::WriteGroup(Iterator& iter, L0GroupIndex& gi)
 			s = ERR_BUFFER_FULL;
 			break;
 		}
-		
+		if(m_bucket_conf.bloom_filter_bitnum != 0)
+		{
+			uint32_t hc = Hash32((byte_t*)key.data, key.size);
+			m_key_hashs.push_back(hc);
+		}
 		uint32_t shared_keysize = prev_key.GetPrefixLength(key);
 		m_block_ptr = EncodeV32(m_block_ptr, shared_keysize);
 
@@ -302,7 +306,7 @@ Status DataWriter::Write(Iterator& iter)
 		{
 			return ERR_FILE_WRITE;
 		}
-		m_index_writer.Write(L0_index);
+		m_index_writer.Write(L0_index, m_key_hashs);
 		
 		m_offset += block_size;
 	}

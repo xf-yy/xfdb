@@ -24,6 +24,7 @@ limitations under the License.
 #include <sys/stat.h>
 #include <unistd.h>
 #include <sys/file.h>
+#include <sys/uio.h>
 #include "xfdb/util_types.h"
 
 namespace xfutil 
@@ -92,21 +93,31 @@ public:
 		}
 	}
 	
-	inline int64_t Read(void* buf, int64_t buf_size) const
+	inline int64_t Read(void* buf, size_t buf_size) const
 	{
 		return read(m_fd, buf, buf_size);
 	}
-	
-	inline int64_t Read(uint64_t offset, void* buf, int64_t buf_size) const
+	inline int64_t Read(uint64_t offset, void* buf, size_t buf_size) const
 	{
 		return pread(m_fd, buf, buf_size, offset);
 	}
+	inline int64_t Read(uint64_t offset, void* buf1, size_t buf1_size, void* buf2, size_t buf2_size) const
+	{
+		struct iovec iov[2] = {{(void*)buf1, buf1_size}, {(void*)buf2, buf2_size}};
+
+		return preadv(m_fd, iov, 2, offset);
+	}
 	
-	inline int64_t Write(const void* buf, int64_t buf_size)
+	inline int64_t Write(const void* buf, size_t buf_size)
 	{
 		return write(m_fd, buf, buf_size);
 	}
-	inline int64_t Write(uint64_t offset, const void* buf, int64_t buf_size)
+	inline int64_t Write(const void* buf1, size_t buf1_size, const void* buf2, size_t buf2_size)
+	{
+		struct iovec iov[2] = {{(void*)buf1, buf1_size}, {(void*)buf2, buf2_size}};
+		return writev(m_fd, iov, 2);
+	}	
+	inline int64_t Write(uint64_t offset, const void* buf, size_t buf_size)
 	{
 		return pwrite(m_fd, buf, buf_size, offset);
 	}
@@ -115,11 +126,11 @@ public:
 	{
 		return fsync(m_fd) == 0;
 	}
-	inline bool Truncate(int64_t new_size)
+	inline bool Truncate(size_t new_size)
 	{
 		return ftruncate(m_fd, new_size) == 0;
 	}
-	inline bool Allocate(int64_t size)
+	inline bool Allocate(size_t size)
 	{
 		return fallocate(m_fd, 0, 0, size);
 	}

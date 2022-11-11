@@ -18,6 +18,7 @@ limitations under the License.
 #define __xfdb_data_file_h__
 
 #include <map>
+#include <deque>
 #include "types.h"
 #include "xfdb/strutil.h"
 #include "buffer.h"
@@ -94,9 +95,13 @@ private:
 	WriteBuffer m_key_buf;
 	String m_prev_key;
 	
+	std::deque<uint32_t> m_key_hashs;
+
 	ObjectStat m_stat;
 	
 private:
+	friend class SegmentWriter;
+
 	DataWriter(const DataWriter&) = delete;
 	DataWriter& operator=(const DataWriter&) = delete;
 };

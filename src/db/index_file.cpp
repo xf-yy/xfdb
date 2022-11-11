@@ -22,6 +22,7 @@ limitations under the License.
 #include "file_util.h"
 #include "index_block.h"
 #include "engine.h"
+#include "bloom_filter.h"
 
 using namespace xfutil;
 
@@ -47,7 +48,7 @@ static bool UpperCmp(const StrView& key, const SegmentL1Index& index)
 	return key.Compare(index.start_key) < 0;
 }
 
-IndexReader::IndexReader() : m_buf(Engine::GetEngine()->GetLargePool())
+IndexReader::IndexReader() : m_large_pool(Engine::GetEngine()->GetLargePool()), m_buf(m_large_pool)
 {
 	m_conf.bloom_filter_bitnum = 0;
 }
@@ -164,6 +165,7 @@ bool IndexReader::ParseKeyIndex(const byte_t* &data, const byte_t* data_end, uin
 	L1Index.L1compress_size = DecodeV32(data, data_end);
 	
 	uint32_t diff_size = DecodeV32(data, data_end);
+	assert(diff_size == 0);	//暂时未使用压缩功能
 	L1Index.L1origin_size = L1Index.L1compress_size + diff_size;
 		
 	L1Index.L1index_size = DecodeV32(data, data_end);
@@ -218,6 +220,82 @@ Status IndexReader::ParseMeta(const byte_t* data, uint32_t meta_size)
 	return OK;
 }
 
+bool IndexReader::Read(const SegmentL1Index* L1Index, std::string& bf_data, std::string& index_data) const
+{
+	byte_t* buffer;
+	if(L1Index->L1compress_size <= m_large_pool.BlockSize())
+	{
+		buffer = m_large_pool.Alloc();
+	}
+	else
+	{
+		buffer = xmalloc(L1Index->L1compress_size);
+	}
+
+	int64_t r_size = m_file.Read(L1Index->L1offset, (void*)buffer, L1Index->L1compress_size);
+	if((uint64_t)r_size != L1Index->L1compress_size)
+	{
+		if(L1Index->L1compress_size <= m_large_pool.BlockSize())
+		{
+			m_large_pool.Free(buffer);
+		}
+		else
+		{
+			xfree(buffer);
+		}
+		return false;
+	}
+	//TODO: 解压缩
+
+	if(L1Index->bloom_filter_size != 0)
+	{
+		std::string cache_key = m_path;
+		cache_key.append((char*)&L1Index->L1offset, sizeof(L1Index->L1offset));
+
+		auto& bf_cache = Engine::GetEngine()->GetBloomFilterCache();
+		bf_data.assign((char*)buffer, L1Index->bloom_filter_size);
+		bf_cache.Add(cache_key, bf_data, bf_data.size());
+	}
+
+	std::string cache_key = m_path;
+	uint64_t offset = L1Index->L1offset + L1Index->bloom_filter_size;
+	cache_key.append((char*)&offset, sizeof(offset));
+
+	auto& index_cache = Engine::GetEngine()->GetIndexCache();
+	index_data.assign((char*)buffer+L1Index->bloom_filter_size, L1Index->L1origin_size-L1Index->bloom_filter_size);
+	index_cache.Add(cache_key, index_data, index_data.size());
+
+	if(L1Index->L1compress_size <= m_large_pool.BlockSize())
+	{
+		m_large_pool.Free(buffer);
+	}
+	else
+	{
+		xfree(buffer);
+	}
+	return true;
+}
+
+bool IndexReader::CheckBloomFilter(const SegmentL1Index* L1Index, const StrView& key) const
+{
+	std::string cache_key = m_path;
+	cache_key.append((char*)&L1Index->L1offset, sizeof(L1Index->L1offset));
+
+	auto& cache = Engine::GetEngine()->GetBloomFilterCache();
+	std::string bf_data;
+	if(!cache.Get(cache_key, bf_data) || bf_data.size() != L1Index->bloom_filter_size)
+	{
+		std::string index_data;
+		Read(L1Index, bf_data, index_data);
+	}
+	//判断是否有bloom，有则判断bloom是否命中
+	BloomFilter bf(m_conf.bloom_filter_bitnum);
+	bf.Attach(bf_data);
+	
+	uint32_t hc = Hash32((byte_t*)key.data, key.size);
+	return bf.Check(hc);
+}
+
 const SegmentL1Index* IndexReader::Search(const StrView& key) const
 {
 	if(key.Compare(m_L1indexs[0].start_key) < 0 || key.Compare(m_upmost_key) > 0)
@@ -227,7 +305,15 @@ const SegmentL1Index* IndexReader::Search(const StrView& key) const
 	
 	uint32_t pos = std::upper_bound(m_L1indexs.begin(), m_L1indexs.end(), key, UpperCmp) - m_L1indexs.begin();
 	assert(pos > 0 && pos <= m_L1indexs.size());
-	return &m_L1indexs[pos-1];
+	const SegmentL1Index* L1Index = &m_L1indexs[pos-1];
+
+	//判断布隆
+	if(L1Index->bloom_filter_size != 0 && !CheckBloomFilter(L1Index, key))
+	{
+		return nullptr;
+	}
+
+	return L1Index;
 }
 
 Status IndexReader::Search(const StrView& key, SegmentL0Index& L0_index) const
@@ -238,8 +324,8 @@ Status IndexReader::Search(const StrView& key, SegmentL0Index& L0_index) const
 		return ERR_OBJECT_NOT_EXIST;
 	}
 		
-	IndexBlockReader block;
-	Status s = block.Read(m_file, m_path, *L1Index);
+	IndexBlockReader block(*this);
+	Status s = block.Read(*L1Index);
 	if(s != OK)
 	{
 		return s;
@@ -257,8 +343,7 @@ IndexWriter::IndexWriter(const BucketConfig& bucket_conf, BlockPool& pool)
 	m_L1offset_start = 0;
 	m_L2offset_start = 0;
 	
-	m_L0indexs = new SegmentL0Index[MAX_OBJECT_NUM_OF_BLOCK];
-	m_L0index_cnt = 0;
+	m_L0indexs.reserve(MAX_OBJECT_NUM_OF_BLOCK);
 	m_writing_size = 0;
 	
 	m_block_start = pool.Alloc();
@@ -277,7 +362,6 @@ IndexWriter::~IndexWriter()
 	File::Rename(tmp_file_path, file_path);
 
 	m_large_pool.Free(m_block_start);
-	delete[] m_L0indexs;
 }
 
 Status IndexWriter::Create(const char* bucket_path, fileid_t fileid)
@@ -309,7 +393,7 @@ Status IndexWriter::Create(const char* bucket_path, fileid_t fileid)
 
 Status IndexWriter::WriteGroup(uint32_t& L0_idx, L0GroupIndex& gi)
 {	
-	if(L0_idx >= m_L0index_cnt)
+	if(L0_idx >= m_L0indexs.size())
 	{
 		return ERR_NOMORE_DATA;
 	}
@@ -320,7 +404,7 @@ Status IndexWriter::WriteGroup(uint32_t& L0_idx, L0GroupIndex& gi)
 	Status s = OK;
 	byte_t* group_start = m_block_ptr;
 	
-	for(int i = 0; i < MAX_OBJECT_NUM_OF_GROUP && L0_idx < m_L0index_cnt; ++i)
+	for(int i = 0; i < MAX_OBJECT_NUM_OF_GROUP && L0_idx < m_L0indexs.size(); ++i)
 	{
 		const SegmentL0Index& L0indexs = m_L0indexs[L0_idx];
 		
@@ -383,7 +467,7 @@ Status IndexWriter::WriteGroupIndex(const L0GroupIndex* group_indexs, int index_
 
 Status IndexWriter::WriteL2Group(uint32_t& L0_idx, LnGroupIndex& ci)
 {
-	if(L0_idx >= m_L0index_cnt)
+	if(L0_idx >= m_L0indexs.size())
 	{
 		return ERR_NOMORE_DATA;
 	}
@@ -394,7 +478,7 @@ Status IndexWriter::WriteL2Group(uint32_t& L0_idx, LnGroupIndex& ci)
 
 	L0GroupIndex gis[MAX_OBJECT_NUM_OF_GROUP];
 	int gi_cnt = 0;
-	for(; gi_cnt < MAX_OBJECT_NUM_OF_GROUP && L0_idx < m_L0index_cnt; ++gi_cnt)
+	for(; gi_cnt < MAX_OBJECT_NUM_OF_GROUP && L0_idx < m_L0indexs.size(); ++gi_cnt)
 	{
 		s = WriteGroup(L0_idx, gis[gi_cnt]);
 		if(s != OK)
@@ -438,14 +522,14 @@ Status IndexWriter::WriteL2GroupIndex(const LnGroupIndex* group_indexs, int inde
 
 Status IndexWriter::WriteBlock(uint32_t& index_size)
 {	
-	assert(m_L0index_cnt != 0);
+	assert(!m_L0indexs.empty());
 	
 	uint32_t L0_idx = 0;
 	Status s = ERR_BUFFER_FULL;
 	
 	LnGroupIndex cis[MAX_OBJECT_NUM_OF_GROUP];
 	int ci_cnt = 0;
-	for(; ci_cnt < MAX_OBJECT_NUM_OF_GROUP && L0_idx < m_L0index_cnt; ++ci_cnt)
+	for(; ci_cnt < MAX_OBJECT_NUM_OF_GROUP && L0_idx < m_L0indexs.size(); ++ci_cnt)
 	{
 		s = WriteL2Group(L0_idx, cis[ci_cnt]);
 		if(s != OK)
@@ -469,7 +553,7 @@ Status IndexWriter::WriteBlock(uint32_t& index_size)
 	return s;
 }
 
-Status IndexWriter::WriteBlock()
+Status IndexWriter::WriteBlock(std::deque<uint32_t>& key_hashs)
 {
 	m_block_ptr = m_block_start;
 
@@ -477,46 +561,54 @@ Status IndexWriter::WriteBlock()
 	L1_index.start_key = CloneKey(m_L1key_buf, m_L0indexs[0].start_key);
 	L1_index.L1offset = m_offset;
 
+	std::string bloom_filter_data;
+	if(!key_hashs.empty())
+	{
+		BloomFilter bf(m_bucket_conf.bloom_filter_bitnum);
+		bf.Create(key_hashs);
+		bloom_filter_data = bf.Data();
+	}	
+
 	uint32_t index_size;
 	WriteBlock(index_size);
 
 	uint32_t block_size = m_block_ptr - m_block_start;
 	
 	//TODO: 压缩
+	ssize_t total_size = bloom_filter_data.size() + block_size;
 	
-	L1_index.bloom_filter_size = 0;
-	L1_index.L1compress_size = block_size;
-	L1_index.L1origin_size = block_size;
+	L1_index.bloom_filter_size = bloom_filter_data.size();
+	L1_index.L1compress_size = total_size;
+	L1_index.L1origin_size = total_size;
 	L1_index.L1index_size = index_size;
 
 	//写block
-	if(m_file.Write(m_block_start, block_size) != block_size)
+	if(m_file.Write(bloom_filter_data.data(), bloom_filter_data.size(), m_block_start, block_size) != total_size)
 	{
 		return ERR_FILE_WRITE;
 	}
 	m_L1indexs.push_back(L1_index);
 	
-	m_offset += block_size;
+	m_offset += total_size;
 	
 	return OK;
 }
 
-Status IndexWriter::Write(const SegmentL0Index& L0_index)
+Status IndexWriter::Write(const SegmentL0Index& L0_index, std::deque<uint32_t>& key_hashs)
 {
 	//TODO:构建最短key
-	m_L0indexs[m_L0index_cnt] = L0_index;
-	m_L0indexs[m_L0index_cnt].start_key = CloneKey(m_L0key_buf, L0_index.start_key);
+	m_L0indexs.push_back(L0_index);
+	m_L0indexs.back().start_key = CloneKey(m_L0key_buf, L0_index.start_key);
 
-	++m_L0index_cnt;
 	m_writing_size += L0_index.start_key.size + MAX_V32_SIZE*3;
 	
 	//则限制1024个+128KB(压缩时，如果不压缩，则为64KB)
-	//TODO:如果有布隆，则限制元素数量？
-	if(m_L0index_cnt >= MAX_OBJECT_NUM_OF_BLOCK || m_writing_size >= MAX_UNCOMPRESS_BLOCK_SIZE)
+	//FIXME:这里可以限制布隆值的数量，以减少内存占用
+	if(m_L0indexs.size() >= MAX_OBJECT_NUM_OF_BLOCK || m_writing_size >= MAX_UNCOMPRESS_BLOCK_SIZE)
 	{
-		WriteBlock();
+		WriteBlock(key_hashs);
 		
-		m_L0index_cnt = 0;
+		m_L0indexs.clear();
 		m_writing_size = 0;
 		m_L0key_buf.Clear();
 	}
@@ -639,11 +731,11 @@ Status IndexWriter::WriteL2IndexMeta(const StrView& upmost_key, const SegmentMet
 	return WriteMeta(L2index_size, meta);
 }
 
-Status IndexWriter::Finish(const StrView& upmost_key, const SegmentMeta& meta)
+Status IndexWriter::Finish(std::deque<uint32_t>& key_hashs, const StrView& upmost_key, const SegmentMeta& meta)
 {
-	if(m_L0index_cnt != 0)
+	if(!m_L0indexs.empty())
 	{
-		Status s = WriteBlock();
+		Status s = WriteBlock(key_hashs);
 		if(s != OK)
 		{
 			return s;

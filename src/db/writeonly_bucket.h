@@ -81,7 +81,6 @@ protected:
 	WritableEngine* m_engine;
 	const uint32_t m_max_memtable_size;									//1~1024
 	const uint32_t m_max_memtable_objects;								//1000~100*10000
-
 				
 	TableWriterPtr m_memwriter;											//当前正在写的memwriter
 	TableWriterSnapshotPtr m_memwriter_snapshot;						//只读待落盘的memwriter集
