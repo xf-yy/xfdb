@@ -204,6 +204,23 @@ void MergingSegmentInfo::GetMergingReaders(std::map<fileid_t, TableReaderPtr>& s
 	}		
 }
 
+uint64_t MergingSegmentInfo::GetMergingSize() const
+{
+	uint64_t total_size = 0;
+
+	assert(reader_snapshot.readers);
+	const auto& readers = reader_snapshot.readers->Readers();
+
+	for(auto id_it = merging_segment_fileids.begin(); id_it != merging_segment_fileids.end(); ++id_it)
+	{
+		auto reader_it = readers.find(*id_it);
+		assert(reader_it != readers.end());
+
+		total_size += reader_it->second->Size();
+	}		
+	return total_size;
+}
+
 
 }  
 

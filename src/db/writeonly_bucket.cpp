@@ -314,7 +314,8 @@ Status WriteOnlyBucket::WriteSegment(TableWriterSnapshotPtr& memwriter_snapshot,
 	DBImplPtr db = m_db.lock();
 	assert(db);
 	{
-		SegmentWriter segment_writer(db->GetConfig().GetBucketConfig(m_info.name), m_engine->GetLargePool());
+		auto& bucket_conf = db->GetConfig().GetBucketConfig(m_info.name);
+		SegmentWriter segment_writer(bucket_conf, m_engine->GetLargePool());
 		Status s = segment_writer.Create(m_bucket_path.c_str(), fileid);
 		if(s != OK)
 		{
@@ -422,7 +423,14 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 	SegmentIndexInfo seginfo;
 	seginfo.segment_fileid = msinfo.new_segment_fileid;
 	{
-		SegmentWriter segment_writer(db->GetConfig().GetBucketConfig(m_info.name), m_engine->GetLargePool());
+		BucketConfig bucket_conf = db->GetConfig().GetBucketConfig(m_info.name);
+		//超过一定大小的段不用布隆
+		if(msinfo.GetMergingSize() >= m_engine->GetConfig().max_merge_size)
+		{
+			bucket_conf.bloom_filter_bitnum = 0;
+		}
+
+		SegmentWriter segment_writer(bucket_conf, m_engine->GetLargePool());
 		Status s = segment_writer.Create(m_bucket_path.c_str(), msinfo.new_segment_fileid);
 		if(s != OK)
 		{
