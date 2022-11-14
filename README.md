@@ -14,15 +14,14 @@
         5、支持自动merge，手工merge
         6、支持读cache
         7、支持批量写
+        8、BloomFilter
     实现中：  
-        1、BloomFilter
+        1、Scan
    
     待实现：   
-        1、Scan   
-        2、Compress   
-        3、Append，Modify   
-        4、WAL+Log   
-        5、Backup  
+        1、Compress   
+        2、Append，Modify   
+        3、WAL+Log   
    
 # ●编译方法   
 ***   

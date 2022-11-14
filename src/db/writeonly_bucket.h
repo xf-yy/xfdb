@@ -73,6 +73,7 @@ private:
 	Status Merge(MergingSegmentInfo& msinfo);
 	Status FullMerge();				//同步merge
 	Status PartMerge();				//同步merge，写入时合并降低速度？
+	bool AddMerging(MergingSegmentInfo& msinfo);
 	
 private:
 	void WriteAliveSegmentInfos(TableReaderSnapshotPtr& trs_ptr, BucketMetaData& md);
@@ -90,8 +91,8 @@ protected:
 	std::map<fileid_t, uint64_t> m_writing_segments;					//正在写的segment
 	int m_writed_segment_cnt;											//已写完的segment数
 	
-	std::map<fileid_t, uint64_t> m_tobe_merge_segments[MAX_LEVEL_ID];	//所有level层的segment，用于merge
-	std::map<fileid_t, uint64_t> m_merging_segment_fileids[MAX_LEVEL_ID];	//正在合并的segment
+	std::map<fileid_t, uint64_t> m_tobe_merge_segments[MAX_LEVEL_ID+1];	//所有level层的segment，用于merge
+	std::map<fileid_t, uint64_t> m_merging_segment_fileids[MAX_LEVEL_ID+1];	//正在合并的segment
 	std::vector<fileid_t> m_merged_segment_fileids;						//已合并并待删除的segment，需写入bucket meta
 
 	std::deque<fileid_t> m_tobe_delete_bucket_meta_fileids;				//待删除的bucket meta文件

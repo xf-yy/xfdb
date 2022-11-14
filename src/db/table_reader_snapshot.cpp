@@ -26,7 +26,7 @@ namespace xfdb
 TableReaderSnapshot::TableReaderSnapshot(const std::map<fileid_t, TableReaderPtr>& new_readers) 
 	: m_readers(new_readers)
 {
-	GetMeta();
+	GetUpmostKey();
 }
 
 TableReaderSnapshot::~TableReaderSnapshot()
@@ -72,7 +72,7 @@ void TableReaderSnapshot::GetStat(BucketStat& stat) const
 	}
 }
 
-void TableReaderSnapshot::GetMeta()
+void TableReaderSnapshot::GetUpmostKey()
 {
 	if(m_readers.empty())
 	{

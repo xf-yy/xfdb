@@ -51,7 +51,7 @@ public:
 	}
 
 private:
-	void GetMeta();
+	void GetUpmostKey();
 	
 private:
 	std::map<fileid_t, TableReaderPtr> m_readers;

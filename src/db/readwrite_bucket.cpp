@@ -44,17 +44,19 @@ TableWriterPtr ReadWriteBucket::NewTableWriter(WritableEngine* engine)
 
 Status ReadWriteBucket::Get(const StrView& key, String& value)
 {	
+	ObjectType type;
+
 	m_segment_rwlock.ReadLock();
-	TableWriterPtr memwriter_ptr = m_memwriter;
+	if(m_memwriter && m_memwriter->Get(key, type, value) == OK) 
+	{
+	    m_segment_rwlock.ReadUnlock();
+    	return (type == SetType) ? OK : ERR_OBJECT_NOT_EXIST;
+	}
+
 	TableWriterSnapshotPtr mts_ptr = m_memwriter_snapshot;
 	BucketReaderSnapshot reader_snapshot = m_reader_snapshot;
 	m_segment_rwlock.ReadUnlock();
 
-	ObjectType type;
-	if(memwriter_ptr && memwriter_ptr->Get(key, type, value) == OK) 
-	{
-		return (type == SetType) ? OK : ERR_OBJECT_NOT_EXIST;
-	}
 	if(mts_ptr && mts_ptr->Get(key, type, value) == OK)
 	{
 		return (type == SetType) ? OK : ERR_OBJECT_NOT_EXIST;

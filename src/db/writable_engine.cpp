@@ -165,7 +165,7 @@ void WritableEngine::FullMergeThread(size_t index, void* arg)
 		WriteOnlyBucket* bucket = (WriteOnlyBucket*)msg.bucket.get();
 		if(bucket->FullMerge() == ERR_IN_PROCESSING)
 		{
-			Thread::Sleep(1000);
+			Thread::Sleep(10*1000);
 
 			//重新放入合并队列
 			engine->m_full_merge_queue.TryPush(msg);

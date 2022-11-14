@@ -119,6 +119,7 @@ Status WriteOnlyBucket::Open()
 	for(auto it = readers.begin(); it != readers.end(); ++it)
 	{
 		int level = LEVEL_ID(it->first);
+		assert(level <= MAX_LEVEL_ID);
 		m_tobe_merge_segments[level][it->first] = it->second->Size();
 	}
 	return OK;
@@ -356,6 +357,7 @@ Status WriteOnlyBucket::WriteSegment()
 		m_writing_segments[fileid] = 0;
 
 		std::map<fileid_t, TableReaderPtr> new_readers = m_reader_snapshot.readers->Readers();
+		assert(new_readers.find(fileid) == new_readers.end());
 		new_readers[fileid] = memwriter_snapshot;
 
 		TableReaderSnapshotPtr reader_snapshot = NewTableReaderSnapshot(new_readers);
@@ -368,6 +370,7 @@ Status WriteOnlyBucket::WriteSegment()
 	int writed_segment_inc = 0;
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
+
 		m_writing_segments[fileid] = new_segment_reader->Size();
 		
 		//判断m_writing_segments已经确认的segment
@@ -385,6 +388,7 @@ Status WriteOnlyBucket::WriteSegment()
 		
 		WriteLockGuard lock_guard(m_segment_rwlock);
 		std::map<fileid_t, TableReaderPtr> new_readers = m_reader_snapshot.readers->Readers();
+		assert(new_readers.find(fileid) != new_readers.end());		
 		new_readers[fileid] = new_segment_reader;
 
 		TableReaderSnapshotPtr reader_snapshot = NewTableReaderSnapshot(new_readers);
@@ -415,7 +419,10 @@ Status WriteOnlyBucket::Merge()
 
 Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 {		
-	assert(msinfo.merging_segment_fileids.size() > 1);
+	if(msinfo.merging_segment_fileids.size() <= 1)
+	{
+		return OK;
+	}
 
 	DBImplPtr db = m_db.lock();
 	assert(db);
@@ -459,6 +466,8 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 			m_merged_segment_fileids.push_back(*it);
 		}
 		int level = LEVEL_ID(msinfo.new_segment_fileid);
+		assert(level <= MAX_LEVEL_ID);
+
 		m_merging_segment_fileids[level][msinfo.new_segment_fileid] = msinfo.new_segment_reader->Size();
 		for(auto it = m_merging_segment_fileids[level].begin(); it != m_merging_segment_fileids[level].end();)
 		{
@@ -496,15 +505,35 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 	return OK;
 }
 
+bool WriteOnlyBucket::AddMerging(MergingSegmentInfo& msinfo)
+{
+	if(msinfo.merging_segment_fileids.size() <= 1)
+	{
+		return false;
+	}
+
+	m_segment_rwlock.ReadLock();
+	msinfo.reader_snapshot = m_reader_snapshot;
+	m_segment_rwlock.ReadUnlock();
+
+	msinfo.new_segment_fileid = msinfo.NewSegmentFileID();
+	
+	int new_level = LEVEL_ID(msinfo.new_segment_fileid);
+	assert(new_level <= MAX_LEVEL_ID);
+	assert(m_merging_segment_fileids[new_level].find(msinfo.new_segment_fileid) == m_merging_segment_fileids[new_level].end());
+	m_merging_segment_fileids[new_level][msinfo.new_segment_fileid] = 0;
+	return true;
+}
+
 //单线程执行
 Status WriteOnlyBucket::FullMerge()
 {
 	std::vector<MergingSegmentInfo> msinfos;
-	{
+	{		
 		std::lock_guard<std::mutex> lock(m_mutex);
 
 		//注：如果当前有合并操作则返回错误
-		for(int level = 0; level < MAX_LEVEL_ID; ++level)
+		for(int level = 0; level <= MAX_LEVEL_ID; ++level)
 		{
 			if(!m_merging_segment_fileids[level].empty())
 			{
@@ -512,44 +541,36 @@ Status WriteOnlyBucket::FullMerge()
 			}
 		}
 
-		MergingSegmentInfo msinfo;
-
-		m_segment_rwlock.ReadLock();
-		msinfo.reader_snapshot = m_reader_snapshot;
-		m_segment_rwlock.ReadUnlock();
-
-		const auto& readers = msinfo.reader_snapshot.readers->Readers();
-		for(auto it = readers.begin(); it != readers.end(); ++it)
+		//搜集所有的m_tobe_merge_segments
+		std::map<fileid_t, uint64_t> total_tobe_merge_segments;
+		for(int level = 0; level <= MAX_LEVEL_ID; ++level)
 		{
-			if(it->second->Size() < m_engine->GetConfig().max_merge_size && FULLMERGE_COUNT(it->first) < MAX_FULLMERGE_NUM)
+			total_tobe_merge_segments.insert(m_tobe_merge_segments[level].begin(), m_tobe_merge_segments[level].end());
+		}
+
+		MergingSegmentInfo msinfo;	
+		for(auto it = total_tobe_merge_segments.begin(); it != total_tobe_merge_segments.end(); ++it)
+		{
+			if(it->second < m_engine->GetConfig().max_merge_size && FULLMERGE_COUNT(it->first) < MAX_FULLMERGE_NUM)
 			{
 				msinfo.merging_segment_fileids.insert(it->first);
+
+				int level = LEVEL_ID(it->first);
+				assert(level <= MAX_LEVEL_ID);
+				m_tobe_merge_segments[level].erase(it->first);
 			}
 			else
 			{
-				if(msinfo.merging_segment_fileids.size() > 1)
+				if(AddMerging(msinfo))
 				{
-					msinfo.new_segment_fileid = msinfo.NewSegmentFileID();
-					
-					int new_level = LEVEL_ID(msinfo.new_segment_fileid);
-					m_merging_segment_fileids[new_level][msinfo.new_segment_fileid] = 0;
 					msinfos.push_back(msinfo);
 				}
 				msinfo.merging_segment_fileids.clear();
 			}
 		}
-		if(msinfo.merging_segment_fileids.size() > 1)
+		if(AddMerging(msinfo))
 		{
-			msinfo.new_segment_fileid = msinfo.NewSegmentFileID();
-			
-			int new_level = LEVEL_ID(msinfo.new_segment_fileid);
-			m_merging_segment_fileids[new_level][msinfo.new_segment_fileid] = 0;
 			msinfos.push_back(msinfo);
-		}
-
-		for(int level = 0; level < MAX_LEVEL_ID; ++level)
-		{
-			m_tobe_merge_segments[level].clear();
 		}
 	}
 	
@@ -561,6 +582,7 @@ Status WriteOnlyBucket::FullMerge()
 			return s;
 		}
 	}
+
 	return OK;
 }
 
@@ -570,7 +592,7 @@ Status WriteOnlyBucket::PartMerge()
 	const uint32_t merge_factor = m_engine->GetConfig().merge_factor;
 
 	//每层都尝试合并一下
-	for(int level = 0; level < MAX_LEVEL_ID; ++level)
+	for(int level = 0; level <= MAX_LEVEL_ID; ++level)
 	{
 		for(;;)
 		{
@@ -586,26 +608,14 @@ Status WriteOnlyBucket::PartMerge()
 				for(uint32_t m = 0; m < merge_factor; ++m)
 				{
 					//如果segment大小超过阈值或level已达最大值，则截断
-					if(it->second >= m_engine->GetConfig().max_merge_size || LEVEL_ID(it->first) == MAX_LEVEL_ID)
+					if(it->second >= m_engine->GetConfig().max_merge_size || LEVEL_ID(it->first) >= MAX_LEVEL_ID)
 					{
-						m_tobe_merge_segments[level].erase(it);
 						break;
 					}
 					msinfo.merging_segment_fileids.insert(it->first);
 					it = m_tobe_merge_segments[level].erase(it);
 				}
-				if(msinfo.merging_segment_fileids.size() <= 1)
-				{
-					continue;
-				}
-				m_segment_rwlock.ReadLock();
-				msinfo.reader_snapshot = m_reader_snapshot;
-				m_segment_rwlock.ReadUnlock();
-
-				msinfo.new_segment_fileid = msinfo.NewSegmentFileID();
-
-				int new_level = LEVEL_ID(msinfo.new_segment_fileid);
-				m_merging_segment_fileids[new_level][msinfo.new_segment_fileid] = 0;
+				AddMerging(msinfo);
 			}
 
 			Status s = Merge(msinfo);

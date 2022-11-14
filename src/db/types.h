@@ -375,6 +375,10 @@ struct MergingSegmentInfo
 	BucketReaderSnapshot reader_snapshot;
 
 public:
+	MergingSegmentInfo()
+	{
+		new_segment_fileid = INVALID_FILEID;
+	}
 	void GetMergingReaders(std::map<fileid_t, TableReaderPtr>& segment_readers) const;
 	uint64_t GetMergingSize() const;
 
