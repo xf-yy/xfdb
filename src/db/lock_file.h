@@ -17,7 +17,7 @@ limitations under the License.
 #ifndef __xfdb_lock_file_h__
 #define __xfdb_lock_file_h__
 
-#include "xfdb/util_types.h"
+#include "xfdb/strutil.h"
 #include "path.h"
 #include "file.h"
 #include "file_util.h"

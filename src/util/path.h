@@ -18,7 +18,6 @@ limitations under the License.
 #define __xfutil_path_h__
 
 #include <stdio.h>
-#include "xfdb/util_types.h"
 #include "xfdb/strutil.h"
 
 namespace xfutil 

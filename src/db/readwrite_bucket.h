@@ -17,7 +17,7 @@ limitations under the License.
 #ifndef __xfdb_readwrite_bucket_h__
 #define __xfdb_readwrite_bucket_h__
 
-#include "types.h"
+#include "dbtypes.h"
 #include "readwrite_memwriter.h"
 #include "table_writer_snapshot.h"
 #include "table_reader_snapshot.h"
@@ -39,12 +39,12 @@ public:
 	
 public:	
 	virtual Status Get(const StrView& key, String& value) override;	
-
+	virtual IteratorImplPtr NewIterator() override;
+    
 protected:
 	virtual TableWriterPtr NewTableWriter(WritableEngine* engine);
 
 };
-
 
 }
 

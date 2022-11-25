@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#include "types.h"
+#include "dbtypes.h"
 #include "engine.h"
 #include "logger.h"
 #include "hash.h"
@@ -101,6 +101,10 @@ Status Engine::Init()
 	{
 		return ERR_INVALID_CONFIG;
 	}
+
+    //初始化随机数
+    srand(time(nullptr));
+
 	//如果多个进程同时打开日志呢？写锁
 	//xfutil::LogConf log_conf;
 	//conf.log_file_path;

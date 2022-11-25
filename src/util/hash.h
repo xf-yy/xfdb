@@ -17,7 +17,7 @@ limitations under the License.
 #ifndef __xfutil_hash_h__
 #define __xfutil_hash_h__
 
-#include "xfdb/util_types.h"
+#include "xfdb/strutil.h"
 
 namespace xfutil 
 {

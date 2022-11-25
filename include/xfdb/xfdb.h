@@ -18,7 +18,7 @@ limitations under the License.
 #define __xfdb_xfdb_h__
 
 #include "xfdb/db.h"
-#include "xfdb/db_types.h"
+#include "xfdb/types.h"
 
 namespace xfdb 
 {

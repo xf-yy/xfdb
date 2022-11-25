@@ -14,36 +14,74 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
+#include <math.h>
 #include <algorithm>
 #include "readwrite_memwriter.h"
 #include "memwriter_iterator.h"
+#include "writeonly_memwriter.h"
 
 namespace xfdb
 {
 
-ReadWriteMemWriter::ReadWriteMemWriter(BlockPool& pool, uint32_t max_object_num)
-	: TableWriter(pool)
+#define LEVEL_BRANCH 4
+
+ReadWriteMemWriter::ReadWriteMemWriter(BlockPool& pool, uint32_t max_object_num) 
+    : TableWriter(pool), LEVEL_BF(RAND_MAX / LEVEL_BRANCH), MAX_LEVEL_NUM(1 + logf(max_object_num) / logf(LEVEL_BRANCH))
 {
+    m_max_level = 1;
+
+    m_head = NewNode(nullptr, MAX_LEVEL_NUM);
+    for (int i = 0; i < MAX_LEVEL_NUM; ++i) 
+    {
+        m_head->SetNext(i, nullptr);
+    }
 }
 
-ReadWriteMemWriter::~ReadWriteMemWriter()
+Status ReadWriteMemWriter::Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const
 {
-	//FIXME: 无需析构
-	#if 0
-	for(auto it = m_objects.begin(); it != m_objects.end(); ++it)
-	{
-		it->second->~Object();
-	}
-	#endif
+    Object dst_obj(DeleteType, obj_id, key);
+
+    SkipListNode* node = LowerBound(dst_obj);
+    if (node != nullptr && key == node->object->key) 
+    {
+        type = node->object->type;
+        value.Assign(node->object->value.data, node->object->value.size);
+        return OK;
+    } 
+    
+    return ERR_OBJECT_NOT_EXIST;
 }
 
 Status ReadWriteMemWriter::Write(objectid_t start_seqid, const Object* object)
 {
-	Object* obj = CloneObject(start_seqid, object);
+    Object* obj = CloneObject(start_seqid, object);   
+    return Write(obj);
+}
 
-	//FIXME:目前覆盖旧值(如果是append类型，则连接起来)
-	m_objects[obj->key] = obj;
-	return OK;
+Status ReadWriteMemWriter::Write(const Object* obj)
+{	
+    SkipListNode* prev[MAX_LEVEL_NUM];
+    SkipListNode* node = LowerBound(*obj, prev);
+
+    assert(node == nullptr || obj->Compare(node->object) != 0);
+
+    int level = RandomLevel();
+    if (level > GetMaxLevel()) 
+    {
+        for (int i = GetMaxLevel(); i < level; i++) 
+        {
+            prev[i] = m_head;
+        }
+        m_max_level.store(level, std::memory_order_relaxed);
+    }
+
+    node = NewNode(obj, level);
+    for (int i = 0; i < level; ++i) 
+    {
+        node->NoBarrierSetNext(i, prev[i]->NoBarrierNext(i));
+        prev[i]->SetNext(i, node);
+    }
+    return OK;
 }
 
 Status ReadWriteMemWriter::Write(objectid_t start_seqid, const WriteOnlyMemWriterPtr& memtable)
@@ -54,39 +92,71 @@ Status ReadWriteMemWriter::Write(objectid_t start_seqid, const WriteOnlyMemWrite
 	for(size_t i = 0; i < objs.size(); ++i)
 	{
 		objs[i]->id = start_seqid + i;
-		m_objects[objs[i]->key] = objs[i];
+        Write(objs[i]);
 	}
 	return OK;
 }
 
-void ReadWriteMemWriter::Finish()
+IteratorImplPtr ReadWriteMemWriter::NewIterator()
 {
-	//map已经是排序好的，无需再排序
-}
-
-Status ReadWriteMemWriter::Get(const StrView& key, ObjectType& type, String& value) const
-{
-	auto it = m_objects.find(key);
-	if(it == m_objects.end())
-	{
-		return ERR_OBJECT_NOT_EXIST;
-	}
-	type = it->second->type;
-	value.Assign(it->second->value.data, it->second->value.size);
-	return OK;
-}
-
-IteratorPtr ReadWriteMemWriter::NewIterator()
-{
-	ReadWriteMemWriterPtr ptr = std::dynamic_pointer_cast<ReadWriteMemWriter>(shared_from_this());
-
-	return NewReadWriteMemWriterIterator(ptr);
+    ReadWriteMemWriterPtr ptr = std::dynamic_pointer_cast<ReadWriteMemWriter>(shared_from_this());
+    return NewReadWriteMemWriterIterator(ptr);
 }
 
 //大于最大key的key
 StrView ReadWriteMemWriter::UpmostKey() const
 {
-	return m_objects.empty() ? StrView() : m_objects.rbegin()->first;
+    SkipListNode* node = Last();
+    return (node != m_head) ? node->object->key : StrView();
+}
+
+SkipListNode* ReadWriteMemWriter::Last() const
+{
+    SkipListNode* node = m_head;
+
+    for(int level = GetMaxLevel() - 1; level >= 0; --level)
+    {
+        SkipListNode* next = node->Next(level);
+        while(next != nullptr) 
+        {
+            node = next;
+
+            next = node->Next(level);
+        }
+    }
+
+    return node;
+}
+
+SkipListNode* ReadWriteMemWriter::LowerBound(const Object& obj, SkipListNode** prev) const
+{
+    assert(prev != nullptr);
+
+    SkipListNode* node = m_head;
+    
+    for(int level = GetMaxLevel() - 1; level >= 0; --level) 
+    {
+        SkipListNode* next = node->Next(level);
+        while (next != nullptr && next->object->Compare(&obj) < 0) 
+        {
+            node = next;
+
+            next = node->Next(level);
+        } 
+        prev[level] = node;
+    }
+    assert(node != nullptr);
+    return node->Next(0);
+}
+
+int ReadWriteMemWriter::RandomLevel()
+{
+    int level = 1;
+    while (level < MAX_LEVEL_NUM && rand() <= LEVEL_BF) 
+    {
+        ++level;
+    }
+    return level;
 }
 
 

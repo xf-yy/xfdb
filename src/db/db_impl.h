@@ -20,10 +20,9 @@ limitations under the License.
 #include <vector>
 #include <map>
 #include <mutex>
-#include "xfdb/util_types.h"
 #include "xfdb/strutil.h"
 #include "xfdb/batch.h"
-#include "types.h"
+#include "dbtypes.h"
 #include "rwlock.h"
 #include "db_infofile.h"
 
@@ -55,6 +54,11 @@ public:
 	{
 		return ERR_INVALID_MODE;
 	}
+    //获取迭代器
+    virtual IteratorImplPtr NewIterator(const std::string& bucket_name)
+    {
+		return IteratorImplPtr();
+    }
 
 	virtual Status Set(const std::string& bucket_name, const StrView& key, const StrView& value)
 	{

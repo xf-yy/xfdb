@@ -18,8 +18,7 @@ limitations under the License.
 #define __xfdb_db_h__
 
 #include <vector>
-#include "xfdb/util_types.h"
-#include "xfdb/db_types.h"
+#include "xfdb/types.h"
 #include "xfdb/strutil.h"
 #include "xfdb/batch.h"
 
@@ -59,6 +58,9 @@ public:
 	//获取指定bucket中的记录
 	Status Get(const std::string& bucket_name, const xfutil::StrView& key, xfutil::String& value) const;
 
+    //获取迭代器
+    IteratorPtr NewIterator(const std::string& bucket_name);
+
 	//设置指定bucket中的记录
 	Status Set(const std::string& bucket_name, const xfutil::StrView& key, const xfutil::StrView& value);
 	//Append
@@ -87,7 +89,6 @@ private:
 	friend class Engine;
 	DB(const DB&) = delete;
   	DB& operator=(const DB&) = delete;
-	
 };
 
 

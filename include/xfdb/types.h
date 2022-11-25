@@ -21,7 +21,6 @@ limitations under the License.
 #include <atomic>
 #include <memory>
 #include <map>
-#include "xfdb/util_types.h"
 #include "xfdb/strutil.h"
 
 namespace xfdb 
@@ -273,15 +272,21 @@ union test
 };
 #endif
 
-class WriteOnlyMemWriter;
-typedef std::shared_ptr<WriteOnlyMemWriter> WriteOnlyMemWriterPtr;
 
 class DB;
 typedef std::shared_ptr<DB> DBPtr;
 
+class Iterator;
+typedef std::shared_ptr<Iterator> IteratorPtr;
+
+class IteratorImpl;
+typedef std::shared_ptr<IteratorImpl> IteratorImplPtr;
+
 class DBImpl;
 typedef std::shared_ptr<DBImpl> DBImplPtr;
-typedef std::weak_ptr<DBImpl> DBImplWptr;
+
+class WriteOnlyMemWriter;
+typedef std::shared_ptr<WriteOnlyMemWriter> WriteOnlyMemWriterPtr;
 
 }
 

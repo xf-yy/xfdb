@@ -21,7 +21,7 @@ limitations under the License.
 #include <mutex>
 #include <unordered_map>
 #include <list>
-#include "xfdb/util_types.h"
+#include "xfdb/strutil.h"
 
 namespace xfutil 
 {

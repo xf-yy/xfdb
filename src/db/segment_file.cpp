@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#include "types.h"
+#include "dbtypes.h"
 #include "segment_file.h"
 #include "table_writer_snapshot.h"
 #include "memwriter_iterator.h"
@@ -45,7 +45,7 @@ Status SegmentReader::Open(const char* bucket_path, const SegmentIndexInfo& info
 	return m_data_reader.Open(bucket_path, info.segment_fileid);
 }
 
-Status SegmentReader::Get(const StrView& key, ObjectType& type, String& value) const
+Status SegmentReader::Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const
 {
 	SegmentL0Index L0index;
 	Status s = m_index_reader.Search(key, L0index);
@@ -57,7 +57,7 @@ Status SegmentReader::Get(const StrView& key, ObjectType& type, String& value) c
 	return m_data_reader.Search(L0index, key, type, value);
 }
 
-IteratorPtr SegmentReader::NewIterator()
+IteratorImplPtr SegmentReader::NewIterator()
 {
 	SegmentReaderPtr ptr = std::dynamic_pointer_cast<SegmentReader>(shared_from_this());
 
@@ -101,7 +101,7 @@ Status SegmentWriter::Create(const char* bucket_path, fileid_t fileid)
 	return m_data_writer.Create(bucket_path, fileid);
 }
 
-Status SegmentWriter::Write(IteratorPtr& iter, const BucketStat& stat, SegmentIndexInfo& seginfo)
+Status SegmentWriter::Write(IteratorImplPtr& iter, const BucketStat& stat, SegmentIndexInfo& seginfo)
 {	
 	Status s = m_data_writer.Write(*iter);
 	if(s != OK)
@@ -131,7 +131,7 @@ Status SegmentWriter::Write(IteratorPtr& iter, const BucketStat& stat, SegmentIn
 Status SegmentWriter::Write(const TableWriterSnapshotPtr& table_writer_snapshot, SegmentIndexInfo& seginfo)
 {	
 	//FIXME:与Merge相似，可以合并
-	IteratorPtr iter = table_writer_snapshot->NewIterator();
+	IteratorImplPtr iter = table_writer_snapshot->NewIterator();
 
 	BucketStat stat = {0};
 	table_writer_snapshot->GetStat(stat);
@@ -145,7 +145,7 @@ Status SegmentWriter::Merge(const MergingSegmentInfo& msinfo, SegmentIndexInfo& 
 	msinfo.GetMergingReaders(segment_readers);
 
 	TableReaderSnapshot tmp_reader_snapshot(segment_readers);
-	IteratorPtr iter = tmp_reader_snapshot.NewIterator();
+	IteratorImplPtr iter = tmp_reader_snapshot.NewIterator();
 
 	BucketStat stat = {0};
 	tmp_reader_snapshot.GetStat(stat);

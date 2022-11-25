@@ -18,9 +18,9 @@ limitations under the License.
 #define __xfdb_db_infofile_h__
 
 #include <vector>
-#include "xfdb/util_types.h"
+#include "xfdb/strutil.h"
 #include "buffer.h"
-#include "types.h"
+#include "dbtypes.h"
 
 namespace xfdb 
 {

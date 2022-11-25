@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#include "types.h"
+#include "dbtypes.h"
 #include "coding.h"
 #include "path.h"
 #include "bucket_metafile.h"

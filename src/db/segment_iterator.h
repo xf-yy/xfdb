@@ -17,14 +17,14 @@ limitations under the License.
 #ifndef __xfdb_segment_iterator_h__
 #define __xfdb_segment_iterator_h__
 
-#include "iterator.h"
+#include "iterator_impl.h"
 #include "index_block.h"
 #include "data_block.h"
 
 namespace xfdb 
 {
 
-class SegmentReaderIterator : public Iterator 
+class SegmentReaderIterator : public IteratorImpl 
 {
 public:
 	explicit SegmentReaderIterator(SegmentReaderPtr& segment_reader);
@@ -36,21 +36,21 @@ public:
 
 	/**移到第1个元素处*/
 	virtual void First() override;
-	/**移到最后1个元素处*/
-	//virtual void Last() = 0;
 	
 	/**移到到>=key的地方*/
 	//virtual void Seek(const StrView& key) override;
 	
 	/**向后移到一个元素*/
 	virtual void Next() override;
-	//virtual void Prev() = 0;
 
 	/**是否还有下一个元素*/
 	virtual bool Valid() const override;
 	
-	/**获取key和value*/
-	virtual const Object& object() const override;
+	virtual const xfutil::StrView& Key() const override;
+	virtual const xfutil::StrView& Value() const override;
+
+    //object类型
+	virtual ObjectType Type() const override;
 	
 private:
 	SegmentReaderPtr m_segment_reader;

@@ -118,13 +118,13 @@ StrView DataWriter::ClonePrevKey(const StrView& str)
 	return StrView(m_prev_key.Data(), m_prev_key.Size());
 }
 
-Status DataWriter::WriteGroup(Iterator& iter, L0GroupIndex& gi)
+Status DataWriter::WriteGroup(IteratorImpl& iter, L0GroupIndex& gi)
 {
 	if(!iter.Valid())
 	{
 		return ERR_NOMORE_DATA;
 	}
-	gi.start_key = CloneKey(m_key_buf, iter.object().key);
+	gi.start_key = CloneKey(m_key_buf, iter.Key());
 	StrView prev_key = gi.start_key;
 	
 	Status s = OK;
@@ -132,8 +132,8 @@ Status DataWriter::WriteGroup(Iterator& iter, L0GroupIndex& gi)
 
 	for(int i = 0; i < MAX_OBJECT_NUM_OF_GROUP && iter.Valid(); ++i)
 	{
-		const StrView& key = iter.object().key;
-		const StrView& value = iter.object().value;
+		const StrView& key = iter.Key();
+		const StrView& value = iter.Value();
 		
 		//当剩余空间不足时，结束掉该block
 		uint32_t need_size = key.size + value.size + EXTRA_OBJECT_SIZE;
@@ -153,7 +153,7 @@ Status DataWriter::WriteGroup(Iterator& iter, L0GroupIndex& gi)
 		uint32_t nonshared_size = key.size - shared_keysize;
 		m_block_ptr = EncodeString(m_block_ptr, &key.data[shared_keysize], nonshared_size);
 
-		*m_block_ptr++ = iter.object().type;
+		*m_block_ptr++ = iter.Type();
 
 		m_block_ptr = EncodeString(m_block_ptr, value.data, value.size);
 
@@ -194,13 +194,13 @@ Status DataWriter::WriteGroupIndex(const L0GroupIndex* group_indexs, int index_c
 	return OK;
 }
 
-Status DataWriter::WriteL2Group(Iterator& iter, LnGroupIndex& ci)
+Status DataWriter::WriteL2Group(IteratorImpl& iter, LnGroupIndex& ci)
 {
 	if(!iter.Valid())
 	{
 		return ERR_NOMORE_DATA;
 	}
-	ci.start_key = CloneKey(m_key_buf, iter.object().key);
+	ci.start_key = CloneKey(m_key_buf, iter.Key());
 	
 	Status s = ERR_BUFFER_FULL;
 	byte_t* group_start = m_block_ptr;
@@ -249,7 +249,7 @@ Status DataWriter::WriteL2GroupIndex(const LnGroupIndex* group_indexs, int index
 	return OK;
 }
 
-Status DataWriter::WriteBlock(Iterator& iter, uint32_t& index_size)
+Status DataWriter::WriteBlock(IteratorImpl& iter, uint32_t& index_size)
 {
 	assert(iter.Valid());
 	
@@ -280,7 +280,7 @@ Status DataWriter::WriteBlock(Iterator& iter, uint32_t& index_size)
 	return s;
 }
 
-Status DataWriter::Write(Iterator& iter)
+Status DataWriter::Write(IteratorImpl& iter)
 {
 	while(iter.Valid())
 	{
@@ -288,7 +288,7 @@ Status DataWriter::Write(Iterator& iter)
 		m_key_buf.Clear();
 		
 		SegmentL0Index L0_index;
-		L0_index.start_key = CloneKey(m_key_buf, iter.object().key);	//iter.Key可能是临时key
+		L0_index.start_key = CloneKey(m_key_buf, iter.Key());	//iter.Key可能是临时key
 		L0_index.L0offset = m_offset;
 		
 		uint32_t index_size;

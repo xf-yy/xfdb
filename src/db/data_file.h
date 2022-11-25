@@ -19,11 +19,11 @@ limitations under the License.
 
 #include <map>
 #include <deque>
-#include "types.h"
+#include "dbtypes.h"
 #include "xfdb/strutil.h"
 #include "buffer.h"
 #include "file.h"
-#include "iterator.h"
+#include "iterator_impl.h"
 #include "path.h"
 
 namespace xfdb 
@@ -59,7 +59,7 @@ public:
 	
 public:	
 	Status Create(const char* bucket_path, fileid_t fileid);
-	Status Write(Iterator& iter);
+	Status Write(IteratorImpl& iter);
 	Status Finish();
 	inline uint64_t FileSize()
 	{
@@ -69,9 +69,9 @@ public:
 	static Status Remove(const char* bucket_path, fileid_t fileid);
 	
 private:
-	Status WriteGroup(Iterator& iter, L0GroupIndex& gi);
-	Status WriteL2Group(Iterator& iter, LnGroupIndex& ci);
-	Status WriteBlock(Iterator& iter, uint32_t& index_size);
+	Status WriteGroup(IteratorImpl& iter, L0GroupIndex& gi);
+	Status WriteL2Group(IteratorImpl& iter, LnGroupIndex& ci);
+	Status WriteBlock(IteratorImpl& iter, uint32_t& index_size);
 	Status WriteGroupIndex(const L0GroupIndex* group_indexs, int index_cnt);
 	Status WriteL2GroupIndex(const LnGroupIndex* group_indexs, int index_cnt);
 	

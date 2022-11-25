@@ -21,8 +21,7 @@ limitations under the License.
 #include <ctime>
 #include <set>
 #include <map>
-#include "xfdb/util_types.h"
-#include "xfdb/db_types.h"
+#include "xfdb/types.h"
 #include "xfdb/strutil.h"
 #include "hash.h"
 
@@ -114,7 +113,6 @@ enum ObjectType : uint8_t
 struct Object
 {
 	ObjectType type;
-	//uint8_t flag;
 	StrView key;
 	StrView value;
 	objectid_t id;
@@ -127,19 +125,41 @@ struct Object
 	{
 		type = type_;
 	}
+	Object(ObjectType type_, objectid_t id_, StrView key_) : key(key_)
+	{
+		type = type_;
+        id = id_;
+	}    
 	Object(ObjectType type_, StrView key_, StrView value_) : key(key_), value(value_)
 	{
 		type = type_;
 	}	
+
+    //与dst_obj比较，小于返回-1，等于返回0，大于返回1
+    int Compare(const Object* dst_obj) const
+    {
+        //按key升序，id降序
+		int ret = this->key.Compare(dst_obj->key);
+		if(ret == 0) 
+        {
+            if(this->id < dst_obj->id)
+            {
+                ret = 1;
+            }
+            else if(this->id > dst_obj->id)
+            {
+                ret = -1;
+            }
+        }
+        return ret;
+    }
 };
 
 struct ObjectCmp
 {
 	bool operator()(const Object* r1, const Object* r2) const
 	{
-		//FIXME: 先按key升序，再按id降序
-		int ret = r1->key.Compare(r2->key);
-		return (ret == 0) ? (r2->id < r1->id) : (ret < 0);
+        return r1->Compare(r2) < 0;
 	}
 };
 
@@ -269,6 +289,8 @@ class WritableEngine;
 typedef std::shared_ptr<WritableEngine> WritableEnginePtr;
 #define NewWritableEngine 	std::make_shared<WritableEngine>
 
+typedef std::weak_ptr<DBImpl> DBImplWptr;
+
 class WritableDB;
 typedef std::shared_ptr<WritableDB> WritableDBPtr;
 #define NewWritableDB 	std::make_shared<WritableDB>
@@ -296,11 +318,13 @@ class ReadOnlyBucket;
 typedef std::shared_ptr<ReadOnlyBucket> ReadOnlyBucketPtr;
 #define NewReadOnlyBucket 	std::make_shared<ReadOnlyBucket>
 
+class SkipListBucket;
+typedef std::shared_ptr<SkipListBucket> SkipListBucketPtr;
+#define NewSkipListBucket 	std::make_shared<SkipListBucket>
+
 class TableReader;
 typedef std::shared_ptr<TableReader> TableReaderPtr;
 
-class Iterator;
-typedef std::shared_ptr<Iterator> IteratorPtr;
 
 class TableReaderSnapshot;
 typedef std::shared_ptr<TableReaderSnapshot> TableReaderSnapshotPtr;
@@ -309,6 +333,7 @@ typedef std::shared_ptr<TableReaderSnapshot> TableReaderSnapshotPtr;
 class TableWriter;
 typedef std::shared_ptr<TableWriter> TableWriterPtr;
 
+class SkipListNode;
 class ReadWriteMemWriter;
 typedef std::shared_ptr<ReadWriteMemWriter> ReadWriteMemWriterPtr;
 #define NewReadWriteMemWriter 	std::make_shared<ReadWriteMemWriter>
@@ -316,6 +341,9 @@ typedef std::shared_ptr<ReadWriteMemWriter> ReadWriteMemWriterPtr;
 //class WriteOnlyMemWriter;
 //typedef std::shared_ptr<WriteOnlyMemWriter> WriteOnlyMemWriterPtr;
 #define NewWriteOnlyMemWriter 	std::make_shared<WriteOnlyMemWriter>
+
+class IteratorImpl;
+typedef std::shared_ptr<IteratorImpl> BaseIteratorPtr;
 
 class TableWriterSnapshot;
 typedef std::shared_ptr<TableWriterSnapshot> TableWriterSnapshotPtr;

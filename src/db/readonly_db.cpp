@@ -79,6 +79,17 @@ Status ReadOnlyDB::Get(const std::string& bucket_name, const StrView& key, Strin
 	return bptr->Get(key, value);
 }
 
+IteratorImplPtr ReadOnlyDB::NewIterator(const std::string& bucket_name)
+{
+	BucketPtr bptr;
+	if(!GetBucket(bucket_name, bptr))
+	{
+		return IteratorImplPtr();
+	}
+	return bptr->NewIterator();
+
+}
+
 
 }   
 

@@ -20,7 +20,7 @@ limitations under the License.
 #include <vector>
 #include <malloc.h>
 #include <string.h>
-#include "xfdb/util_types.h"
+#include "xfdb/strutil.h"
 
 namespace xfutil
 {

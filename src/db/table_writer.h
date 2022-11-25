@@ -20,8 +20,8 @@ limitations under the License.
 #include <list>
 #include "buffer.h"
 #include "xfdb/strutil.h"
-#include "types.h"
-#include "iterator.h"
+#include "dbtypes.h"
+#include "iterator_impl.h"
 #include "table_reader.h"
 
 namespace xfdb
@@ -36,9 +36,9 @@ public:
 public:
 	virtual Status Write(objectid_t start_seqid, const Object* object) = 0;
 	virtual Status Write(objectid_t start_seqid, const WriteOnlyMemWriterPtr& memtable) = 0;
-	virtual void Finish() = 0;
+	virtual void Finish(){}
 	
-	virtual Status Get(const StrView& key, ObjectType& type, String& value) const
+	virtual Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const
 	{
 		return ERR_INVALID_MODE;
 	}

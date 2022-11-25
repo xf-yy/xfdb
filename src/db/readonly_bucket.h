@@ -18,7 +18,7 @@ limitations under the License.
 #define __xfdb_readonly_bucket_h__
 
 #include <mutex>
-#include "types.h"
+#include "dbtypes.h"
 #include "bucket.h"
 #include "rwlock.h"
 
@@ -35,7 +35,9 @@ public:
 	virtual Status Open() override;
 
 	virtual Status Get(const StrView& key, String& value) override;
-	
+
+	virtual IteratorImplPtr NewIterator() override;
+
 	virtual void GetStat(BucketStat& stat) const override;
 		
 private:

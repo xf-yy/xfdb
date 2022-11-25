@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#include "types.h"
+#include "dbtypes.h"
 #include "memwriter_iterator.h"
 #include "writeonly_memwriter.h"
 #include "readwrite_memwriter.h"
@@ -39,32 +39,36 @@ StrView WriteOnlyMemWriterIterator::UpmostKey() const
 
 void WriteOnlyMemWriterIterator::Next()
 {
+    assert(m_index < m_max_num);
+
 	//如果key与后面的相同则跳过
-	while(m_index < m_max_num)
+    size_t prev_idx = m_index;
+	while(++m_index < m_max_num)
 	{
-		if(++m_index < m_max_num)
-		{
-			assert(m_table->m_objects[m_index]->key.Compare(m_table->m_objects[m_index-1]->key) >= 0);
-			if(m_table->m_objects[m_index]->key != m_table->m_objects[m_index-1]->key)
-			{
-				break;
-			}
-		}
+        assert(m_table->m_objects[m_index]->key.Compare(m_table->m_objects[prev_idx]->key) >= 0);
+        if(m_table->m_objects[m_index]->key != m_table->m_objects[prev_idx]->key)
+        {
+            break;
+        }
 	}
 };
 
-const Object& WriteOnlyMemWriterIterator::object() const
+const StrView& WriteOnlyMemWriterIterator::Key() const
 {
-	return *m_table->m_objects[m_index];
+	return m_table->m_objects[m_index]->key;
 }
 
-ReadWriteMemWriterIterator::ReadWriteMemWriterIterator(ReadWriteMemWriterPtr& table)
-	: m_table(table)
+const StrView& WriteOnlyMemWriterIterator::Value() const
 {
-	First();
+	return m_table->m_objects[m_index]->value;
 }
 
-StrView ReadWriteMemWriterIterator::UpmostKey()    const
+ObjectType WriteOnlyMemWriterIterator::Type() const
+{
+	return m_table->m_objects[m_index]->type;
+}
+
+StrView ReadWriteMemWriterIterator::UpmostKey() const
 {
 	return m_table->UpmostKey();
 }
@@ -72,37 +76,39 @@ StrView ReadWriteMemWriterIterator::UpmostKey()    const
 /**移到第1个元素处*/
 void ReadWriteMemWriterIterator::First()
 {
-	m_iter = m_table->m_objects.begin();
+    m_node = m_table->m_head->Next(0);
 }
-/**移到最后1个元素处*/
-//virtual void Last() = 0;
 
-/**移到到>=key的地方*/
-//void ReadWriteMemWriterIterator::Seek(const StrView& key)
-//{
-//}
-
-/**向后移到一个元素*/
 void ReadWriteMemWriterIterator::Next()
 {
-	if(m_iter != m_table->m_objects.end())
+    assert(m_node != nullptr);
+
+	//如果key与后面的相同则跳过
+    SkipListNode* prev_node = m_node;
+	while((m_node = m_node->Next(0)) != nullptr)
 	{
-		++m_iter;
+        assert(m_node->object->key.Compare(prev_node->object->key) >= 0);
+        if(m_node->object->key != prev_node->object->key)
+        {
+            break;
+        }
 	}
-};
-//virtual void Prev() = 0;
-
-/**是否还有下一个元素*/
-bool ReadWriteMemWriterIterator::Valid() const
-{
-	return (m_iter != m_table->m_objects.end());
 }
 
-const Object& ReadWriteMemWriterIterator::object() const
+const StrView& ReadWriteMemWriterIterator::Key() const
 {
-	return *m_iter->second;
-}
+    return m_node->object->key;
+}    
 
+const StrView& ReadWriteMemWriterIterator::Value() const
+{
+    return m_node->object->value;
+}   
+
+ObjectType ReadWriteMemWriterIterator::Type() const
+{
+    return m_node->object->type;
+}   
 
 } 
 

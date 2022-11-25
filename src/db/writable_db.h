@@ -21,7 +21,7 @@ limitations under the License.
 #include <map>
 #include <vector>
 #include <deque>
-#include "types.h"
+#include "dbtypes.h"
 #include "rwlock.h"
 #include "lock_file.h"
 #include "db_impl.h"
@@ -49,6 +49,8 @@ public:
 	
 	//object api
 	Status Get(const std::string& bucket_name, const StrView& key, String& value) const override;
+    IteratorImplPtr NewIterator(const std::string& bucket_name) override;
+
 	Status Set(const std::string& bucket_name, const StrView& key, const StrView& value) override;
 	Status Delete(const std::string& bucket_name, const StrView& key) override;
 	Status Write(const ObjectBatch& ob) override;

@@ -18,7 +18,7 @@ limitations under the License.
 #define __xfutil_block_pool_h__
 
 #include <deque>
-#include "xfdb/util_types.h"
+#include "xfdb/strutil.h"
 #include "spinlock.h"
 
 namespace xfutil

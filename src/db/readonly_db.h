@@ -17,7 +17,7 @@ limitations under the License.
 #ifndef __xfdb_readonly_db_h__
 #define __xfdb_readonly_db_h__
 
-#include "types.h"
+#include "dbtypes.h"
 #include "db_impl.h"
 #include "readonly_engine.h"
 
@@ -33,6 +33,7 @@ public:
 public:		
 	Status Open() override;
 	Status Get(const std::string& bucket_name, const StrView& key, String& value) const override;
+    IteratorImplPtr NewIterator(const std::string& bucket_name) override;
 
 protected:
 	BucketPtr NewBucket(const BucketInfo& bucket_info) override;

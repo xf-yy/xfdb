@@ -15,7 +15,7 @@ limitations under the License.
 ***************************************************************************/
 
 #include <atomic>
-#include "types.h"
+#include "dbtypes.h"
 #include "writable_db.h"
 #include "writeonly_bucket.h"
 #include "bucket_metafile.h"
@@ -453,6 +453,17 @@ Status WritableDB::Get(const std::string& bucket_name, const StrView& key, Strin
 	}
 	WriteOnlyBucket* bucket = (WriteOnlyBucket*)bptr.get();
 	return bucket->Get(key, value);
+}
+
+IteratorImplPtr WritableDB::NewIterator(const std::string& bucket_name)
+{
+	BucketPtr bptr;
+	if(!GetBucket(bucket_name, bptr))
+	{
+		return IteratorImplPtr();
+	}
+	WriteOnlyBucket* bucket = (WriteOnlyBucket*)bptr.get();
+	return bucket->NewIterator();
 }
 
 Status WritableDB::TryFlush()

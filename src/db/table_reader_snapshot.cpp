@@ -33,12 +33,12 @@ TableReaderSnapshot::~TableReaderSnapshot()
 {
 }
 
-Status TableReaderSnapshot::Get(const StrView& key, ObjectType& type, String& value) const
+Status TableReaderSnapshot::Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const
 {
 	//逆序遍历
 	for(auto it = m_readers.rbegin(); it != m_readers.rend(); ++it)
 	{
-		if(it->second->Get(key, type, value) == OK)
+		if(it->second->Get(key, obj_id, type, value) == OK)
 		{
 			return OK;
 		}
@@ -46,14 +46,14 @@ Status TableReaderSnapshot::Get(const StrView& key, ObjectType& type, String& va
 	return ERR_OBJECT_NOT_EXIST;
 }
 
-IteratorPtr TableReaderSnapshot::NewIterator()
+IteratorImplPtr TableReaderSnapshot::NewIterator()
 {
 	if(m_readers.size() == 1)
 	{
 		return m_readers.begin()->second->NewIterator();
 	}
 	
-	std::vector<IteratorPtr> iters;
+	std::vector<IteratorImplPtr> iters;
 	iters.reserve(m_readers.size());
 
 	for(auto it = m_readers.begin(); it != m_readers.end(); ++it)

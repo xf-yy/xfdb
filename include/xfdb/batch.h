@@ -19,8 +19,7 @@ limitations under the License.
 
 #include <vector>
 #include <map>
-#include "xfdb/util_types.h"
-#include "xfdb/db_types.h"
+#include "xfdb/types.h"
 #include "xfdb/strutil.h"
 
 namespace xfdb 

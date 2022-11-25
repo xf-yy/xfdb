@@ -17,7 +17,7 @@ limitations under the License.
 #ifndef __xfdb_iterator_h__
 #define __xfdb_iterator_h__
 
-#include "types.h"
+#include "xfdb/types.h"
 #include "xfdb/strutil.h"
 
 namespace xfdb 
@@ -26,32 +26,34 @@ namespace xfdb
 class Iterator 
 {
 public:
-	Iterator(){}
-	virtual ~Iterator(){}
+	~Iterator()
+    {}
 
 public:
-	//最大key
-	virtual StrView UpmostKey() const = 0;
-
 	/**移到第1个元素处*/
-	virtual void First() = 0;
-	/**移到最后1个元素处*/
-	//virtual void Last() = 0;
+	void First();
 	
 	/**移到到>=key的地方*/
 	//virtual void Seek(const StrView& key) = 0;
 	
 	/**向后移到一个元素*/
-	virtual void Next() = 0;
-	//virtual void Prev() = 0;
+	void Next();
 
 	/**是否还有下一个元素*/
-	virtual bool Valid() const = 0;
+	bool Valid() const;
 	
-	/**获取method, key和value*/
-	virtual const Object& object() const = 0;
-	
+	/**获取key和value*/
+	const xfutil::StrView& Key() const;
+	const xfutil::StrView& Value() const;
+
 private:
+	Iterator(IteratorImplPtr& iter);
+    
+private:
+	IteratorImplPtr m_iter;
+
+private:
+    friend class DB;
 	Iterator(const Iterator&) = delete;
 	Iterator& operator=(const Iterator&) = delete;
 };

@@ -18,17 +18,18 @@ limitations under the License.
 #define __xfdb_memwriter_iterator_h__
 
 #include <map>
-#include "types.h"
-#include "iterator.h"
+#include "dbtypes.h"
+#include "iterator_impl.h"
 
 namespace xfdb 
 {
 
-class WriteOnlyMemWriterIterator : public Iterator 
+class WriteOnlyMemWriterIterator : public IteratorImpl 
 {
 public:
 	WriteOnlyMemWriterIterator(WriteOnlyMemWriterPtr& table);
-	virtual ~WriteOnlyMemWriterIterator(){}
+	virtual ~WriteOnlyMemWriterIterator()
+    {}
 
 public:
 	virtual StrView UpmostKey() const override;
@@ -38,15 +39,12 @@ public:
 	{
 		m_index = 0;
 	}
-	/**移到最后1个元素处*/
-	//virtual void Last() = 0;
 	
 	/**移到到>=key的地方*/
 	//virtual void Seek(const StrView& key) override;
 	
 	/**向后移到一个元素*/
 	virtual void Next() override;
-	//virtual void Prev() = 0;
 
 	/**是否还有下一个元素*/
 	virtual bool Valid() const override
@@ -54,8 +52,12 @@ public:
 		return m_index < m_max_num;
 	}
 	
-	virtual const Object& object() const override;
-	
+	virtual const xfutil::StrView& Key() const override;
+	virtual const xfutil::StrView& Value() const override;
+
+    //object类型
+	virtual ObjectType Type() const override;
+
 private:
 	WriteOnlyMemWriterPtr m_table;
 
@@ -67,36 +69,44 @@ private:
 	WriteOnlyMemWriterIterator& operator=(const WriteOnlyMemWriterIterator&) = delete;
 };
 
-class ReadWriteMemWriterIterator : public Iterator 
+
+class ReadWriteMemWriterIterator : public IteratorImpl 
 {
 public:
-	ReadWriteMemWriterIterator(ReadWriteMemWriterPtr& table);
-	virtual ~ReadWriteMemWriterIterator(){}
+	ReadWriteMemWriterIterator(ReadWriteMemWriterPtr& table) : m_table(table)
+    {
+        First();
+    }
+	virtual ~ReadWriteMemWriterIterator()
+    {}
 
 public:
 	virtual StrView UpmostKey() const override;
 	
 	/**移到第1个元素处*/
 	virtual void First() override;
-	/**移到最后1个元素处*/
-	//virtual void Last() = 0;
 	
 	/**移到到>=key的地方*/
 	//virtual void Seek(const StrView& key) override;
 	
 	/**向后移到一个元素*/
 	virtual void Next() override;
-	//virtual void Prev() = 0;
 
 	/**是否还有下一个元素*/
-	virtual bool Valid()   const override;
+	virtual bool Valid() const override
+    {
+        return m_node != nullptr;
+    }
 	
-	virtual const Object& object() const override;
+	virtual const xfutil::StrView& Key() const override;
+	virtual const xfutil::StrView& Value() const override;
+
+    //object类型
+	virtual ObjectType Type() const override;
 	
 private:
 	ReadWriteMemWriterPtr m_table;
-
-	std::map<StrView, Object*>::iterator m_iter;
+	SkipListNode* m_node;
 	
 private:
 	ReadWriteMemWriterIterator(const ReadWriteMemWriterIterator&) = delete;

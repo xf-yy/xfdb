@@ -17,7 +17,7 @@ limitations under the License.
 #ifndef __xfdb_notify_msg_h__
 #define __xfdb_notify_msg_h__
 
-#include "types.h"
+#include "dbtypes.h"
 #include "path.h"
 
 namespace xfdb 

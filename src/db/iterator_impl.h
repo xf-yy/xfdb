@@ -14,49 +14,52 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_bucket_snapshot_h__
-#define __xfdb_bucket_snapshot_h__
+#ifndef __xfdb_iterator_impl_h__
+#define __xfdb_iterator_impl_h__
 
-#include <vector>
-#include <map>
-#include "xfdb/strutil.h"
-#include "xfdb/db.h"
-#include "rwlock.h"
+#include "xfdb/iterator.h"
 #include "dbtypes.h"
 
 namespace xfdb 
 {
 
-class BucketSnapshot
+class IteratorImpl
 {
 public:
-	BucketSnapshot(std::map<std::string, BucketPtr>& buckets);
-	~BucketSnapshot(){}
+	IteratorImpl()
+    {}
+	virtual ~IteratorImpl()
+    {}
 
 public:
-	void TryFlush();
-	void Flush();
-	void Merge();
-	void Clean();
+	/**移到第1个元素处*/
+	virtual void First() = 0;
 	
-	inline const std::map<std::string, BucketPtr>& Buckets() const
-	{
-		return m_buckets;
-	}
-	void Buckets(std::vector<std::string>& bucket_names) const;
-				
-protected:
-	//key: bucket_name
-	std::map<std::string, BucketPtr> m_buckets;
+	/**移到到>=key的地方*/
+	//virtual void Seek(const StrView& key) = 0;
+	
+	/**向后移到一个元素*/
+	virtual void Next() = 0;
 
-private:
-	BucketSnapshot(const BucketSnapshot&) = delete;
-  	BucketSnapshot& operator=(const BucketSnapshot&) = delete;
+	/**是否还有下一个元素*/
+	virtual bool Valid() const = 0;
 	
+	/**获取key和value*/
+	virtual const xfutil::StrView& Key() const = 0;
+	virtual const xfutil::StrView& Value() const = 0;
+
+    //object类型
+	virtual ObjectType Type() const = 0;
+
+	//最大key
+	virtual xfutil::StrView UpmostKey() const = 0;
+	
+private:
+	IteratorImpl(const IteratorImpl&) = delete;
+	IteratorImpl& operator=(const IteratorImpl&) = delete;
 };
 
+} 
 
-}  
-
-#endif
+#endif 
 

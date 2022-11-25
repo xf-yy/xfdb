@@ -76,7 +76,7 @@ void WriteOnlyMemWriter::Finish()
 #endif
 }
 
-IteratorPtr WriteOnlyMemWriter::NewIterator()
+IteratorImplPtr WriteOnlyMemWriter::NewIterator()
 {
 #if _DEBUG
 	assert(m_finished);

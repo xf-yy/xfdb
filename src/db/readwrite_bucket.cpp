@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#include "types.h"
+#include "dbtypes.h"
 #include "readwrite_bucket.h"
 #include "readwrite_memwriter.h"
 #include "table_writer_snapshot.h"
@@ -38,36 +38,40 @@ ReadWriteBucket::~ReadWriteBucket()
 
 TableWriterPtr ReadWriteBucket::NewTableWriter(WritableEngine* engine)
 {
-	assert(engine->GetConfig().mode & MODE_READONLY);
-	return NewReadWriteMemWriter(engine->GetLargePool(), engine->GetConfig().max_memtable_objects);
+    return NewReadWriteMemWriter(engine->GetLargePool(), engine->GetConfig().max_memtable_objects);
 }
 
 Status ReadWriteBucket::Get(const StrView& key, String& value)
 {	
-	ObjectType type;
-
 	m_segment_rwlock.ReadLock();
-	if(m_memwriter && m_memwriter->Get(key, type, value) == OK) 
-	{
-	    m_segment_rwlock.ReadUnlock();
-    	return (type == SetType) ? OK : ERR_OBJECT_NOT_EXIST;
-	}
 
+    objectid_t curr_obj_id = m_next_object_id;
+    TableWriterPtr memwriter = m_memwriter;
 	TableWriterSnapshotPtr mts_ptr = m_memwriter_snapshot;
 	BucketReaderSnapshot reader_snapshot = m_reader_snapshot;
+
 	m_segment_rwlock.ReadUnlock();
 
-	if(mts_ptr && mts_ptr->Get(key, type, value) == OK)
+	ObjectType type;
+	if(memwriter && memwriter->Get(key, curr_obj_id, type, value) == OK) 
+	{
+    	return (type == SetType) ? OK : ERR_OBJECT_NOT_EXIST;
+	}
+	if(mts_ptr && mts_ptr->Get(key, curr_obj_id, type, value) == OK)
 	{
 		return (type == SetType) ? OK : ERR_OBJECT_NOT_EXIST;
 	}
-	if(reader_snapshot.readers && reader_snapshot.readers->Get(key, type, value) == OK) 
+	if(reader_snapshot.readers && reader_snapshot.readers->Get(key, curr_obj_id, type, value) == OK) 
 	{
 		return (type == SetType) ? OK : ERR_OBJECT_NOT_EXIST;
 	}
 	return ERR_OBJECT_NOT_EXIST;
 }
 
+IteratorImplPtr ReadWriteBucket::NewIterator()
+{
+    
+}
 
 }  
 

@@ -18,7 +18,6 @@ limitations under the License.
 #define __xfutil_coding_h__
 
 #include <string.h>
-#include "xfdb/util_types.h"
 #include "xfdb/strutil.h"
 
 namespace xfutil

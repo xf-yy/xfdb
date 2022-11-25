@@ -20,7 +20,7 @@ limitations under the License.
 #include <vector>
 #include <map>
 #include <list>
-#include "types.h"
+#include "dbtypes.h"
 #include "buffer.h"
 #include "xfdb/strutil.h"
 #include "file.h"
@@ -81,8 +81,6 @@ public:
 	{
 		m_idx = 0;
 	}
-	/**移到最后1个元素处*/
-	//virtual void Last();
 	
 	/**向后移到一个元素*/
 	void Next()
@@ -92,7 +90,6 @@ public:
 			++m_idx;
 		}
 	}
-	//virtual void Prev();
 
 	/**是否还有下一个元素*/
 	inline bool Valid() const
@@ -100,12 +97,21 @@ public:
 		return m_idx < m_objects.size();
 	}
 	
-	/***/
-	inline const Object& object() const
-	{
-		return m_objects[m_idx];
-	}
-	
+	inline const xfutil::StrView& Key() const
+    {
+		return m_objects[m_idx].key;
+    }
+	inline const xfutil::StrView& Value() const
+    {
+		return m_objects[m_idx].value;
+    }
+
+    //object类型
+	inline ObjectType Type() const
+    {
+		return m_objects[m_idx].type;
+    }
+
 private:
 	inline void Add(Object& obj)
 	{

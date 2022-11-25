@@ -17,7 +17,7 @@ limitations under the License.
 #ifndef __xfdb_key_util_h__
 #define __xfdb_key_util_h__
 
-#include "types.h"
+#include "dbtypes.h"
 #include "buffer.h"
 
 namespace xfdb 

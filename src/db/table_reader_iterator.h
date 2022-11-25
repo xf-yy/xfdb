@@ -17,17 +17,17 @@ limitations under the License.
 #ifndef __xfdb_table_reader_iterator_h__
 #define __xfdb_table_reader_iterator_h__
 
-#include "types.h"
-#include "iterator.h"
+#include "dbtypes.h"
+#include "iterator_impl.h"
 
 namespace xfdb 
 {
 
 //处理多个Iterator
-class IteratorSet : public Iterator 
+class IteratorSet : public IteratorImpl 
 {
 public:
-	IteratorSet(const std::vector<IteratorPtr>& iters);
+	IteratorSet(const std::vector<IteratorImplPtr>& iters);
 	virtual ~IteratorSet(){}
 
 public:
@@ -35,8 +35,6 @@ public:
 
 	/**移到第1个元素处*/
 	virtual void First() override;
-	/**移到最后1个元素处*/
-	//virtual void Last() = 0;
 	
 	/**移到到>=key的地方*/
 	//virtual void Seek(const StrView& key) override 
@@ -44,20 +42,22 @@ public:
 	
 	/**向后移到一个元素*/
 	virtual void Next() override;
-	//virtual void Prev() = 0;
 
 	/**是否还有下一个元素*/
 	virtual bool Valid() const override;
 	
-	/**获取key和value*/
-	virtual const Object& object() const override;
+	virtual const xfutil::StrView& Key() const override;
+	virtual const xfutil::StrView& Value() const override;
+
+    //object类型
+	virtual ObjectType Type() const override;
 
 private:
 	void GetMinKey();
 	void GetUpmostKey();
 
 private:
-	std::vector<IteratorPtr> m_iters;
+	std::vector<IteratorImplPtr> m_iters;
 	StrView m_upmost_key;
 	size_t m_curr_idx;
 	

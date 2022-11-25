@@ -17,7 +17,7 @@ limitations under the License.
 #ifndef __xfdb_writeonly_memwriter_h__
 #define __xfdb_writeonly_memwriter_h__
 
-#include "types.h"
+#include "dbtypes.h"
 
 #include "buffer.h"
 #include "table_writer.h"
@@ -37,7 +37,7 @@ public:
 	virtual Status Write(objectid_t start_seqid, const WriteOnlyMemWriterPtr& memtable) override;
 	virtual void Finish() override;
 	
-	virtual IteratorPtr NewIterator() override;
+	virtual IteratorImplPtr NewIterator() override;
 	
 	//大于最大key的key
 	virtual StrView UpmostKey() const override;

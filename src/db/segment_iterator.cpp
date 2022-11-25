@@ -47,9 +47,6 @@ void SegmentReaderIterator::First()
 	m_data_block_iter = m_data_block_reader.NewIterator();
 }
 
-/**移到最后1个元素处*/
-//void SegmentReaderIterator::Last() = 0;
-
 /**移到到>=key的地方*/
 //void SegmentReaderIterator::Seek(const StrView& key)
 //{
@@ -82,7 +79,6 @@ void SegmentReaderIterator::Next()
 		m_data_block_iter = m_data_block_reader.NewIterator();
 	}
 }
-//virtual void Prev() = 0;
 
 /**是否还有下一个元素*/
 bool SegmentReaderIterator::Valid() const
@@ -91,9 +87,17 @@ bool SegmentReaderIterator::Valid() const
 }
 
 /**获取key和value*/
-const Object& SegmentReaderIterator::object() const
+const StrView& SegmentReaderIterator::Key() const
 {
-	return m_data_block_iter->object();
+	return m_data_block_iter->Key();
+}
+const StrView& SegmentReaderIterator::Value() const
+{
+	return m_data_block_iter->Value();
+}
+ObjectType SegmentReaderIterator::Type() const
+{
+	return m_data_block_iter->Type();
 }
 
 } 

@@ -21,7 +21,7 @@ limitations under the License.
 #include <malloc.h>
 #include <string.h>
 #include <deque>
-#include "xfdb/util_types.h"
+#include "xfdb/strutil.h"
 
 namespace xfutil
 {

@@ -40,17 +40,16 @@ Object* TableWriter::CloneObject(objectid_t seqid, const Object* object)
 {	
 	ObjectTypeStat* stat = (object->type == SetType) ? &m_object_stat.set_stat : &m_object_stat.delete_stat;
 	stat->Add(object->key.size, object->value.size);
-	
+
+	StrView clone_key = CloneString(object->key);	
+
 	byte_t* obj_buf = m_buf.Write(sizeof(Object));
-	Object* new_obj = new (obj_buf)Object;
-	
-	new_obj->type = object->type;
-	new_obj->key = CloneString(object->key);
+	Object* new_obj = new (obj_buf)Object(object->type, seqid, clone_key);
+
 	if(!object->value.Empty())
 	{
 		new_obj->value = CloneString(object->value);
 	}
-	new_obj->id = seqid;
 	
 	return new_obj;
 }

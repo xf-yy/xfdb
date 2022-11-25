@@ -50,6 +50,7 @@ Status ReadOnlyBucket::Open()
 Status ReadOnlyBucket::Get(const StrView& key, String& value)
 {
 	m_segment_rwlock.ReadLock();
+    objectid_t curr_obj_id = m_next_object_id;
 	BucketReaderSnapshot reader_snapshot = m_reader_snapshot;
 	m_segment_rwlock.ReadUnlock();
 
@@ -58,12 +59,17 @@ Status ReadOnlyBucket::Get(const StrView& key, String& value)
 		return ERR_OBJECT_NOT_EXIST;
 	}
 	ObjectType type;
-	Status s = reader_snapshot.readers->Get(key, type, value);
+	Status s = reader_snapshot.readers->Get(key, curr_obj_id, type, value);
 	if(s != OK)
 	{
 		return s;
 	}
 	return (type == DeleteType) ? ERR_OBJECT_NOT_EXIST : OK;
+}
+
+IteratorImplPtr ReadOnlyBucket::NewIterator()
+{
+
 }
 
 void ReadOnlyBucket::GetStat(BucketStat& stat) const

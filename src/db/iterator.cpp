@@ -14,45 +14,55 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_table_reader_h__
-#define __xfdb_table_reader_h__
-
-#include "buffer.h"
-#include "xfdb/strutil.h"
-#include "dbtypes.h"
+#include "xfdb/iterator.h"
 #include "iterator_impl.h"
 
-namespace xfdb
+namespace xfdb 
 {
 
-class TableReader : public std::enable_shared_from_this<TableReader>
+Iterator::Iterator(IteratorImplPtr& iter) : m_iter(iter)
+{}
+
+/**移到第1个元素处*/
+void Iterator::First()
 {
-public:
-	TableReader(){}
-	virtual ~TableReader(){}
-
-public:
-	virtual Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const = 0;
-
-	/**迭代器*/
-	virtual IteratorImplPtr NewIterator() = 0;
-	
-	/**最大key*/
-	virtual StrView UpmostKey() const = 0;
-	
-	/**返回segment文件总大小*/
-	virtual uint64_t Size() const = 0;
-
-	/**获取统计*/
-	virtual void GetStat(BucketStat& stat) const = 0;
-
-private:
-	TableReader(const TableReader&) = delete;
-	TableReader& operator=(const TableReader&) = delete;
-};
-
-
+    m_iter->First();
+    while(m_iter->Valid() && m_iter->Type() == DeleteType)
+    {
+        m_iter->Next();
+    }
 }
 
-#endif 
+/**移到到>=key的地方*/
+//virtual void Seek(const StrView& key) = 0;
+
+/**向后移到一个元素*/
+void Iterator::Next()
+{
+    m_iter->Next();
+    while(m_iter->Valid() && m_iter->Type() == DeleteType)
+    {
+        m_iter->Next();
+    }
+}
+
+/**是否还有下一个元素*/
+bool Iterator::Valid() const
+{
+    m_iter->Valid();
+}
+
+/**获取key和value*/
+const xfutil::StrView& Iterator::Key() const
+{
+    m_iter->Key();
+}
+const xfutil::StrView& Iterator::Value() const
+{
+    m_iter->Value();
+}
+
+
+} 
+
 

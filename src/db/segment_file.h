@@ -17,7 +17,7 @@ limitations under the License.
 #ifndef __xfdb_segment_file_h__
 #define __xfdb_segment_file_h__
 
-#include "types.h"
+#include "dbtypes.h"
 #include "data_file.h"
 #include "index_file.h"
 #include "segment_iterator.h"
@@ -37,9 +37,9 @@ public:
 public:
 	Status Open(const char* bucket_path, const SegmentIndexInfo& info);
 	
-	Status Get(const StrView& key, ObjectType& type, String& value) const override;
+	Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const override;
 	
-	IteratorPtr NewIterator() override;
+	IteratorImplPtr NewIterator() override;
 	
 	//最大key
 	StrView UpmostKey() const override;
@@ -81,7 +81,7 @@ public:
 	static Status Remove(const char* bucket_path, fileid_t fileid);
 
 private:
-	Status Write(IteratorPtr& iter, const BucketStat& stat, SegmentIndexInfo& seginfo);
+	Status Write(IteratorImplPtr& iter, const BucketStat& stat, SegmentIndexInfo& seginfo);
 
 private:
 	IndexWriter m_index_writer;

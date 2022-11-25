@@ -19,7 +19,7 @@ limitations under the License.
 
 #include <algorithm>
 #include <set>
-#include "types.h"
+#include "dbtypes.h"
 #include "segment_file.h"
 #include "bucket_metafile.h"
 
@@ -33,9 +33,9 @@ public:
 	~TableReaderSnapshot();
 
 public:	
-	Status Get(const StrView& key, ObjectType& type, String& value) const;
+	Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const;
 	
-	IteratorPtr NewIterator();
+	IteratorImplPtr NewIterator();
 
 	/**最大key*/
 	StrView UpmostKey() const

@@ -19,7 +19,7 @@ limitations under the License.
 
 #include <vector>
 #include <mutex>
-#include "types.h"
+#include "dbtypes.h"
 #include "table_writer.h"
 #include "rwlock.h"
 #include "path.h"
@@ -53,6 +53,11 @@ public:
 	{
 		return ERR_INVALID_MODE;
 	}
+   	virtual IteratorImplPtr NewIterator()
+    {
+        return IteratorImplPtr();
+    }
+
 	virtual Status TryFlush()
 	{
 		return ERR_INVALID_MODE;

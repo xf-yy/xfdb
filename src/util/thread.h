@@ -20,7 +20,7 @@ limitations under the License.
 #include <thread>
 #include <mutex>
 #include <vector>
-#include "xfdb/util_types.h"
+#include "xfdb/strutil.h"
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>

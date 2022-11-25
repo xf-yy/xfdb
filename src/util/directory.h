@@ -21,7 +21,7 @@ limitations under the License.
 #include <unistd.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include "xfdb/util_types.h"
+#include "xfdb/strutil.h"
 
 namespace xfutil 
 {

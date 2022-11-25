@@ -19,7 +19,7 @@ limitations under the License.
 
 #include <deque>
 #include <map>
-#include "types.h"
+#include "dbtypes.h"
 #include "xfdb/strutil.h"
 #include "table_reader.h"
 
@@ -29,15 +29,15 @@ namespace xfdb
 class TableWriterSnapshot : public TableReader
 {
 public:
-	TableWriterSnapshot(TableWriterPtr& mem_table,         TableWriterSnapshot* last_snapshot = nullptr);
+	TableWriterSnapshot(TableWriterPtr& mem_table, TableWriterSnapshot* last_snapshot = nullptr);
 	~TableWriterSnapshot(){}
 	
 public:	
 	void Finish();
 	
-	Status Get(const StrView& key, ObjectType& type, String& value) const override;
+	Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const override;
 	
-	IteratorPtr NewIterator() override;
+	IteratorImplPtr NewIterator() override;
 
 	/**最大key*/
 	StrView UpmostKey() const override

@@ -18,7 +18,7 @@ limitations under the License.
 #define __xfutil_logger_h__
 
 #include <string>
-#include "xfdb/util_types.h"
+#include "xfdb/strutil.h"
 
 namespace xfutil 
 {

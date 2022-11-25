@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#include "types.h"
+#include "dbtypes.h"
 #include "table_writer.h"
 #include "table_reader_iterator.h"
 #include "table_writer_snapshot.h"
@@ -54,13 +54,13 @@ void TableWriterSnapshot::Finish()
 	}
 }
 
-IteratorPtr TableWriterSnapshot::NewIterator()
+IteratorImplPtr TableWriterSnapshot::NewIterator()
 {
 	if(m_memwriters.size() == 1)
 	{
 		return m_memwriters[0]->NewIterator();
 	}
-	std::vector<IteratorPtr> iters;
+	std::vector<IteratorImplPtr> iters;
 	iters.reserve(m_memwriters.size());
 
 	for(size_t i = 0; i < m_memwriters.size(); ++i)
@@ -70,11 +70,11 @@ IteratorPtr TableWriterSnapshot::NewIterator()
 	return NewIteratorSet(iters);
 }
 
-Status TableWriterSnapshot::Get(const StrView& key, ObjectType& type, String& value) const
+Status TableWriterSnapshot::Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const
 {
 	for(ssize_t idx = (ssize_t)m_memwriters.size() - 1; idx >= 0; --idx)
 	{
-		if(m_memwriters[idx]->Get(key, type, value) == OK)
+		if(m_memwriters[idx]->Get(key, obj_id, type, value) == OK)
 		{
 			return OK;
 		}

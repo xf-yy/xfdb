@@ -17,7 +17,8 @@ limitations under the License.
 #include <atomic>
 #include <mutex>
 #include "xfdb/db.h"
-#include "types.h"
+#include "xfdb/iterator.h"
+#include "dbtypes.h"
 #include "logger.h"
 #include "process.h"
 #include "db_impl.h"
@@ -98,6 +99,14 @@ Status DB::Get(const std::string& bucket_name, const StrView& key, String& value
 {
 	assert(m_db);
 	return m_db->Get(bucket_name, key, value);
+}
+
+IteratorPtr DB::NewIterator(const std::string& bucket_name)
+{
+	assert(m_db);
+	IteratorImplPtr iterptr = m_db->NewIterator(bucket_name);
+
+    return std::shared_ptr<Iterator>(new Iterator(iterptr));
 }
 
 Status DB::Set(const std::string& bucket_name, const StrView& key, const StrView& value)

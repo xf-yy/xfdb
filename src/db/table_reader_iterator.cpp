@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#include "types.h"
+#include "dbtypes.h"
 #include "table_reader_iterator.h"
 
 namespace xfdb 
 {
 
-IteratorSet::IteratorSet(const std::vector<IteratorPtr>& iters)
+IteratorSet::IteratorSet(const std::vector<IteratorImplPtr>& iters)
 	: m_iters(iters)
 {
 	assert(iters.size() > 1);
@@ -56,10 +56,20 @@ bool IteratorSet::Valid() const
 	return m_curr_idx != m_iters.size();
 }
 
-const Object& IteratorSet::object() const
+const StrView& IteratorSet::Key() const
 {
-	return m_iters[m_curr_idx]->object();
-};
+	return m_iters[m_curr_idx]->Key();
+}
+
+const StrView& IteratorSet::Value() const
+{
+	return m_iters[m_curr_idx]->Value();
+}
+
+ObjectType IteratorSet::Type() const
+{
+	return m_iters[m_curr_idx]->Type();
+}
 
 void IteratorSet::GetMinKey()
 {
@@ -74,8 +84,8 @@ void IteratorSet::GetMinKey()
 			} 
 			else 
 			{
-				StrView curr_key = m_iters[i]->object().key;
-				int ret = curr_key.Compare(m_iters[idx]->object().key);
+				StrView curr_key = m_iters[i]->Key();
+				int ret = curr_key.Compare(m_iters[idx]->Key());
 				if(ret < 0)
 				{
 					idx = i;
