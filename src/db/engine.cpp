@@ -80,12 +80,12 @@ private:
 };
 static EngineWrapper s_engine_wrapper;
 
-const char* XfdbVersion()
+const char* Version()
 {
 	return XFDB_VERSION_DESC;
 }
 
-Status XfdbStart(const GlobalConfig& gconf)
+Status Start(const GlobalConfig& gconf)
 {
 	return s_engine_wrapper.Start(gconf);
 }

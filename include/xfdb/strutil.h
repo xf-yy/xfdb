@@ -184,26 +184,22 @@ struct StrView
 public:
 	StrView()
 	{
-		data = "";
-		size = 0;
+		Reset();
 	}
 
 	explicit StrView(const char* data_)
 	{
-		data = data_;
-		size = strlen(data_);
+        Set(data_, strlen(data_));
 	}
 
 	StrView(const char* data_, size_t size_)
 	{
-		data = data_;
-		size = size_;
+        Set(data_, size_);
 	}
 	
 	StrView(const String& str)
 	{
-		data = str.Data();
-		size = str.Size();
+        Set(str.Data(), str.Size());
 	}
 
 public:
@@ -221,6 +217,7 @@ public:
 	{ 
 		return size == 0; 
 	}
+    
 	char operator[](size_t idx) const
 	{
 		assert(idx < size);

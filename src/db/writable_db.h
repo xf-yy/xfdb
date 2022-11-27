@@ -49,7 +49,7 @@ public:
 	
 	//object api
 	Status Get(const std::string& bucket_name, const StrView& key, String& value) const override;
-    IteratorImplPtr NewIterator(const std::string& bucket_name) override;
+    Status NewIterator(const std::string& bucket_name, IteratorImplPtr& iter) override;
 
 	Status Set(const std::string& bucket_name, const StrView& key, const StrView& value) override;
 	Status Delete(const std::string& bucket_name, const StrView& key) override;

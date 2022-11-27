@@ -67,9 +67,9 @@ Status ReadOnlyBucket::Get(const StrView& key, String& value)
 	return (type == DeleteType) ? ERR_OBJECT_NOT_EXIST : OK;
 }
 
-IteratorImplPtr ReadOnlyBucket::NewIterator()
+Status ReadOnlyBucket::NewIterator(IteratorImplPtr& iter)
 {
-
+    return ERR_INVALID_MODE;
 }
 
 void ReadOnlyBucket::GetStat(BucketStat& stat) const

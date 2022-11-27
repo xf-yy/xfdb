@@ -101,12 +101,16 @@ Status DB::Get(const std::string& bucket_name, const StrView& key, String& value
 	return m_db->Get(bucket_name, key, value);
 }
 
-IteratorPtr DB::NewIterator(const std::string& bucket_name)
+Status DB::NewIterator(const std::string& bucket_name, IteratorPtr& iter)
 {
 	assert(m_db);
-	IteratorImplPtr iterptr = m_db->NewIterator(bucket_name);
-
-    return std::shared_ptr<Iterator>(new Iterator(iterptr));
+	IteratorImplPtr iterptr;
+    Status s = m_db->NewIterator(bucket_name, iterptr);
+    if(s == OK)
+    {
+        iter = std::shared_ptr<Iterator>(new Iterator(iterptr));
+    }
+    return s;
 }
 
 Status DB::Set(const std::string& bucket_name, const StrView& key, const StrView& value)

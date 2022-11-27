@@ -24,10 +24,10 @@ namespace xfdb
 {
 
 //xfdb当前版本号
-const char* XfdbVersion();
+const char* Version();
 
 //初始化xfdb系统
-Status XfdbStart(const GlobalConfig& gconf);
+Status Start(const GlobalConfig& gconf);
 
 } 
 

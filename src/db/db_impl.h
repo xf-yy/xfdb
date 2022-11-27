@@ -55,9 +55,9 @@ public:
 		return ERR_INVALID_MODE;
 	}
     //获取迭代器
-    virtual IteratorImplPtr NewIterator(const std::string& bucket_name)
+    virtual Status NewIterator(const std::string& bucket_name, IteratorImplPtr& iter)
     {
-		return IteratorImplPtr();
+		return ERR_INVALID_MODE;
     }
 
 	virtual Status Set(const std::string& bucket_name, const StrView& key, const StrView& value)

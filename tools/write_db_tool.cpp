@@ -73,7 +73,7 @@ int main(int argc, char* argv[])
 	gconf.notify_dir = "./notify";
 	gconf.max_memtable_objects = 5000;
 	gconf.merge_factor = 5;
-	Status s = XfdbStart(gconf);
+	Status s = Start(gconf);
 	if(s != OK)
 	{
 		printf("xfdb init failed, status: %d\n", s);

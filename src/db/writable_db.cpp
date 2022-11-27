@@ -429,9 +429,7 @@ Status WritableDB::Delete(const std::string& bucket_name, const StrView& key)
 
 Status WritableDB::Write(const ObjectBatch& ob)
 {
-	auto& data = ob.Data();
-
-	for(auto it = data.begin(); it != data.end(); ++it)
+	for(auto it = ob.m_data.begin(); it != ob.m_data.end(); ++it)
 	{
 		BucketPtr bptr;
 		Status s = CreateBucketIfMissing(it->first, bptr);
@@ -455,15 +453,15 @@ Status WritableDB::Get(const std::string& bucket_name, const StrView& key, Strin
 	return bucket->Get(key, value);
 }
 
-IteratorImplPtr WritableDB::NewIterator(const std::string& bucket_name)
+Status WritableDB::NewIterator(const std::string& bucket_name, IteratorImplPtr& iter)
 {
 	BucketPtr bptr;
 	if(!GetBucket(bucket_name, bptr))
 	{
-		return IteratorImplPtr();
+		return ERR_BUCKET_NOT_EXIST;
 	}
 	WriteOnlyBucket* bucket = (WriteOnlyBucket*)bptr.get();
-	return bucket->NewIterator();
+	return bucket->NewIterator(iter);
 }
 
 Status WritableDB::TryFlush()

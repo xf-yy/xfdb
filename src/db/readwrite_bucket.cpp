@@ -68,7 +68,7 @@ Status ReadWriteBucket::Get(const StrView& key, String& value)
 	return ERR_OBJECT_NOT_EXIST;
 }
 
-IteratorImplPtr ReadWriteBucket::NewIterator()
+Status ReadWriteBucket::NewIterator(IteratorImplPtr& iter)
 {
     
 }

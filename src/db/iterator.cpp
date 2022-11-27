@@ -49,17 +49,18 @@ void Iterator::Next()
 /**是否还有下一个元素*/
 bool Iterator::Valid() const
 {
-    m_iter->Valid();
+    return m_iter->Valid();
 }
 
 /**获取key和value*/
 const xfutil::StrView& Iterator::Key() const
 {
-    m_iter->Key();
+    return m_iter->Key();
 }
+
 const xfutil::StrView& Iterator::Value() const
 {
-    m_iter->Value();
+    return m_iter->Value();
 }
 
 

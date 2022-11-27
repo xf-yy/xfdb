@@ -39,7 +39,7 @@
 	GlobalConfig gconf;
 	gconf.mode = MODE_READONLY;
 	gconf.notify_dir = "./notify";
-	Status s = XfdbStart(gconf);
+	Status s = Start(gconf);
 	if(s != OK)
 	{
 		printf("xfdb init failed, status: %d\n", s);
@@ -73,7 +73,7 @@
 	GlobalConfig gconf;
 	gconf.mode = MODE_WRITEONLY;
 	gconf.notify_dir = "./notify";
-	Status s = XfdbStart(gconf);
+	Status s = Start(gconf);
 	if(s != OK)
 	{
 		printf("xfdb init failed, status: %d\n", s);

@@ -36,7 +36,7 @@ public:
 
 	virtual Status Get(const StrView& key, String& value) override;
 
-	virtual IteratorImplPtr NewIterator() override;
+	virtual Status NewIterator(IteratorImplPtr& iter) override;
 
 	virtual void GetStat(BucketStat& stat) const override;
 		

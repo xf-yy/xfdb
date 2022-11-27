@@ -42,14 +42,13 @@ Status ReadWriteMemWriter::Get(const StrView& key, objectid_t obj_id, ObjectType
     Object dst_obj(DeleteType, obj_id, key);
 
     SkipListNode* node = LowerBound(dst_obj);
-    if (node != nullptr && key == node->object->key) 
+    if(node == nullptr || key != node->object->key)
     {
-        type = node->object->type;
-        value.Assign(node->object->value.data, node->object->value.size);
-        return OK;
-    } 
-    
-    return ERR_OBJECT_NOT_EXIST;
+        return ERR_OBJECT_NOT_EXIST;
+    }
+    type = node->object->type;
+    value.Assign(node->object->value.data, node->object->value.size);
+    return OK;
 }
 
 Status ReadWriteMemWriter::Write(objectid_t start_seqid, const Object* object)

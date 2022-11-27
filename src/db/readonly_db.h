@@ -33,7 +33,7 @@ public:
 public:		
 	Status Open() override;
 	Status Get(const std::string& bucket_name, const StrView& key, String& value) const override;
-    IteratorImplPtr NewIterator(const std::string& bucket_name) override;
+    Status NewIterator(const std::string& bucket_name, IteratorImplPtr& iter) override;
 
 protected:
 	BucketPtr NewBucket(const BucketInfo& bucket_info) override;

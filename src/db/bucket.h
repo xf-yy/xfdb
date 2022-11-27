@@ -53,9 +53,9 @@ public:
 	{
 		return ERR_INVALID_MODE;
 	}
-   	virtual IteratorImplPtr NewIterator()
+   	virtual Status NewIterator(IteratorImplPtr& iter)
     {
-        return IteratorImplPtr();
+		return ERR_INVALID_MODE;
     }
 
 	virtual Status TryFlush()
@@ -81,6 +81,7 @@ public:
 	
 protected:
 	void OpenSegment(const BucketMetaData& bmd, const TableReaderSnapshot* last_snapshot, std::map<fileid_t, TableReaderPtr>& readers);
+    void OpenSegment(const BucketMetaData& bmd, std::map<fileid_t, TableReaderPtr>& readers);
 
 protected:
 	const DBImplWptr m_db;

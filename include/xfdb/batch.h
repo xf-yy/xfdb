@@ -25,7 +25,6 @@ limitations under the License.
 namespace xfdb 
 {
 
-//db类
 class ObjectBatch
 {
 public:
@@ -42,18 +41,13 @@ public:
 
 	//清理
 	void Clear();
-
-	//数据
-	inline const std::map<std::string, WriteOnlyMemWriterPtr>& Data() const
-	{
-		return m_data;
-	}
 	
 private:
 	//key:bucket_name
 	std::map<std::string, WriteOnlyMemWriterPtr> m_data;
 	
 private:
+    friend class WritableDB;
 	ObjectBatch(const ObjectBatch&) = delete;
   	ObjectBatch& operator=(const ObjectBatch&) = delete;
 	

@@ -59,7 +59,7 @@ public:
 	Status Get(const std::string& bucket_name, const xfutil::StrView& key, xfutil::String& value) const;
 
     //获取迭代器
-    IteratorPtr NewIterator(const std::string& bucket_name);
+    Status NewIterator(const std::string& bucket_name, IteratorPtr& iter);
 
 	//设置指定bucket中的记录
 	Status Set(const std::string& bucket_name, const xfutil::StrView& key, const xfutil::StrView& value);

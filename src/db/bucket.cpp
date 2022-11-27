@@ -70,7 +70,14 @@ Status Bucket::Open(const char* bucket_meta_filename)
 	m_segment_rwlock.ReadUnlock();
 
 	std::map<fileid_t, TableReaderPtr> new_readers;
-	OpenSegment(bmd, reader_snapshot.readers.get(), new_readers);
+    if(reader_snapshot.readers)
+    {
+	    OpenSegment(bmd, reader_snapshot.readers.get(), new_readers);
+    }
+    else
+    {
+	    OpenSegment(bmd, new_readers);
+    }
 	
 	TableReaderSnapshotPtr new_ss_ptr = NewTableReaderSnapshot(new_readers);
 	
@@ -87,10 +94,25 @@ Status Bucket::Open(const char* bucket_meta_filename)
 	return OK;
 }
 
+void Bucket::OpenSegment(const BucketMetaData& bmd, std::map<fileid_t, TableReaderPtr>& readers)
+{	
+	DBImplPtr db = m_db.lock();
+	assert(db);
+	
+	for(const auto& seginfo : bmd.alive_segment_infos)
+	{		
+        SegmentReaderPtr sr_ptr = NewSegmentReader();
+        if(sr_ptr->Open(m_bucket_path.c_str(), seginfo) == OK)
+        {
+            readers[seginfo.segment_fileid] = sr_ptr;
+        }
+	}
+}
+
 void Bucket::OpenSegment(const BucketMetaData& bmd, const TableReaderSnapshot* last_snapshot, std::map<fileid_t, TableReaderPtr>& readers)
 {
-	static const std::map<fileid_t, TableReaderPtr> empty_readers;
-	const std::map<fileid_t, TableReaderPtr>& last_readers = (last_snapshot != nullptr) ? last_snapshot->Readers() : empty_readers;
+    assert(last_snapshot != nullptr);
+	const std::map<fileid_t, TableReaderPtr>& last_readers = last_snapshot->Readers();
 	
 	DBImplPtr db = m_db.lock();
 	assert(db);
@@ -112,7 +134,6 @@ void Bucket::OpenSegment(const BucketMetaData& bmd, const TableReaderSnapshot* l
 		}
 	}
 }
-
 
 }  // namespace xfdb
 
