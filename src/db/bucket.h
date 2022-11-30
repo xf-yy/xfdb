@@ -20,7 +20,7 @@ limitations under the License.
 #include <vector>
 #include <mutex>
 #include "dbtypes.h"
-#include "table_writer.h"
+#include "object_writer.h"
 #include "rwlock.h"
 #include "path.h"
 #include "bucket_metafile.h"
@@ -80,8 +80,8 @@ public:
 	Status Open(const char* bucket_meta_filename);	
 	
 protected:
-	void OpenSegment(const BucketMetaData& bmd, const TableReaderSnapshot* last_snapshot, std::map<fileid_t, TableReaderPtr>& readers);
-    void OpenSegment(const BucketMetaData& bmd, std::map<fileid_t, TableReaderPtr>& readers);
+	void OpenSegment(const BucketMetaData& bmd, const ObjectReaderList* last_snapshot, std::map<fileid_t, ObjectReaderPtr>& readers);
+    void OpenSegment(const BucketMetaData& bmd, std::map<fileid_t, ObjectReaderPtr>& readers);
 
 protected:
 	const DBImplWptr m_db;
@@ -97,7 +97,7 @@ protected:
 	fileid_t m_next_bucket_meta_fileid;
 	fileid_t m_next_segment_id;
 
-	BucketReaderSnapshot m_reader_snapshot;
+	ObjectReaderListPtr m_reader_snapshot;
 
 private:
 	friend class DBImpl;

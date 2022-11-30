@@ -16,24 +16,24 @@ limitations under the License.
 
 #include "path.h"
 #include "logger.h"
-#include "table_reader_snapshot.h"
-#include "table_writer_snapshot.h"
-#include "table_reader_iterator.h"
+#include "object_reader_list.h"
+#include "object_writer_list.h"
+#include "iterator_impl.h"
 
 namespace xfdb 
 {
 
-TableReaderSnapshot::TableReaderSnapshot(const std::map<fileid_t, TableReaderPtr>& new_readers) 
-	: m_readers(new_readers)
+ObjectReaderList::ObjectReaderList(const BucketMetaFilePtr& meta_file, const std::map<fileid_t, ObjectReaderPtr>& new_readers) 
+	: m_meta_file(meta_file), m_readers(new_readers)
 {
 	GetUpmostKey();
 }
 
-TableReaderSnapshot::~TableReaderSnapshot()
+ObjectReaderList::~ObjectReaderList()
 {
 }
 
-Status TableReaderSnapshot::Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const
+Status ObjectReaderList::Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const
 {
 	//逆序遍历
 	for(auto it = m_readers.rbegin(); it != m_readers.rend(); ++it)
@@ -46,7 +46,7 @@ Status TableReaderSnapshot::Get(const StrView& key, objectid_t obj_id, ObjectTyp
 	return ERR_OBJECT_NOT_EXIST;
 }
 
-IteratorImplPtr TableReaderSnapshot::NewIterator()
+IteratorImplPtr ObjectReaderList::NewIterator()
 {
 	if(m_readers.size() == 1)
 	{
@@ -60,10 +60,10 @@ IteratorImplPtr TableReaderSnapshot::NewIterator()
 	{
 		iters.push_back(it->second->NewIterator());
 	}
-	return NewIteratorSet(iters);
+	return NewIteratorList(iters);
 }
 
-void TableReaderSnapshot::GetStat(BucketStat& stat) const
+void ObjectReaderList::GetStat(BucketStat& stat) const
 {	
 	for(auto it = m_readers.begin(); it != m_readers.end(); ++it)
 	{
@@ -72,7 +72,7 @@ void TableReaderSnapshot::GetStat(BucketStat& stat) const
 	}
 }
 
-void TableReaderSnapshot::GetUpmostKey()
+void ObjectReaderList::GetUpmostKey()
 {
 	if(m_readers.empty())
 	{

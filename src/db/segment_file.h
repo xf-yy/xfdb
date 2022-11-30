@@ -21,14 +21,14 @@ limitations under the License.
 #include "data_file.h"
 #include "index_file.h"
 #include "segment_iterator.h"
-#include "memwriter_iterator.h"
+#include "writer_iterator.h"
 #include "file.h"
-#include "table_reader.h"
+#include "object_reader.h"
 
 namespace xfdb 
 {
 
-class SegmentReader : public TableReader
+class SegmentReader : public ObjectReader
 {
 public:
 	SegmentReader();
@@ -39,7 +39,7 @@ public:
 	
 	Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const override;
 	
-	IteratorImplPtr NewIterator() override;
+	IteratorImplPtr NewIterator(objectid_t max_objid = MAX_OBJECT_ID) override;
 	
 	//最大key
 	StrView UpmostKey() const override;
@@ -75,7 +75,7 @@ public:
 public:	
 	Status Create(const char* bucket_path, fileid_t fileid);
 	
-	Status Write(const TableWriterSnapshotPtr& table_writer_snapshot, SegmentIndexInfo& seginfo);
+	Status Write(const ObjectWriterListPtr& object_writer_list, SegmentIndexInfo& seginfo);
 	Status Merge(const MergingSegmentInfo& msinfo, SegmentIndexInfo& seginfo);
 
 	static Status Remove(const char* bucket_path, fileid_t fileid);

@@ -17,7 +17,7 @@ limitations under the License.
 #include <atomic>
 #include "readonly_db.h"
 #include "readonly_bucket.h"
-#include "table_reader_snapshot.h"
+#include "object_reader_list.h"
 #include "bucket.h"
 #include "segment_file.h"
 #include "db_infofile.h"
@@ -62,7 +62,7 @@ Status ReadOnlyDB::Open()
 	//再尝试重新加载一次，以防有所遗漏
 	if(engine->GetConfig().auto_reload_db)
 	{
-		NotifyData nd(NOTIFY_UPDATE_DB_META, m_path, MIN_FILEID);
+		NotifyData nd(NOTIFY_UPDATE_DB_META, m_path, MIN_FILE_ID);
 		((ReadOnlyEngine*)engine.get())->PostNotifyData(nd);
 	}
 	

@@ -16,11 +16,11 @@ limitations under the License.
 
 #include "dbtypes.h"
 #include "writeonly_bucket.h"
-#include "readwrite_memwriter.h"
-#include "table_writer_snapshot.h"
+#include "readwrite_writer.h"
+#include "object_writer_list.h"
 #include "bucket_metafile.h"
 #include "notify_file.h"
-#include "table_reader_snapshot.h"
+#include "object_reader_list.h"
 #include "writable_db.h"
 
 using namespace xfutil;
@@ -35,7 +35,7 @@ WriteOnlyBucket::WriteOnlyBucket(WritableEngine* engine, DBImplPtr db, const Buc
 {	
 	m_merged_segment_fileids.reserve(engine->GetConfig().merge_factor * engine->GetConfig().part_merge_thread_num);
 	m_writed_segment_cnt = 0;
-	m_tobe_clean_bucket_meta_fileid = INVALID_FILEID;
+	m_tobe_clean_bucket_meta_fileid = INVALID_FILE_ID;
 }
 
 WriteOnlyBucket::~WriteOnlyBucket()
@@ -44,10 +44,10 @@ WriteOnlyBucket::~WriteOnlyBucket()
 	assert(!m_memwriter_snapshot);
 }
 
-TableWriterPtr WriteOnlyBucket::NewTableWriter(WritableEngine* engine)
+ObjectWriterPtr WriteOnlyBucket::NewObjectWriter(WritableEngine* engine)
 {
 	assert(!(engine->GetConfig().mode & MODE_READONLY));
-	return NewWriteOnlyMemWriter(engine->GetLargePool(), m_max_memtable_objects);
+	return NewWriteOnlyWriter(engine->GetLargePool(), m_max_memtable_objects);
 }
 
 Status WriteOnlyBucket::Create()
@@ -112,10 +112,10 @@ Status WriteOnlyBucket::Open()
 	std::lock_guard<std::mutex> lock(m_mutex);
 
 	m_segment_rwlock.ReadLock();
-	BucketReaderSnapshot reader_snapshot = m_reader_snapshot;
+	ObjectReaderListPtr reader_snapshot = m_reader_snapshot;
 	m_segment_rwlock.ReadUnlock();	
 	
-	const auto& readers = reader_snapshot.readers->Readers();
+	const auto& readers = reader_snapshot->Readers();
 	for(auto it = readers.begin(); it != readers.end(); ++it)
 	{
 		int level = LEVEL_ID(it->first);
@@ -127,13 +127,13 @@ Status WriteOnlyBucket::Open()
 
 void WriteOnlyBucket::Clear()
 {	
-	TableWriterPtr memwriter_ptr;
-	TableWriterSnapshotPtr mts_ptr;
+	ObjectWriterPtr memwriter_ptr;
+	ObjectWriterListPtr writer_snapshot;
 
 	//清除内存表	
 	m_segment_rwlock.WriteLock();
 	memwriter_ptr.swap(m_memwriter);
-	mts_ptr.swap(m_memwriter_snapshot);
+	writer_snapshot.swap(m_memwriter_snapshot);
 	m_segment_rwlock.WriteUnlock();
 }
 
@@ -142,22 +142,22 @@ void WriteOnlyBucket::GetStat(BucketStat& stat) const
 	memset(&stat, 0x00, sizeof(stat));
 	
 	m_segment_rwlock.ReadLock();
-	TableWriterPtr memwriter_ptr = m_memwriter;
-	TableWriterSnapshotPtr mts_ptr = m_memwriter_snapshot;
-	BucketReaderSnapshot reader_snapshot = m_reader_snapshot;
+	ObjectWriterPtr memwriter_ptr = m_memwriter;
+	ObjectWriterListPtr writer_snapshot = m_memwriter_snapshot;
+	ObjectReaderListPtr reader_snapshot = m_reader_snapshot;
 	m_segment_rwlock.ReadUnlock();
 
 	if(memwriter_ptr)
 	{
 		memwriter_ptr->GetStat(stat);
 	}
-	if(mts_ptr)
+	if(writer_snapshot)
 	{
-		mts_ptr->GetStat(stat);
+		writer_snapshot->GetStat(stat);
 	}
-	if(reader_snapshot.readers)
+	if(reader_snapshot)
 	{
-		reader_snapshot.readers->GetStat(stat);
+		reader_snapshot->GetStat(stat);
 	}
 }
 
@@ -166,7 +166,7 @@ Status WriteOnlyBucket::Write(const Object* object)
 	WriteLockGuard lock_guard(m_segment_rwlock);
 	if(!m_memwriter)
 	{			
-		m_memwriter = NewTableWriter(m_engine);
+		m_memwriter = NewObjectWriter(m_engine);
 		assert(m_memwriter);
 
 		DBImplPtr db = m_db.lock();
@@ -187,12 +187,12 @@ Status WriteOnlyBucket::Write(const Object* object)
 	return OK;
 }
 
-Status WriteOnlyBucket::Write(const WriteOnlyMemWriterPtr& memtable)
+Status WriteOnlyBucket::Write(const WriteOnlyWriterPtr& memtable)
 {
 	WriteLockGuard lock_guard(m_segment_rwlock);
 	if(!m_memwriter)
 	{			
-		m_memwriter = NewTableWriter(m_engine);
+		m_memwriter = NewObjectWriter(m_engine);
 		assert(m_memwriter);
 
 		DBImplPtr db = m_db.lock();
@@ -286,16 +286,16 @@ Status WriteOnlyBucket::Clean()
 	Status s = RemoveMetaFile();
 	if(s == ERR_NOMORE_DATA)
 	{
-		fileid_t clean_bucket_meta_fileid = INVALID_FILEID;
+		fileid_t clean_bucket_meta_fileid = INVALID_FILE_ID;
 		{
 			std::lock_guard<std::mutex> guard(m_mutex);
-			if(m_tobe_delete_bucket_meta_fileids.empty() && m_tobe_clean_bucket_meta_fileid != INVALID_FILEID)
+			if(m_tobe_delete_bucket_meta_fileids.empty() && m_tobe_clean_bucket_meta_fileid != INVALID_FILE_ID)
 			{
 				clean_bucket_meta_fileid = m_tobe_clean_bucket_meta_fileid;
-				m_tobe_clean_bucket_meta_fileid = INVALID_FILEID;
+				m_tobe_clean_bucket_meta_fileid = INVALID_FILE_ID;
 			}
 		}
-		if(clean_bucket_meta_fileid != INVALID_FILEID)
+		if(clean_bucket_meta_fileid != INVALID_FILE_ID)
 		{
 			char filename[MAX_FILENAME_LEN];
 			MakeBucketMetaFileName(clean_bucket_meta_fileid, filename);
@@ -305,7 +305,7 @@ Status WriteOnlyBucket::Clean()
 	return s;
 }
 
-Status WriteOnlyBucket::WriteSegment(TableWriterSnapshotPtr& memwriter_snapshot, fileid_t fileid, SegmentReaderPtr& new_segment_reader)
+Status WriteOnlyBucket::WriteSegment(ObjectWriterListPtr& memwriter_snapshot, fileid_t fileid, SegmentReaderPtr& new_segment_reader)
 {
 	memwriter_snapshot->Finish();
 	
@@ -335,7 +335,7 @@ Status WriteOnlyBucket::WriteSegment(TableWriterSnapshotPtr& memwriter_snapshot,
 //多线程同时执行
 Status WriteOnlyBucket::WriteSegment()
 {	
-	TableWriterSnapshotPtr memwriter_snapshot;
+	ObjectWriterListPtr memwriter_snapshot;
 	fileid_t fileid;
 	
 	{
@@ -356,12 +356,12 @@ Status WriteOnlyBucket::WriteSegment()
 		fileid = SEGMENT_FILEID(new_segment_id, 0);
 		m_writing_segments[fileid] = 0;
 
-		std::map<fileid_t, TableReaderPtr> new_readers = m_reader_snapshot.readers->Readers();
+		std::map<fileid_t, ObjectReaderPtr> new_readers = m_reader_snapshot->Readers();
 		assert(new_readers.find(fileid) == new_readers.end());
 		new_readers[fileid] = memwriter_snapshot;
 
-		TableReaderSnapshotPtr reader_snapshot = NewTableReaderSnapshot(new_readers);
-		m_reader_snapshot.readers.swap(reader_snapshot);
+		ObjectReaderListPtr reader_snapshot = NewObjectReaderList(m_reader_snapshot->MetaFile(), new_readers);
+		m_reader_snapshot.swap(reader_snapshot);
 	}
 
 	SegmentReaderPtr new_segment_reader;
@@ -387,12 +387,12 @@ Status WriteOnlyBucket::WriteSegment()
 		}
 		
 		WriteLockGuard lock_guard(m_segment_rwlock);
-		std::map<fileid_t, TableReaderPtr> new_readers = m_reader_snapshot.readers->Readers();
+		std::map<fileid_t, ObjectReaderPtr> new_readers = m_reader_snapshot->Readers();
 		assert(new_readers.find(fileid) != new_readers.end());		
 		new_readers[fileid] = new_segment_reader;
 
-		TableReaderSnapshotPtr reader_snapshot = NewTableReaderSnapshot(new_readers);
-		m_reader_snapshot.readers.swap(reader_snapshot);
+		ObjectReaderListPtr reader_snapshot = NewObjectReaderList(m_reader_snapshot->MetaFile(), new_readers);
+		m_reader_snapshot.swap(reader_snapshot);
 	}
 	
 	//判断是否有可写的段信息
@@ -480,10 +480,10 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 		}
 
 		m_segment_rwlock.ReadLock();
-		BucketReaderSnapshot reader_snapshot = m_reader_snapshot;
+		ObjectReaderListPtr reader_snapshot = m_reader_snapshot;
 		m_segment_rwlock.ReadUnlock();
 
-		std::map<fileid_t, TableReaderPtr> new_readers = reader_snapshot.readers->Readers();
+		std::map<fileid_t, ObjectReaderPtr> new_readers = reader_snapshot->Readers();
 		for(auto it = msinfo.merging_segment_fileids.begin(); it != msinfo.merging_segment_fileids.end(); ++it)
 		{
 			assert(new_readers.find(*it) != new_readers.end());
@@ -493,8 +493,8 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 		new_readers[msinfo.new_segment_fileid] = msinfo.new_segment_reader;
 
 		m_segment_rwlock.WriteLock();
-		TableReaderSnapshotPtr new_reader_snapshot = NewTableReaderSnapshot(new_readers);
-		m_reader_snapshot.readers.swap(new_reader_snapshot);
+		ObjectReaderListPtr new_reader_snapshot = NewObjectReaderList(reader_snapshot->MetaFile(), new_readers);
+		m_reader_snapshot.swap(new_reader_snapshot);
 		m_segment_rwlock.WriteUnlock();
 	}
 	
@@ -628,9 +628,9 @@ Status WriteOnlyBucket::PartMerge()
 	return OK;
 }
 
-void WriteOnlyBucket::WriteAliveSegmentInfos(TableReaderSnapshotPtr& trs_ptr, BucketMetaData& md)
+void WriteOnlyBucket::WriteAliveSegmentInfos(ObjectReaderListPtr& trs_ptr, BucketMetaData& md)
 {
-	const std::map<fileid_t, TableReaderPtr>& readers = trs_ptr->Readers();
+	const std::map<fileid_t, ObjectReaderPtr>& readers = trs_ptr->Readers();
 	assert(!readers.empty());
 
 	md.alive_segment_infos.reserve(readers.size());
@@ -648,7 +648,7 @@ void WriteOnlyBucket::WriteAliveSegmentInfos(TableReaderSnapshotPtr& trs_ptr, Bu
 //保证只被1个线程调用
 Status WriteOnlyBucket::WriteBucketMeta()
 {
-	BucketReaderSnapshot reader_snapshot;
+	ObjectReaderListPtr reader_snapshot;
 	fileid_t bucket_meta_fileid;
 	BucketMetaData md;
 	
@@ -677,7 +677,7 @@ Status WriteOnlyBucket::WriteBucketMeta()
 		reader_snapshot = m_reader_snapshot;
 	}
 	
-	WriteAliveSegmentInfos(reader_snapshot.readers, md);
+	WriteAliveSegmentInfos(reader_snapshot, md);
 	Status s = BucketMetaFile::Write(m_bucket_path.c_str(), bucket_meta_fileid, md);
 	if(s != OK)
 	{
@@ -689,7 +689,9 @@ Status WriteOnlyBucket::WriteBucketMeta()
 	bucket_meta_file->Open(m_bucket_path.c_str(), bucket_meta_fileid, xfutil::LF_TRY_READ);
 	{
 		WriteLockGuard lock_guard(m_segment_rwlock);
-		m_reader_snapshot.meta_file.swap(bucket_meta_file);
+        
+        ObjectReaderListPtr reader_snapshot = NewObjectReaderList(bucket_meta_file, m_reader_snapshot->Readers());
+		m_reader_snapshot.swap(reader_snapshot);
 	}
 
 	DBImplPtr db = m_db.lock();
@@ -716,7 +718,7 @@ Status WriteOnlyBucket::WriteBucketMeta()
 void WriteOnlyBucket::FlushMemWriter()
 {
 	assert(m_memwriter);
-	TableWriterSnapshotPtr new_snapshot = NewTableWriterSnapshot(m_memwriter, m_memwriter_snapshot.get());
+	ObjectWriterListPtr new_snapshot = NewObjectWriterList(m_memwriter, m_memwriter_snapshot.get());
 	
 	m_memwriter.reset();
 	m_memwriter_snapshot = new_snapshot;

@@ -15,12 +15,12 @@ limitations under the License.
 ***************************************************************************/
 
 #include "dbtypes.h"
-#include "table_reader_iterator.h"
+#include "iterator_impl.h"
 
 namespace xfdb 
 {
 
-IteratorSet::IteratorSet(const std::vector<IteratorImplPtr>& iters)
+IteratorList::IteratorList(const std::vector<IteratorImplPtr>& iters)
 	: m_iters(iters)
 {
 	assert(iters.size() > 1);
@@ -28,13 +28,13 @@ IteratorSet::IteratorSet(const std::vector<IteratorImplPtr>& iters)
 	First();
 }
 
-StrView IteratorSet::UpmostKey() const 
+StrView IteratorList::UpmostKey() const 
 {
 	return m_upmost_key;
 }
 
 /**移到第1个元素处*/
-void IteratorSet::First()
+void IteratorList::First()
 {
 	for(size_t i = 0; i < m_iters.size(); ++i)
 	{
@@ -44,34 +44,24 @@ void IteratorSet::First()
 }
 
 /**向后移到一个元素*/
-void IteratorSet::Next()
+void IteratorList::Next()
 {
 	m_iters[m_curr_idx]->Next();
 
 	GetMinKey();
 }
 
-bool IteratorSet::Valid() const
+bool IteratorList::Valid() const
 {
 	return m_curr_idx != m_iters.size();
 }
 
-const StrView& IteratorSet::Key() const
+const Object& IteratorList::object() const
 {
-	return m_iters[m_curr_idx]->Key();
+	return m_iters[m_curr_idx]->object();
 }
 
-const StrView& IteratorSet::Value() const
-{
-	return m_iters[m_curr_idx]->Value();
-}
-
-ObjectType IteratorSet::Type() const
-{
-	return m_iters[m_curr_idx]->Type();
-}
-
-void IteratorSet::GetMinKey()
+void IteratorList::GetMinKey()
 {
 	ssize_t idx = m_iters.size();
 	for(ssize_t i = m_iters.size()-1; i >= 0; --i) 
@@ -84,8 +74,8 @@ void IteratorSet::GetMinKey()
 			} 
 			else 
 			{
-				StrView curr_key = m_iters[i]->Key();
-				int ret = curr_key.Compare(m_iters[idx]->Key());
+				const StrView& curr_key = m_iters[i]->object().key;
+				int ret = curr_key.Compare(m_iters[idx]->object().key);
 				if(ret < 0)
 				{
 					idx = i;
@@ -100,7 +90,7 @@ void IteratorSet::GetMinKey()
 	m_curr_idx = idx;
 }
 
-void IteratorSet::GetUpmostKey()
+void IteratorList::GetUpmostKey()
 {
 	assert(!m_iters.empty());
 	m_upmost_key = m_iters[0]->UpmostKey();

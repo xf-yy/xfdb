@@ -27,20 +27,27 @@ Iterator::Iterator(IteratorImplPtr& iter) : m_iter(iter)
 void Iterator::First()
 {
     m_iter->First();
-    while(m_iter->Valid() && m_iter->Type() == DeleteType)
+    while(m_iter->Valid() && m_iter->object().type == DeleteType)
     {
         m_iter->Next();
     }
 }
 
 /**移到到>=key的地方*/
-//virtual void Seek(const StrView& key) = 0;
+void Iterator::Seek(const StrView& key)
+{
+    m_iter->Seek(key);
+    while(m_iter->Valid() && m_iter->object().type == DeleteType)
+    {
+        m_iter->Next();
+    }    
+}
 
 /**向后移到一个元素*/
 void Iterator::Next()
 {
     m_iter->Next();
-    while(m_iter->Valid() && m_iter->Type() == DeleteType)
+    while(m_iter->Valid() && m_iter->object().type == DeleteType)
     {
         m_iter->Next();
     }
@@ -55,12 +62,12 @@ bool Iterator::Valid() const
 /**获取key和value*/
 const xfutil::StrView& Iterator::Key() const
 {
-    return m_iter->Key();
+    return m_iter->object().key;
 }
 
 const xfutil::StrView& Iterator::Value() const
 {
-    return m_iter->Value();
+    return m_iter->object().value;
 }
 
 

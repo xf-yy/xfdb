@@ -14,30 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_writeonly_memwriter_h__
-#define __xfdb_writeonly_memwriter_h__
+#ifndef __xfdb_writeonly_writer_h__
+#define __xfdb_writeonly_writer_h__
 
 #include "dbtypes.h"
-
 #include "buffer.h"
-#include "table_writer.h"
+#include "object_writer.h"
 
 namespace xfdb
 {
 
 //顺序追加
-class WriteOnlyMemWriter : public TableWriter
+class WriteOnlyWriter : public ObjectWriter
 {
 public:
-	explicit WriteOnlyMemWriter(BlockPool& pool, uint32_t max_object_num);
-	~WriteOnlyMemWriter();
+	explicit WriteOnlyWriter(BlockPool& pool, uint32_t max_object_num);
+	~WriteOnlyWriter();
 
 public:	
-	virtual Status Write(objectid_t start_seqid, const Object* object) override;
-	virtual Status Write(objectid_t start_seqid, const WriteOnlyMemWriterPtr& memtable) override;
+	virtual Status Write(objectid_t next_seqid, const Object* object) override;
+	virtual Status Write(objectid_t next_seqid, const WriteOnlyWriterPtr& memtable) override;
 	virtual void Finish() override;
 	
-	virtual IteratorImplPtr NewIterator() override;
+	virtual IteratorImplPtr NewIterator(objectid_t max_objid = MAX_OBJECT_ID) override;
 	
 	//大于最大key的key
 	virtual StrView UpmostKey() const override;
@@ -50,11 +49,11 @@ protected:
 	#endif
 
 private:
-	friend class WriteOnlyMemWriterIterator;
-	friend class ReadWriteMemWriter;
+	friend class WriteOnlyWriterIterator;
+	friend class ReadWriteWriter;
 	
-	WriteOnlyMemWriter(const WriteOnlyMemWriter&) = delete;
-	WriteOnlyMemWriter& operator=(const WriteOnlyMemWriter&) = delete;
+	WriteOnlyWriter(const WriteOnlyWriter&) = delete;
+	WriteOnlyWriter& operator=(const WriteOnlyWriter&) = delete;
 };
 
 }  

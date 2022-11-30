@@ -18,9 +18,9 @@ limitations under the License.
 #define __xfdb_readwrite_bucket_h__
 
 #include "dbtypes.h"
-#include "readwrite_memwriter.h"
-#include "table_writer_snapshot.h"
-#include "table_reader_snapshot.h"
+#include "readwrite_writer.h"
+#include "object_writer_list.h"
+#include "object_reader_list.h"
 #include "bucket.h"
 #include <deque>
 #include <mutex>
@@ -42,7 +42,7 @@ public:
 	virtual Status NewIterator(IteratorImplPtr& iter) override;
     
 protected:
-	virtual TableWriterPtr NewTableWriter(WritableEngine* engine);
+	virtual ObjectWriterPtr NewObjectWriter(WritableEngine* engine);
 
 };
 

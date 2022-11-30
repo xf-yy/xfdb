@@ -16,10 +16,10 @@ limitations under the License.
 
 #include "dbtypes.h"
 #include "segment_file.h"
-#include "table_writer_snapshot.h"
-#include "memwriter_iterator.h"
-#include "table_writer.h"
-#include "table_reader_snapshot.h"
+#include "object_writer_list.h"
+#include "writer_iterator.h"
+#include "object_writer.h"
+#include "object_reader_list.h"
 #include "segment_iterator.h"
 #include "engine.h"
 
@@ -57,7 +57,7 @@ Status SegmentReader::Get(const StrView& key, objectid_t obj_id, ObjectType& typ
 	return m_data_reader.Search(L0index, key, type, value);
 }
 
-IteratorImplPtr SegmentReader::NewIterator()
+IteratorImplPtr SegmentReader::NewIterator(objectid_t max_objid)
 {
 	SegmentReaderPtr ptr = std::dynamic_pointer_cast<SegmentReader>(shared_from_this());
 
@@ -128,23 +128,24 @@ Status SegmentWriter::Write(IteratorImplPtr& iter, const BucketStat& stat, Segme
 	return OK;
 }
 
-Status SegmentWriter::Write(const TableWriterSnapshotPtr& table_writer_snapshot, SegmentIndexInfo& seginfo)
+Status SegmentWriter::Write(const ObjectWriterListPtr& object_writer_list, SegmentIndexInfo& seginfo)
 {	
 	//FIXME:与Merge相似，可以合并
-	IteratorImplPtr iter = table_writer_snapshot->NewIterator();
+	IteratorImplPtr iter = object_writer_list->NewIterator();
 
 	BucketStat stat = {0};
-	table_writer_snapshot->GetStat(stat);
+	object_writer_list->GetStat(stat);
 
 	return Write(iter, stat, seginfo);
 }
 
 Status SegmentWriter::Merge(const MergingSegmentInfo& msinfo, SegmentIndexInfo& seginfo)
 {
-	std::map<fileid_t, TableReaderPtr> segment_readers;
+	std::map<fileid_t, ObjectReaderPtr> segment_readers;
 	msinfo.GetMergingReaders(segment_readers);
 
-	TableReaderSnapshot tmp_reader_snapshot(segment_readers);
+    BucketMetaFilePtr meta_file;
+	ObjectReaderList tmp_reader_snapshot(meta_file, segment_readers);
 	IteratorImplPtr iter = tmp_reader_snapshot.NewIterator();
 
 	BucketStat stat = {0};
@@ -187,13 +188,13 @@ fileid_t MergingSegmentInfo::NewSegmentFileID() const
 		return SEGMENT_FILEID2(segment_id, fullmerge_cnt, level);
 	}
 	assert(false);
-	return INVALID_FILEID;
+	return INVALID_FILE_ID;
 }
 
-void MergingSegmentInfo::GetMergingReaders(std::map<fileid_t, TableReaderPtr>& segment_readers) const
+void MergingSegmentInfo::GetMergingReaders(std::map<fileid_t, ObjectReaderPtr>& segment_readers) const
 {
-	assert(reader_snapshot.readers);
-	const auto& readers = reader_snapshot.readers->Readers();
+	assert(reader_snapshot);
+	const auto& readers = reader_snapshot->Readers();
 
 	for(auto id_it = merging_segment_fileids.begin(); id_it != merging_segment_fileids.end(); ++id_it)
 	{
@@ -208,8 +209,8 @@ uint64_t MergingSegmentInfo::GetMergingSize() const
 {
 	uint64_t total_size = 0;
 
-	assert(reader_snapshot.readers);
-	const auto& readers = reader_snapshot.readers->Readers();
+	assert(reader_snapshot);
+	const auto& readers = reader_snapshot->Readers();
 
 	for(auto id_it = merging_segment_fileids.begin(); id_it != merging_segment_fileids.end(); ++id_it)
 	{

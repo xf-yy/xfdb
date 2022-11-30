@@ -16,7 +16,7 @@ limitations under the License.
 
 #include "bucket.h"
 #include "bucket_metafile.h"
-#include "table_reader_snapshot.h"
+#include "object_reader_list.h"
 #include "path.h"
 #include "logger.h"
 #include "engine.h"
@@ -31,10 +31,10 @@ Bucket::Bucket(DBImplPtr& db, const BucketInfo& info)
 	MakeBucketPath(db->GetPath().c_str(), info.name.c_str(), info.id, bucket_path);
 	m_bucket_path = bucket_path;
 
-	m_next_object_id = MIN_OBJECTID;
+	m_next_object_id = MIN_OBJECT_ID;
 
-	m_next_segment_id = MIN_FILEID;
-	m_next_bucket_meta_fileid = MIN_FILEID;
+	m_next_segment_id = MIN_FILE_ID;
+	m_next_bucket_meta_fileid = MIN_FILE_ID;
 	m_max_level_num = MAX_LEVEL_ID;
 }
 
@@ -66,20 +66,20 @@ Status Bucket::Open(const char* bucket_meta_filename)
 	}	
 	
 	m_segment_rwlock.ReadLock();
-	BucketReaderSnapshot reader_snapshot = m_reader_snapshot;
+	ObjectReaderListPtr reader_snapshot = m_reader_snapshot;
 	m_segment_rwlock.ReadUnlock();
 
-	std::map<fileid_t, TableReaderPtr> new_readers;
-    if(reader_snapshot.readers)
+	std::map<fileid_t, ObjectReaderPtr> new_readers;
+    if(reader_snapshot)
     {
-	    OpenSegment(bmd, reader_snapshot.readers.get(), new_readers);
+	    OpenSegment(bmd, reader_snapshot.get(), new_readers);
     }
     else
     {
 	    OpenSegment(bmd, new_readers);
     }
 	
-	TableReaderSnapshotPtr new_ss_ptr = NewTableReaderSnapshot(new_readers);
+	ObjectReaderListPtr new_ss_ptr = NewObjectReaderList(bucket_meta_file, new_readers);
 	
 	m_segment_rwlock.WriteLock();
 	m_next_bucket_meta_fileid = fileid+1;
@@ -87,14 +87,13 @@ Status Bucket::Open(const char* bucket_meta_filename)
 	m_next_object_id = bmd.next_object_id;
 	m_max_level_num = bmd.max_level_num;
 
-	m_reader_snapshot.readers.swap(new_ss_ptr);
-	m_reader_snapshot.meta_file.swap(bucket_meta_file);
+	m_reader_snapshot.swap(new_ss_ptr);
 	m_segment_rwlock.WriteUnlock();
 
 	return OK;
 }
 
-void Bucket::OpenSegment(const BucketMetaData& bmd, std::map<fileid_t, TableReaderPtr>& readers)
+void Bucket::OpenSegment(const BucketMetaData& bmd, std::map<fileid_t, ObjectReaderPtr>& readers)
 {	
 	DBImplPtr db = m_db.lock();
 	assert(db);
@@ -109,10 +108,10 @@ void Bucket::OpenSegment(const BucketMetaData& bmd, std::map<fileid_t, TableRead
 	}
 }
 
-void Bucket::OpenSegment(const BucketMetaData& bmd, const TableReaderSnapshot* last_snapshot, std::map<fileid_t, TableReaderPtr>& readers)
+void Bucket::OpenSegment(const BucketMetaData& bmd, const ObjectReaderList* last_snapshot, std::map<fileid_t, ObjectReaderPtr>& readers)
 {
     assert(last_snapshot != nullptr);
-	const std::map<fileid_t, TableReaderPtr>& last_readers = last_snapshot->Readers();
+	const std::map<fileid_t, ObjectReaderPtr>& last_readers = last_snapshot->Readers();
 	
 	DBImplPtr db = m_db.lock();
 	assert(db);

@@ -97,19 +97,9 @@ public:
 		return m_idx < m_objects.size();
 	}
 	
-	inline const xfutil::StrView& Key() const
+	inline const Object& object() const
     {
-		return m_objects[m_idx].key;
-    }
-	inline const xfutil::StrView& Value() const
-    {
-		return m_objects[m_idx].value;
-    }
-
-    //object类型
-	inline ObjectType Type() const
-    {
-		return m_objects[m_idx].type;
+		return m_objects[m_idx];
     }
 
 private:

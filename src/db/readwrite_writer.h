@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_readwrite_memwriter_h__
-#define __xfdb_readwrite_memwriter_h__
+#ifndef __xfdb_readwrite_writer_h__
+#define __xfdb_readwrite_writer_h__
 
 #include <map>
 #include <map>
 #include "dbtypes.h"
-#include "table_writer.h"
+#include "object_writer.h"
 
 
 namespace xfdb
@@ -54,17 +54,17 @@ struct SkipListNode
 
 };
 
-class ReadWriteMemWriter : public TableWriter
+class ReadWriteWriter : public ObjectWriter
 {
 public:
-    ReadWriteMemWriter(BlockPool& pool, uint32_t max_object_num);
+    ReadWriteWriter(BlockPool& pool, uint32_t max_object_num);
 
 	virtual Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const override;
 
-	virtual Status Write(objectid_t start_seqid, const Object* object) override;
-	virtual Status Write(objectid_t start_seqid, const WriteOnlyMemWriterPtr& memtable) override;
+	virtual Status Write(objectid_t next_seqid, const Object* object) override;
+	virtual Status Write(objectid_t next_seqid, const WriteOnlyWriterPtr& memtable) override;
 	
-	virtual IteratorImplPtr NewIterator() override;
+	virtual IteratorImplPtr NewIterator(objectid_t max_objid = MAX_OBJECT_ID) override;
 	
 	//大于最大key的key
 	virtual StrView UpmostKey() const override;
@@ -102,9 +102,9 @@ private:
     SkipListNode* m_head;
 
 private:
-    friend class ReadWriteMemWriterIterator;
-    ReadWriteMemWriter(const ReadWriteMemWriter&) = delete;
-    ReadWriteMemWriter& operator=(const ReadWriteMemWriter&) = delete;
+    friend class ReadWriteWriterIterator;
+    ReadWriteWriter(const ReadWriteWriter&) = delete;
+    ReadWriteWriter& operator=(const ReadWriteWriter&) = delete;
 };
 
 

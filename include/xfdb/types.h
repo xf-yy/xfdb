@@ -285,8 +285,8 @@ typedef std::shared_ptr<IteratorImpl> IteratorImplPtr;
 class DBImpl;
 typedef std::shared_ptr<DBImpl> DBImplPtr;
 
-class WriteOnlyMemWriter;
-typedef std::shared_ptr<WriteOnlyMemWriter> WriteOnlyMemWriterPtr;
+class WriteOnlyWriter;
+typedef std::shared_ptr<WriteOnlyWriter> WriteOnlyWriterPtr;
 
 }
 

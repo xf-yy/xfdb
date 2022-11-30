@@ -14,30 +14,31 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_table_writer_snapshot_h__
-#define __xfdb_table_writer_snapshot_h__
+#ifndef __xfdb_object_writer_list_h__
+#define __xfdb_object_writer_list_h__
 
 #include <deque>
 #include <map>
 #include "dbtypes.h"
 #include "xfdb/strutil.h"
-#include "table_reader.h"
+#include "object_reader.h"
 
 namespace xfdb 
 {
 
-class TableWriterSnapshot : public TableReader
+class ObjectWriterList : public ObjectReader
 {
 public:
-	TableWriterSnapshot(TableWriterPtr& mem_table, TableWriterSnapshot* last_snapshot = nullptr);
-	~TableWriterSnapshot(){}
+	ObjectWriterList(ObjectWriterPtr& mem_table, ObjectWriterList* last_snapshot = nullptr);
+	~ObjectWriterList()
+    {}
 	
 public:	
 	void Finish();
 	
 	Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const override;
 	
-	IteratorImplPtr NewIterator() override;
+	IteratorImplPtr NewIterator(objectid_t max_objid = MAX_OBJECT_ID) override;
 
 	/**最大key*/
 	StrView UpmostKey() const override
@@ -52,13 +53,13 @@ public:
 	void GetStat(BucketStat& stat) const override;
 
 private:
-	std::vector<TableWriterPtr> m_memwriters;
+	std::vector<ObjectWriterPtr> m_memwriters;
 	StrView m_upmost_key;
 		
 private:
-	friend class IteratorSet;
-	TableWriterSnapshot(const TableWriterSnapshot&) = delete;
-	TableWriterSnapshot& operator=(const TableWriterSnapshot&) = delete;
+	friend class IteratorList;
+	ObjectWriterList(const ObjectWriterList&) = delete;
+	ObjectWriterList& operator=(const ObjectWriterList&) = delete;
 };
 
 

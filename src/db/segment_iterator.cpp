@@ -86,19 +86,11 @@ bool SegmentReaderIterator::Valid() const
 	return m_data_block_iter->Valid();
 }
 
-/**获取key和value*/
-const StrView& SegmentReaderIterator::Key() const
+const Object& SegmentReaderIterator::object() const
 {
-	return m_data_block_iter->Key();
+    return m_data_block_iter->object();
 }
-const StrView& SegmentReaderIterator::Value() const
-{
-	return m_data_block_iter->Value();
-}
-ObjectType SegmentReaderIterator::Type() const
-{
-	return m_data_block_iter->Type();
-}
+
 
 } 
 

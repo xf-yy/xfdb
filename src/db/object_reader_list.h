@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_table_reader_snapshot_h__
-#define __xfdb_table_reader_snapshot_h__
+#ifndef __xfdb_object_reader_list_h__
+#define __xfdb_object_reader_list_h__
 
 #include <algorithm>
 #include <set>
@@ -26,11 +26,11 @@ limitations under the License.
 namespace xfdb 
 {
 
-class TableReaderSnapshot
+class ObjectReaderList
 {
 public:
-	TableReaderSnapshot(const std::map<fileid_t, TableReaderPtr>& new_readers);
-	~TableReaderSnapshot();
+	ObjectReaderList(const BucketMetaFilePtr& meta_file, const std::map<fileid_t, ObjectReaderPtr>& new_readers);
+	~ObjectReaderList();
 
 public:	
 	Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const;
@@ -45,21 +45,25 @@ public:
 		
 	void GetStat(BucketStat& stat) const;
 
-	inline const std::map<fileid_t, TableReaderPtr>& Readers() const
+	inline const std::map<fileid_t, ObjectReaderPtr>& Readers() const
 	{
 		return m_readers;
 	}
-
+	inline const BucketMetaFilePtr& MetaFile() const
+	{
+		return m_meta_file;
+	}
 private:
 	void GetUpmostKey();
 	
 private:
-	std::map<fileid_t, TableReaderPtr> m_readers;
+    BucketMetaFilePtr m_meta_file;
+	std::map<fileid_t, ObjectReaderPtr> m_readers;
 	StrView m_upmost_key;
 
 private:
-	TableReaderSnapshot(const TableReaderSnapshot&) = delete;
-	TableReaderSnapshot& operator=(const TableReaderSnapshot&) = delete;
+	ObjectReaderList(const ObjectReaderList&) = delete;
+	ObjectReaderList& operator=(const ObjectReaderList&) = delete;
 
 };
 

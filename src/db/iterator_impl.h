@@ -36,7 +36,7 @@ public:
 	virtual void First() = 0;
 	
 	/**移到到>=key的地方*/
-	//virtual void Seek(const StrView& key) = 0;
+	virtual void Seek(const StrView& key) = 0;
 	
 	/**向后移到一个元素*/
 	virtual void Next() = 0;
@@ -44,12 +44,8 @@ public:
 	/**是否还有下一个元素*/
 	virtual bool Valid() const = 0;
 	
-	/**获取key和value*/
-	virtual const xfutil::StrView& Key() const = 0;
-	virtual const xfutil::StrView& Value() const = 0;
-
-    //object类型
-	virtual ObjectType Type() const = 0;
+	/**获取object*/
+	virtual const Object& object() const = 0;
 
 	//最大key
 	virtual xfutil::StrView UpmostKey() const = 0;
@@ -57,6 +53,45 @@ public:
 private:
 	IteratorImpl(const IteratorImpl&) = delete;
 	IteratorImpl& operator=(const IteratorImpl&) = delete;
+};
+
+//处理多个Iterator
+class IteratorList : public IteratorImpl 
+{
+public:
+	IteratorList(const std::vector<IteratorImplPtr>& iters);
+	virtual ~IteratorList(){}
+
+public:
+	/**移到第1个元素处*/
+	virtual void First() override;
+	
+	/**移到到>=key的地方*/
+	virtual void Seek(const StrView& key) override 
+	{assert(false);}
+	
+	/**向后移到一个元素*/
+	virtual void Next() override;
+
+	/**是否还有下一个元素*/
+	virtual bool Valid() const override;
+	
+	virtual const Object& object() const override;	
+
+	virtual StrView UpmostKey() const override;
+
+private:
+	void GetMinKey();
+	void GetUpmostKey();
+
+private:
+	std::vector<IteratorImplPtr> m_iters;
+	StrView m_upmost_key;
+	size_t m_curr_idx;
+	
+private:
+	IteratorList(const IteratorList&) = delete;
+	IteratorList& operator=(const IteratorList&) = delete;
 };
 
 } 

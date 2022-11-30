@@ -37,8 +37,8 @@ struct BucketMetaData
 	BucketMetaData()
 	{
 		max_level_num = MAX_LEVEL_ID;
-		next_segment_id = MIN_FILEID;
-		next_object_id = MIN_OBJECTID;
+		next_segment_id = MIN_FILE_ID;
+		next_object_id = MIN_OBJECT_ID;
 	}
 };
 

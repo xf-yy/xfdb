@@ -14,29 +14,29 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#include "table_writer.h"
+#include "object_writer.h"
 
 namespace xfdb
 {
 
-TableWriter::TableWriter(BlockPool& pool)
+ObjectWriter::ObjectWriter(BlockPool& pool)
 	: m_create_time(time(nullptr)), m_buf(pool)
 {
 	memset(&m_object_stat, 0x00, sizeof(m_object_stat));
 	m_ex_size = 0;
 }
 
-TableWriter::~TableWriter()
+ObjectWriter::~ObjectWriter()
 {
 }	
 
-StrView TableWriter::CloneString(const StrView& str)
+StrView ObjectWriter::CloneString(const StrView& str)
 {
 	byte_t* new_str = m_buf.Write((byte_t*)str.data, str.size);
 	return StrView((char*)new_str, str.size);	
 }
 
-Object* TableWriter::CloneObject(objectid_t seqid, const Object* object)
+Object* ObjectWriter::CloneObject(objectid_t seqid, const Object* object)
 {	
 	ObjectTypeStat* stat = (object->type == SetType) ? &m_object_stat.set_stat : &m_object_stat.delete_stat;
 	stat->Add(object->key.size, object->value.size);

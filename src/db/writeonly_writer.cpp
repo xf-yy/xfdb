@@ -15,14 +15,14 @@ limitations under the License.
 ***************************************************************************/
 
 #include <algorithm>
-#include "writeonly_memwriter.h"
-#include "memwriter_iterator.h"
+#include "writeonly_writer.h"
+#include "writer_iterator.h"
 
 namespace xfdb
 {
 
-WriteOnlyMemWriter::WriteOnlyMemWriter(BlockPool& pool, uint32_t max_object_num)
-	: TableWriter(pool)
+WriteOnlyWriter::WriteOnlyWriter(BlockPool& pool, uint32_t max_object_num)
+	: ObjectWriter(pool)
 {
 	m_objects.reserve(max_object_num+1024/*额外数量*/);
 
@@ -31,7 +31,7 @@ WriteOnlyMemWriter::WriteOnlyMemWriter(BlockPool& pool, uint32_t max_object_num)
 #endif
 }
 
-WriteOnlyMemWriter::~WriteOnlyMemWriter()
+WriteOnlyWriter::~WriteOnlyWriter()
 {
 	//FIXME: 无需析构
 	#if 0
@@ -43,14 +43,14 @@ WriteOnlyMemWriter::~WriteOnlyMemWriter()
 }
 
 
-Status WriteOnlyMemWriter::Write(objectid_t start_seqid, const Object* object)
+Status WriteOnlyWriter::Write(objectid_t next_seqid, const Object* object)
 {
-	Object* obj = CloneObject(start_seqid, object);
+	Object* obj = CloneObject(next_seqid, object);
 	m_objects.push_back(obj);
 	return OK;
 }
 
-Status WriteOnlyMemWriter::Write(objectid_t start_seqid, const WriteOnlyMemWriterPtr& memtable)
+Status WriteOnlyWriter::Write(objectid_t next_seqid, const WriteOnlyWriterPtr& memtable)
 {
 	AddWriter(memtable);
 
@@ -59,13 +59,13 @@ Status WriteOnlyMemWriter::Write(objectid_t start_seqid, const WriteOnlyMemWrite
 	m_objects.reserve(objs.size() + m_objects.size());
 	for(size_t i = 0; i < objs.size(); ++i)
 	{
-		objs[i]->id = start_seqid + i;
+		objs[i]->id = next_seqid + i;
 		m_objects.push_back(objs[i]);
 	}
 	return OK;
 }
 
-void WriteOnlyMemWriter::Finish()
+void WriteOnlyWriter::Finish()
 {
 	if(m_objects.size() > 1)
 	{
@@ -76,18 +76,18 @@ void WriteOnlyMemWriter::Finish()
 #endif
 }
 
-IteratorImplPtr WriteOnlyMemWriter::NewIterator()
+IteratorImplPtr WriteOnlyWriter::NewIterator(objectid_t max_objid)
 {
 #if _DEBUG
 	assert(m_finished);
 #endif
-	WriteOnlyMemWriterPtr ptr = std::dynamic_pointer_cast<WriteOnlyMemWriter>(shared_from_this());
+	WriteOnlyWriterPtr ptr = std::dynamic_pointer_cast<WriteOnlyWriter>(shared_from_this());
 
-	return NewWriteOnlyMemWriterIterator(ptr);
+	return NewWriteOnlyWriterIterator(ptr);
 }
 
 //大于最大key的key
-StrView WriteOnlyMemWriter::UpmostKey() const
+StrView WriteOnlyWriter::UpmostKey() const
 {
 #if _DEBUG
 	assert(m_finished);

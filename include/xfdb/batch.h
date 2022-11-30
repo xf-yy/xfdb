@@ -44,7 +44,7 @@ public:
 	
 private:
 	//key:bucket_name
-	std::map<std::string, WriteOnlyMemWriterPtr> m_data;
+	std::map<std::string, WriteOnlyWriterPtr> m_data;
 	
 private:
     friend class WritableDB;

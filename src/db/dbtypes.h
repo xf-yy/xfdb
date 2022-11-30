@@ -60,20 +60,20 @@ static_assert(FULLMERGE_MASK == 15, "invalid FULLMERGE_MASK");
 #define SEGMENT_FILEID(id, level)			(((id) << SEGMENT_ID_SHIFT) | level)
 #define SEGMENT_FILEID2(id, cnt, level)		(((id) << SEGMENT_ID_SHIFT) | (cnt<<FULLMERGE_BITNUM) | level)
 
-#define INVALID_FILEID				0
-#define MIN_FILEID					(INVALID_FILEID + 1)
-#define MAX_FILEID					(fileid_t(-1) - 1)
-static_assert(MIN_FILEID > 0, "invalid MIN_FILEID");
+#define INVALID_FILE_ID				0
+#define MIN_FILE_ID					(INVALID_FILE_ID + 1)
+#define MAX_FILE_ID					(fileid_t(-1) - 1)
+static_assert(MIN_FILE_ID > 0, "invalid MIN_FILE_ID");
 
-#define INVALID_OBJECTID			0
-#define MIN_OBJECTID				(INVALID_OBJECTID + 1)
-#define MAX_OBJECTID				(objectid_t(-1) - 1)		//64bit
-static_assert(MIN_OBJECTID > 0, "invalid MIN_OBJECTID");
+#define INVALID_OBJECT_ID			0
+#define MIN_OBJECT_ID				(INVALID_OBJECT_ID + 1)
+#define MAX_OBJECT_ID				(objectid_t(-1) - 1)		//64bit
+static_assert(MIN_OBJECT_ID > 0, "invalid MIN_OBJECT_ID");
 
-#define INVALID_BUCKETID			0
-#define MIN_BUCKETID				(INVALID_BUCKETID + 1)
-#define MAX_BUCKETID				(bucketid_t(-1) - 1)		//32bit
-static_assert(MIN_BUCKETID > 0, "invalid MIN_BUCKETID");
+#define INVALID_BUCKET_ID			0
+#define MIN_BUCKET_ID				(INVALID_BUCKET_ID + 1)
+#define MAX_BUCKET_ID				(bucketid_t(-1) - 1)		//32bit
+static_assert(MIN_BUCKET_ID > 0, "invalid MIN_BUCKET_ID");
 
 #define MAX_KEY_SIZE				(16*1024)
 #define MAX_VALUE_SIZE				(64*1024)
@@ -302,9 +302,9 @@ typedef std::shared_ptr<ReadOnlyDB> ReadOnlyDBPtr;
 class Bucket;
 typedef std::shared_ptr<Bucket> BucketPtr;
 
-class BucketSnapshot;
-typedef std::shared_ptr<BucketSnapshot> BucketSnapshotPtr;
-#define NewBucketSnapshot 	std::make_shared<BucketSnapshot>
+class BucketList;
+typedef std::shared_ptr<BucketList> BucketListPtr;
+#define NewBucketList 	std::make_shared<BucketList>
 
 class WriteOnlyBucket;
 typedef std::shared_ptr<WriteOnlyBucket> WriteOnlyBucketPtr;
@@ -322,32 +322,32 @@ class SkipListBucket;
 typedef std::shared_ptr<SkipListBucket> SkipListBucketPtr;
 #define NewSkipListBucket 	std::make_shared<SkipListBucket>
 
-class TableReader;
-typedef std::shared_ptr<TableReader> TableReaderPtr;
+class ObjectReader;
+typedef std::shared_ptr<ObjectReader> ObjectReaderPtr;
 
 
-class TableReaderSnapshot;
-typedef std::shared_ptr<TableReaderSnapshot> TableReaderSnapshotPtr;
-#define NewTableReaderSnapshot 	std::make_shared<TableReaderSnapshot>
+class ObjectReaderList;
+typedef std::shared_ptr<ObjectReaderList> ObjectReaderListPtr;
+#define NewObjectReaderList 	std::make_shared<ObjectReaderList>
 
-class TableWriter;
-typedef std::shared_ptr<TableWriter> TableWriterPtr;
+class ObjectWriter;
+typedef std::shared_ptr<ObjectWriter> ObjectWriterPtr;
 
 class SkipListNode;
-class ReadWriteMemWriter;
-typedef std::shared_ptr<ReadWriteMemWriter> ReadWriteMemWriterPtr;
-#define NewReadWriteMemWriter 	std::make_shared<ReadWriteMemWriter>
+class ReadWriteWriter;
+typedef std::shared_ptr<ReadWriteWriter> ReadWriteWriterPtr;
+#define NewReadWriteWriter 	std::make_shared<ReadWriteWriter>
 
-//class WriteOnlyMemWriter;
-//typedef std::shared_ptr<WriteOnlyMemWriter> WriteOnlyMemWriterPtr;
-#define NewWriteOnlyMemWriter 	std::make_shared<WriteOnlyMemWriter>
+//class WriteOnlyWriter;
+//typedef std::shared_ptr<WriteOnlyWriter> WriteOnlyWriterPtr;
+#define NewWriteOnlyWriter 	std::make_shared<WriteOnlyWriter>
 
 class IteratorImpl;
 typedef std::shared_ptr<IteratorImpl> BaseIteratorPtr;
 
-class TableWriterSnapshot;
-typedef std::shared_ptr<TableWriterSnapshot> TableWriterSnapshotPtr;
-#define NewTableWriterSnapshot 	std::make_shared<TableWriterSnapshot>
+class ObjectWriterList;
+typedef std::shared_ptr<ObjectWriterList> ObjectWriterListPtr;
+#define NewObjectWriterList 	std::make_shared<ObjectWriterList>
 
 class IndexWriter;
 typedef std::shared_ptr<IndexWriter> IndexWriterPtr;
@@ -377,37 +377,31 @@ class SegmentWriter;
 typedef std::shared_ptr<SegmentWriter> SegmentWriterPtr;
 #define NewSegmentWriter 	std::make_shared<SegmentWriter>
 
-class IteratorSet;
-typedef std::shared_ptr<IteratorSet> IteratorSetPtr;
-#define NewIteratorSet 	std::make_shared<IteratorSet>
+class IteratorList;
+typedef std::shared_ptr<IteratorList> IteratorListPtr;
+#define NewIteratorList 	std::make_shared<IteratorList>
 
-class WriteOnlyMemWriterIterator;
-typedef std::shared_ptr<WriteOnlyMemWriterIterator> WriteOnlyMemWriterIteratorPtr;
-#define NewWriteOnlyMemWriterIterator 	std::make_shared<WriteOnlyMemWriterIterator>
+class WriteOnlyWriterIterator;
+typedef std::shared_ptr<WriteOnlyWriterIterator> WriteOnlyWriterIteratorPtr;
+#define NewWriteOnlyWriterIterator 	std::make_shared<WriteOnlyWriterIterator>
 
-class ReadWriteMemWriterIterator;
-typedef std::shared_ptr<ReadWriteMemWriterIterator> ReadWriteMemWriterIteratorPtr;
-#define NewReadWriteMemWriterIterator 	std::make_shared<ReadWriteMemWriterIterator>
-
-struct BucketReaderSnapshot
-{
-	BucketMetaFilePtr meta_file;
-	TableReaderSnapshotPtr readers;
-};
+class ReadWriteWriterIterator;
+typedef std::shared_ptr<ReadWriteWriterIterator> ReadWriteWriterIteratorPtr;
+#define NewReadWriteWriterIterator 	std::make_shared<ReadWriteWriterIterator>
 
 struct MergingSegmentInfo
 {
 	fileid_t new_segment_fileid;
 	SegmentReaderPtr new_segment_reader;
 	std::set<fileid_t> merging_segment_fileids;
-	BucketReaderSnapshot reader_snapshot;
+	ObjectReaderListPtr reader_snapshot;
 
 public:
 	MergingSegmentInfo()
 	{
-		new_segment_fileid = INVALID_FILEID;
+		new_segment_fileid = INVALID_FILE_ID;
 	}
-	void GetMergingReaders(std::map<fileid_t, TableReaderPtr>& segment_readers) const;
+	void GetMergingReaders(std::map<fileid_t, ObjectReaderPtr>& segment_readers) const;
 	uint64_t GetMergingSize() const;
 
 	fileid_t NewSegmentFileID() const;

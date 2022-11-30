@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_memwriter_iterator_h__
-#define __xfdb_memwriter_iterator_h__
+#ifndef __xfdb_writer_iterator_h__
+#define __xfdb_writer_iterator_h__
 
 #include <map>
 #include "dbtypes.h"
@@ -24,16 +24,14 @@ limitations under the License.
 namespace xfdb 
 {
 
-class WriteOnlyMemWriterIterator : public IteratorImpl 
+class WriteOnlyWriterIterator : public IteratorImpl 
 {
 public:
-	WriteOnlyMemWriterIterator(WriteOnlyMemWriterPtr& table);
-	virtual ~WriteOnlyMemWriterIterator()
+	WriteOnlyWriterIterator(WriteOnlyWriterPtr& table);
+	virtual ~WriteOnlyWriterIterator()
     {}
 
 public:
-	virtual StrView UpmostKey() const override;
-
 	/**移到第1个元素处*/
 	virtual void First() override
 	{
@@ -41,7 +39,8 @@ public:
 	}
 	
 	/**移到到>=key的地方*/
-	//virtual void Seek(const StrView& key) override;
+	virtual void Seek(const StrView& key) override
+    {}
 	
 	/**向后移到一个元素*/
 	virtual void Next() override;
@@ -51,43 +50,40 @@ public:
 	{
 		return m_index < m_max_num;
 	}
-	
-	virtual const xfutil::StrView& Key() const override;
-	virtual const xfutil::StrView& Value() const override;
+	virtual const Object& object() const override;
 
-    //object类型
-	virtual ObjectType Type() const override;
+	virtual StrView UpmostKey() const override;
 
 private:
-	WriteOnlyMemWriterPtr m_table;
+	WriteOnlyWriterPtr m_table;
 
 	const size_t m_max_num;
 	size_t m_index;
 	
 private:
-	WriteOnlyMemWriterIterator(const WriteOnlyMemWriterIterator&) = delete;
-	WriteOnlyMemWriterIterator& operator=(const WriteOnlyMemWriterIterator&) = delete;
+	WriteOnlyWriterIterator(const WriteOnlyWriterIterator&) = delete;
+	WriteOnlyWriterIterator& operator=(const WriteOnlyWriterIterator&) = delete;
 };
 
 
-class ReadWriteMemWriterIterator : public IteratorImpl 
+class ReadWriteWriterIterator : public IteratorImpl 
 {
 public:
-	ReadWriteMemWriterIterator(ReadWriteMemWriterPtr& table) : m_table(table)
+	ReadWriteWriterIterator(ReadWriteWriterPtr& table, objectid_t max_objid) 
+        : m_table(table), m_max_objid(max_objid)
     {
         First();
     }
-	virtual ~ReadWriteMemWriterIterator()
+	virtual ~ReadWriteWriterIterator()
     {}
 
-public:
-	virtual StrView UpmostKey() const override;
-	
+public:	
 	/**移到第1个元素处*/
 	virtual void First() override;
 	
 	/**移到到>=key的地方*/
-	//virtual void Seek(const StrView& key) override;
+	virtual void Seek(const StrView& key) override
+    {}
 	
 	/**向后移到一个元素*/
 	virtual void Next() override;
@@ -97,20 +93,19 @@ public:
     {
         return m_node != nullptr;
     }
-	
-	virtual const xfutil::StrView& Key() const override;
-	virtual const xfutil::StrView& Value() const override;
 
-    //object类型
-	virtual ObjectType Type() const override;
-	
+	virtual const Object& object() const override;	
+
+	virtual StrView UpmostKey() const override;
+
 private:
-	ReadWriteMemWriterPtr m_table;
+	ReadWriteWriterPtr m_table;
+    objectid_t m_max_objid;
 	SkipListNode* m_node;
 	
 private:
-	ReadWriteMemWriterIterator(const ReadWriteMemWriterIterator&) = delete;
-	ReadWriteMemWriterIterator& operator=(const ReadWriteMemWriterIterator&) = delete;
+	ReadWriteWriterIterator(const ReadWriteWriterIterator&) = delete;
+	ReadWriteWriterIterator& operator=(const ReadWriteWriterIterator&) = delete;
 };
 
 

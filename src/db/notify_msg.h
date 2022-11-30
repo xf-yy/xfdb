@@ -52,7 +52,7 @@ struct NotifyData
 	NotifyData(NotifyType type_ = NOTIFY_EXIT)
 	{
 		type = type_;
-		file_id = INVALID_FILEID;
+		file_id = INVALID_FILE_ID;
 	}
 	NotifyData(NotifyType type_, const std::string& db_path_, fileid_t fid_)
 		: db_path(db_path_)
@@ -81,7 +81,7 @@ public:
 	explicit NotifyMsg(NotifyType type_ = NOTIFY_EXIT)
 	{
 		type = type_;
-		file_id = INVALID_FILEID;
+		file_id = INVALID_FILE_ID;
 	}
 	explicit NotifyMsg(const NotifyData& nd)
 	{
@@ -93,7 +93,7 @@ public:
 		: db(db_)
 	{
 		type = type_;
-		file_id = INVALID_FILEID;
+		file_id = INVALID_FILE_ID;
 	}
 	NotifyMsg(NotifyType type_, DBImplPtr& db_, fileid_t fid_)
 		: db(db_)
@@ -105,7 +105,7 @@ public:
 		: db(db_), bucket(bucket_)
 	{
 		type = type_;
-		file_id = INVALID_FILEID;
+		file_id = INVALID_FILE_ID;
 	}
 	NotifyMsg(NotifyType type_, DBImplPtr& db_, BucketPtr& bucket_, fileid_t fid_)
 		: db(db_), bucket(bucket_)

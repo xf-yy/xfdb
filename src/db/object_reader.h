@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_table_reader_h__
-#define __xfdb_table_reader_h__
+#ifndef __xfdb_object_reader_h__
+#define __xfdb_object_reader_h__
 
 #include "buffer.h"
 #include "xfdb/strutil.h"
@@ -25,17 +25,19 @@ limitations under the License.
 namespace xfdb
 {
 
-class TableReader : public std::enable_shared_from_this<TableReader>
+class ObjectReader : public std::enable_shared_from_this<ObjectReader>
 {
 public:
-	TableReader(){}
-	virtual ~TableReader(){}
+	ObjectReader()
+    {}
+	virtual ~ObjectReader()
+    {}
 
 public:
 	virtual Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const = 0;
 
 	/**迭代器*/
-	virtual IteratorImplPtr NewIterator() = 0;
+	virtual IteratorImplPtr NewIterator(objectid_t max_objid = MAX_OBJECT_ID) = 0;
 	
 	/**最大key*/
 	virtual StrView UpmostKey() const = 0;
@@ -47,8 +49,8 @@ public:
 	virtual void GetStat(BucketStat& stat) const = 0;
 
 private:
-	TableReader(const TableReader&) = delete;
-	TableReader& operator=(const TableReader&) = delete;
+	ObjectReader(const ObjectReader&) = delete;
+	ObjectReader& operator=(const ObjectReader&) = delete;
 };
 
 

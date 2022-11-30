@@ -32,13 +32,12 @@ public:
 	{}
 
 public:
-	virtual StrView UpmostKey() const override;
-
 	/**移到第1个元素处*/
 	virtual void First() override;
 	
 	/**移到到>=key的地方*/
-	//virtual void Seek(const StrView& key) override;
+	virtual void Seek(const StrView& key) override
+    {}
 	
 	/**向后移到一个元素*/
 	virtual void Next() override;
@@ -46,11 +45,9 @@ public:
 	/**是否还有下一个元素*/
 	virtual bool Valid() const override;
 	
-	virtual const xfutil::StrView& Key() const override;
-	virtual const xfutil::StrView& Value() const override;
+	virtual const Object& object() const override;	
 
-    //object类型
-	virtual ObjectType Type() const override;
+	virtual StrView UpmostKey() const override;
 	
 private:
 	SegmentReaderPtr m_segment_reader;

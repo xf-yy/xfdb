@@ -18,19 +18,19 @@ limitations under the License.
 #include "dbtypes.h"
 #include "bucket.h"
 #include "db_infofile.h"
-#include "bucket_snapshot.h"
+#include "bucket_list.h"
 #include "logger.h"
 
 
 namespace xfdb 
 {
 
-BucketSnapshot::BucketSnapshot(std::map<std::string, BucketPtr>& buckets) 
+BucketList::BucketList(std::map<std::string, BucketPtr>& buckets) 
 	: m_buckets(buckets)
 {
 }
 
-void BucketSnapshot::TryFlush()
+void BucketList::TryFlush()
 {
 	for(auto it = m_buckets.begin(); it != m_buckets.end(); ++it)
 	{
@@ -38,7 +38,7 @@ void BucketSnapshot::TryFlush()
 	}
 }
 
-void BucketSnapshot::Flush()
+void BucketList::Flush()
 {
 	for(auto it = m_buckets.begin(); it != m_buckets.end(); ++it)
 	{
@@ -46,7 +46,7 @@ void BucketSnapshot::Flush()
 	}
 }
 
-void BucketSnapshot::Merge()
+void BucketList::Merge()
 {
 	for(auto it = m_buckets.begin(); it != m_buckets.end(); ++it)
 	{
@@ -54,7 +54,7 @@ void BucketSnapshot::Merge()
 	}
 }
 
-void BucketSnapshot::Clean()
+void BucketList::Clean()
 {
 	for(auto it = m_buckets.begin(); it != m_buckets.end(); ++it)
 	{
@@ -62,7 +62,7 @@ void BucketSnapshot::Clean()
 	}
 }
 
-void BucketSnapshot::Buckets(std::vector<std::string>& bucket_names) const
+void BucketList::ListBucket(std::vector<std::string>& bucket_names) const
 {
 	bucket_names.resize(m_buckets.size());
 	int i = 0;
@@ -73,7 +73,7 @@ void BucketSnapshot::Buckets(std::vector<std::string>& bucket_names) const
 }
 
 #if 0
-void BucketSnapshot::List(std::vector<BucketPtr>& bucket_ptrs) const
+void BucketList::List(std::vector<BucketPtr>& bucket_ptrs) const
 {
 	bucket_ptrs.resize(m_buckets.size());
 	int i = 0;

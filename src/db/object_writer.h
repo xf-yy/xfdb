@@ -14,28 +14,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_table_writer_h__
-#define __xfdb_table_writer_h__
+#ifndef __xfdb_object_writer_h__
+#define __xfdb_object_writer_h__
 
 #include <list>
 #include "buffer.h"
 #include "xfdb/strutil.h"
 #include "dbtypes.h"
 #include "iterator_impl.h"
-#include "table_reader.h"
+#include "object_reader.h"
 
 namespace xfdb
 {
 
-class TableWriter : public TableReader
+class ObjectWriter : public ObjectReader
 {
 public:
-	explicit TableWriter(BlockPool& pool);
-	virtual ~TableWriter();
+	explicit ObjectWriter(BlockPool& pool);
+	virtual ~ObjectWriter();
 
 public:
-	virtual Status Write(objectid_t start_seqid, const Object* object) = 0;
-	virtual Status Write(objectid_t start_seqid, const WriteOnlyMemWriterPtr& memtable) = 0;
+	virtual Status Write(objectid_t next_seqid, const Object* object) = 0;
+	virtual Status Write(objectid_t next_seqid, const WriteOnlyWriterPtr& memtable) = 0;
 	virtual void Finish(){}
 	
 	virtual Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const
@@ -68,7 +68,7 @@ public:
 	
 protected:	
 	Object* CloneObject(objectid_t seqid, const Object* object);
-	void AddWriter(TableWriterPtr writer)
+	void AddWriter(ObjectWriterPtr writer)
 	{
 		m_ex_writers.push_back(writer);
 		m_ex_size += writer->m_ex_size;
@@ -85,11 +85,11 @@ protected:
 	WriteBuffer m_buf;					//内存分配器
 
 	uint64_t m_ex_size;
-	std::list<TableWriterPtr> m_ex_writers;
+	std::list<ObjectWriterPtr> m_ex_writers;
 
 private:
-	TableWriter(const TableWriter&) = delete;
-	TableWriter& operator=(const TableWriter&) = delete;
+	ObjectWriter(const ObjectWriter&) = delete;
+	ObjectWriter& operator=(const ObjectWriter&) = delete;
 };
 
 }  

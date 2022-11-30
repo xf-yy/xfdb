@@ -109,7 +109,7 @@ protected:
 	Status OpenBucket(const char* dbinfo_filename);
 	Status OpenBucket(const char* dbinfo_filename, const DBInfoData& bld);
 
-	void OpenBucket(const DBInfoData& bld, const BucketSnapshot* last_bucket_snapshot, std::map<std::string, BucketPtr>& buckets);
+	void OpenBucket(const DBInfoData& bld, const BucketList* last_bucket_list, std::map<std::string, BucketPtr>& buckets);
 	void OpenBucket(const DBInfoData& bld, std::map<std::string, BucketPtr>& buckets);
 
 	Status OpenBucket(const BucketInfo& bi, BucketPtr& bptr);
@@ -126,7 +126,7 @@ protected:
 	fileid_t m_next_dbinfo_fileid;
 	
 	mutable ReadWriteLock m_bucket_rwlock;	//bucket读写锁
-	BucketSnapshotPtr m_bucket_snapshot;	//bucket集
+	BucketListPtr m_bucket_list;	//bucket集
 	
 private:
 	DBImpl(const DBImpl&) = delete;

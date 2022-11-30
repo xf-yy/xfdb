@@ -16,11 +16,11 @@ limitations under the License.
 
 #include "dbtypes.h"
 #include "readwrite_bucket.h"
-#include "readwrite_memwriter.h"
-#include "table_writer_snapshot.h"
+#include "readwrite_writer.h"
+#include "object_writer_list.h"
 #include "bucket_metafile.h"
 #include "notify_file.h"
-#include "table_reader_snapshot.h"
+#include "object_reader_list.h"
 #include "writable_db.h"
 
 namespace xfdb 
@@ -36,9 +36,9 @@ ReadWriteBucket::~ReadWriteBucket()
 
 }
 
-TableWriterPtr ReadWriteBucket::NewTableWriter(WritableEngine* engine)
+ObjectWriterPtr ReadWriteBucket::NewObjectWriter(WritableEngine* engine)
 {
-    return NewReadWriteMemWriter(engine->GetLargePool(), engine->GetConfig().max_memtable_objects);
+    return NewReadWriteWriter(engine->GetLargePool(), engine->GetConfig().max_memtable_objects);
 }
 
 Status ReadWriteBucket::Get(const StrView& key, String& value)
@@ -46,9 +46,9 @@ Status ReadWriteBucket::Get(const StrView& key, String& value)
 	m_segment_rwlock.ReadLock();
 
     objectid_t curr_obj_id = m_next_object_id;
-    TableWriterPtr memwriter = m_memwriter;
-	TableWriterSnapshotPtr mts_ptr = m_memwriter_snapshot;
-	BucketReaderSnapshot reader_snapshot = m_reader_snapshot;
+    ObjectWriterPtr memwriter = m_memwriter;
+	ObjectWriterListPtr writer_snapshot = m_memwriter_snapshot;
+	ObjectReaderListPtr reader_snapshot = m_reader_snapshot;
 
 	m_segment_rwlock.ReadUnlock();
 
@@ -57,11 +57,11 @@ Status ReadWriteBucket::Get(const StrView& key, String& value)
 	{
     	return (type == SetType) ? OK : ERR_OBJECT_NOT_EXIST;
 	}
-	if(mts_ptr && mts_ptr->Get(key, curr_obj_id, type, value) == OK)
+	if(writer_snapshot && writer_snapshot->Get(key, curr_obj_id, type, value) == OK)
 	{
 		return (type == SetType) ? OK : ERR_OBJECT_NOT_EXIST;
 	}
-	if(reader_snapshot.readers && reader_snapshot.readers->Get(key, curr_obj_id, type, value) == OK) 
+	if(reader_snapshot && reader_snapshot->Get(key, curr_obj_id, type, value) == OK) 
 	{
 		return (type == SetType) ? OK : ERR_OBJECT_NOT_EXIST;
 	}
@@ -70,7 +70,23 @@ Status ReadWriteBucket::Get(const StrView& key, String& value)
 
 Status ReadWriteBucket::NewIterator(IteratorImplPtr& iter)
 {
+	m_segment_rwlock.ReadLock();
+
+    objectid_t curr_obj_id = m_next_object_id;
+    ObjectWriterPtr memwriter = m_memwriter;
+	ObjectWriterListPtr writer_snapshot = m_memwriter_snapshot;
+	ObjectReaderListPtr reader_snapshot = m_reader_snapshot;
+
+	m_segment_rwlock.ReadUnlock();
     
+    if(memwriter)
+    memwriter->NewIterator(curr_obj_id);
+    if(writer_snapshot)
+    writer_snapshot->NewIterator();
+    if(reader_snapshot)
+    reader_snapshot->NewIterator();
+
+    //NewIteratorList();
 }
 
 }  

@@ -15,29 +15,29 @@ limitations under the License.
 ***************************************************************************/
 
 #include "dbtypes.h"
-#include "memwriter_iterator.h"
-#include "writeonly_memwriter.h"
-#include "readwrite_memwriter.h"
-#include "table_writer_snapshot.h"
+#include "writer_iterator.h"
+#include "writeonly_writer.h"
+#include "readwrite_writer.h"
+#include "object_writer_list.h"
 
 namespace xfdb 
 {
 
-WriteOnlyMemWriterIterator::WriteOnlyMemWriterIterator(WriteOnlyMemWriterPtr& table)
+WriteOnlyWriterIterator::WriteOnlyWriterIterator(WriteOnlyWriterPtr& table)
 	: m_table(table), m_max_num(table->m_objects.size())
 {
 	First();
 }
 
-StrView WriteOnlyMemWriterIterator::UpmostKey() const
+StrView WriteOnlyWriterIterator::UpmostKey() const
 {
 	return m_table->UpmostKey();
 }
 
-//void WriteOnlyMemWriterIterator::Seek(const StrView& key)
+//void WriteOnlyWriterIterator::Seek(const StrView& key)
 //{};
 
-void WriteOnlyMemWriterIterator::Next()
+void WriteOnlyWriterIterator::Next()
 {
     assert(m_index < m_max_num);
 
@@ -53,62 +53,53 @@ void WriteOnlyMemWriterIterator::Next()
 	}
 };
 
-const StrView& WriteOnlyMemWriterIterator::Key() const
+const Object& WriteOnlyWriterIterator::object() const
 {
-	return m_table->m_objects[m_index]->key;
+    return *m_table->m_objects[m_index];
 }
 
-const StrView& WriteOnlyMemWriterIterator::Value() const
-{
-	return m_table->m_objects[m_index]->value;
-}
-
-ObjectType WriteOnlyMemWriterIterator::Type() const
-{
-	return m_table->m_objects[m_index]->type;
-}
-
-StrView ReadWriteMemWriterIterator::UpmostKey() const
+//////////////////////////////////////////////////////////////////////
+StrView ReadWriteWriterIterator::UpmostKey() const
 {
 	return m_table->UpmostKey();
 }
 
 /**移到第1个元素处*/
-void ReadWriteMemWriterIterator::First()
+void ReadWriteWriterIterator::First()
 {
     m_node = m_table->m_head->Next(0);
+    if(m_node != nullptr && m_node->object->id > m_max_objid)
+    {
+        Next();
+    }
 }
 
-void ReadWriteMemWriterIterator::Next()
+void ReadWriteWriterIterator::Next()
 {
     assert(m_node != nullptr);
 
-	//如果key与后面的相同则跳过
+	//如果key与后面的相同或id大于m_max_objid则跳过
     SkipListNode* prev_node = m_node;
-	while((m_node = m_node->Next(0)) != nullptr)
+    m_node = m_node->Next(0);
+
+	while(m_node != nullptr)
 	{
         assert(m_node->object->key.Compare(prev_node->object->key) >= 0);
-        if(m_node->object->key != prev_node->object->key)
+        if(m_node->object->id > m_max_objid || m_node->object->key == prev_node->object->key)
+        {
+            m_node = m_node->Next(0);
+        }
+        else
         {
             break;
         }
 	}
 }
 
-const StrView& ReadWriteMemWriterIterator::Key() const
+const Object& ReadWriteWriterIterator::object() const
 {
-    return m_node->object->key;
-}    
-
-const StrView& ReadWriteMemWriterIterator::Value() const
-{
-    return m_node->object->value;
-}   
-
-ObjectType ReadWriteMemWriterIterator::Type() const
-{
-    return m_node->object->type;
-}   
+    return *m_node->object;
+}
 
 } 
 

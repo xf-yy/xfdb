@@ -19,9 +19,9 @@ limitations under the License.
 
 #include "dbtypes.h"
 #include "writable_engine.h"
-#include "writeonly_memwriter.h"
-#include "table_writer_snapshot.h"
-#include "table_reader_snapshot.h"
+#include "writeonly_writer.h"
+#include "object_writer_list.h"
+#include "object_reader_list.h"
 #include "bucket.h"
 #include <deque>
 #include <mutex>
@@ -42,7 +42,7 @@ public:
 	virtual void GetStat(BucketStat& stat) const override;
 
 	Status Write(const Object* object);
-	Status Write(const WriteOnlyMemWriterPtr& memtable);
+	Status Write(const WriteOnlyWriterPtr& memtable);
 	
 	//异步
 	virtual Status TryFlush() override;
@@ -54,7 +54,7 @@ public:
 	static Status Remove(const char* bucket_path);
 
 protected:	
-	virtual TableWriterPtr NewTableWriter(WritableEngine* engine);
+	virtual ObjectWriterPtr NewObjectWriter(WritableEngine* engine);
 
 	Status Flush(bool force);
 
@@ -66,7 +66,7 @@ private:
 	Status RemoveMetaFile();
 
 	Status WriteSegment();			//同步刷盘
-	Status WriteSegment(TableWriterSnapshotPtr& memwriter_snapshot, fileid_t fileid, SegmentReaderPtr& new_segment_reader);
+	Status WriteSegment(ObjectWriterListPtr& memwriter_snapshot, fileid_t fileid, SegmentReaderPtr& new_segment_reader);
 	Status WriteBucketMeta();		//同步刷盘
 	void FlushMemWriter();
 
@@ -76,15 +76,15 @@ private:
 	bool AddMerging(MergingSegmentInfo& msinfo);
 	
 private:
-	void WriteAliveSegmentInfos(TableReaderSnapshotPtr& trs_ptr, BucketMetaData& md);
+	void WriteAliveSegmentInfos(ObjectReaderListPtr& trs_ptr, BucketMetaData& md);
 
 protected:
 	WritableEngine* m_engine;
 	const uint32_t m_max_memtable_size;									//1~1024
 	const uint32_t m_max_memtable_objects;								//1000~100*10000
 				
-	TableWriterPtr m_memwriter;											//当前正在写的memwriter
-	TableWriterSnapshotPtr m_memwriter_snapshot;						//只读待落盘的memwriter集
+	ObjectWriterPtr m_memwriter;											//当前正在写的memwriter
+	ObjectWriterListPtr m_memwriter_snapshot;						//只读待落盘的memwriter集
 
 	//FIXME:segment文件生成了，但没有写入bucket meta，怎么淘汰？
 	//对于大于bucket meta中的segment都要淘汰？还是重新加入bucket meta？

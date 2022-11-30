@@ -124,7 +124,8 @@ Status DataWriter::WriteGroup(IteratorImpl& iter, L0GroupIndex& gi)
 	{
 		return ERR_NOMORE_DATA;
 	}
-	gi.start_key = CloneKey(m_key_buf, iter.Key());
+
+	gi.start_key = CloneKey(m_key_buf, iter.object().key);
 	StrView prev_key = gi.start_key;
 	
 	Status s = OK;
@@ -132,8 +133,9 @@ Status DataWriter::WriteGroup(IteratorImpl& iter, L0GroupIndex& gi)
 
 	for(int i = 0; i < MAX_OBJECT_NUM_OF_GROUP && iter.Valid(); ++i)
 	{
-		const StrView& key = iter.Key();
-		const StrView& value = iter.Value();
+        const Object& obj = iter.object();
+		const StrView& key = obj.key;
+		const StrView& value = obj.value;
 		
 		//当剩余空间不足时，结束掉该block
 		uint32_t need_size = key.size + value.size + EXTRA_OBJECT_SIZE;
@@ -153,7 +155,7 @@ Status DataWriter::WriteGroup(IteratorImpl& iter, L0GroupIndex& gi)
 		uint32_t nonshared_size = key.size - shared_keysize;
 		m_block_ptr = EncodeString(m_block_ptr, &key.data[shared_keysize], nonshared_size);
 
-		*m_block_ptr++ = iter.Type();
+		*m_block_ptr++ = obj.type;
 
 		m_block_ptr = EncodeString(m_block_ptr, value.data, value.size);
 
@@ -172,7 +174,6 @@ Status DataWriter::WriteGroup(IteratorImpl& iter, L0GroupIndex& gi)
 	
 	return s;
 }
-
 
 Status DataWriter::WriteGroupIndex(const L0GroupIndex* group_indexs, int index_cnt)
 {
@@ -200,7 +201,7 @@ Status DataWriter::WriteL2Group(IteratorImpl& iter, LnGroupIndex& ci)
 	{
 		return ERR_NOMORE_DATA;
 	}
-	ci.start_key = CloneKey(m_key_buf, iter.Key());
+	ci.start_key = CloneKey(m_key_buf, iter.object().key);
 	
 	Status s = ERR_BUFFER_FULL;
 	byte_t* group_start = m_block_ptr;
@@ -288,7 +289,7 @@ Status DataWriter::Write(IteratorImpl& iter)
 		m_key_buf.Clear();
 		
 		SegmentL0Index L0_index;
-		L0_index.start_key = CloneKey(m_key_buf, iter.Key());	//iter.Key可能是临时key
+		L0_index.start_key = CloneKey(m_key_buf, iter.object().key);	//iter.Key可能是临时key
 		L0_index.L0offset = m_offset;
 		
 		uint32_t index_size;

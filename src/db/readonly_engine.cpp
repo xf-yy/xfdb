@@ -137,7 +137,7 @@ void ReadOnlyEngine::ProcessNotifyData(const NotifyData& nd)
 		break;
 		
 	case NOTIFY_UPDATE_DB_META:
-		if(nd.file_id != MIN_FILEID)
+		if(nd.file_id != MIN_FILE_ID)
 		{
 			MakeDBInfoFileName(nd.file_id, file_name);
 			db->OpenBucket(file_name);

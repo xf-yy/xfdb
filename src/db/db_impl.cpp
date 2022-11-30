@@ -18,7 +18,7 @@ limitations under the License.
 #include "dbtypes.h"
 #include "bucket.h"
 #include "db_infofile.h"
-#include "bucket_snapshot.h"
+#include "bucket_list.h"
 #include "logger.h"
 #include "file_util.h"
 
@@ -29,8 +29,8 @@ namespace xfdb
 DBImpl::DBImpl(const DBConfig& conf, const std::string& db_path)
 	: m_conf(conf), m_path(db_path)
 {
-	m_next_bucket_id = MIN_BUCKETID;
-	m_next_dbinfo_fileid = MIN_FILEID;
+	m_next_bucket_id = MIN_BUCKET_ID;
+	m_next_dbinfo_fileid = MIN_FILE_ID;
 }
 
 DBImpl::~DBImpl()
@@ -46,12 +46,12 @@ bool DBImpl::ExistBucket(const std::string& bucket_name) const
 void DBImpl::ListBucket(std::vector<std::string>& bucket_names) const
 {
 	m_bucket_rwlock.ReadLock();
-	BucketSnapshotPtr bucket_snapshot = m_bucket_snapshot;
+	BucketListPtr bucket_list = m_bucket_list;
 	m_bucket_rwlock.ReadUnlock();
 
-	if(bucket_snapshot)
+	if(bucket_list)
 	{
-		bucket_snapshot->Buckets(bucket_names);
+		bucket_list->ListBucket(bucket_names);
 	}
 }
 
@@ -59,15 +59,15 @@ void DBImpl::ListBucket(std::vector<std::string>& bucket_names) const
 bool DBImpl::GetBucket(const std::string& bucket_name, BucketPtr& ptr) const
 {
 	m_bucket_rwlock.ReadLock();
-	BucketSnapshotPtr bucket_snapshot = m_bucket_snapshot;
+	BucketListPtr bucket_list = m_bucket_list;
 	m_bucket_rwlock.ReadUnlock();
 
-	if(!bucket_snapshot)
+	if(!bucket_list)
 	{
 		return false;
 	}
 
-	const auto& buckets = bucket_snapshot->Buckets();
+	const auto& buckets = bucket_list->Buckets();
 	auto it = buckets.find(bucket_name);
 	if(it == buckets.end())
 	{
@@ -100,10 +100,10 @@ Status DBImpl::OpenBucket(const BucketInfo& bi, BucketPtr& bptr)
 	return s;
 }
 
-void DBImpl::OpenBucket(const DBInfoData& bld, const BucketSnapshot* last_bucket_snapshot, std::map<std::string, BucketPtr>& buckets)
+void DBImpl::OpenBucket(const DBInfoData& bld, const BucketList* last_bucket_list, std::map<std::string, BucketPtr>& buckets)
 {	
-	assert(last_bucket_snapshot != nullptr);
-	const auto& last_buckets = last_bucket_snapshot->Buckets();
+	assert(last_bucket_list != nullptr);
+	const auto& last_buckets = last_bucket_list->Buckets();
 	
 	BucketPtr bptr;
 	for(const auto& bi : bld.alive_buckets)
@@ -171,22 +171,22 @@ Status DBImpl::OpenBucket(const char* dbinfo_filename, const DBInfoData& bld)
 	}
 
 	m_bucket_rwlock.ReadLock();
-	BucketSnapshotPtr bucket_snapshot = m_bucket_snapshot;
+	BucketListPtr bucket_list = m_bucket_list;
 	m_bucket_rwlock.ReadUnlock();
 
 	std::map<std::string, BucketPtr> buckets;
-	if(bucket_snapshot)
+	if(bucket_list)
 	{
-		OpenBucket(bld, bucket_snapshot.get(), buckets);
+		OpenBucket(bld, bucket_list.get(), buckets);
 	}
 	else
 	{
 		OpenBucket(bld, buckets);
 	}
-	BucketSnapshotPtr new_bucket_snapshot = NewBucketSnapshot(buckets);
+	BucketListPtr new_bucket_list = NewBucketList(buckets);
 
 	m_bucket_rwlock.WriteLock();
-	m_bucket_snapshot.swap(new_bucket_snapshot);
+	m_bucket_list.swap(new_bucket_list);
 	m_next_dbinfo_fileid = fileid+1;
 	m_next_bucket_id = bld.next_bucketid;
 	m_bucket_rwlock.WriteUnlock();

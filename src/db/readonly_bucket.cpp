@@ -15,7 +15,7 @@ limitations under the License.
 ***************************************************************************/
 
 #include "readonly_bucket.h"
-#include "table_reader_snapshot.h"
+#include "object_reader_list.h"
 #include "readonly_db.h"
 
 namespace xfdb 
@@ -51,15 +51,15 @@ Status ReadOnlyBucket::Get(const StrView& key, String& value)
 {
 	m_segment_rwlock.ReadLock();
     objectid_t curr_obj_id = m_next_object_id;
-	BucketReaderSnapshot reader_snapshot = m_reader_snapshot;
+	ObjectReaderListPtr reader_snapshot = m_reader_snapshot;
 	m_segment_rwlock.ReadUnlock();
 
-	if(!reader_snapshot.readers)
+	if(!reader_snapshot)
 	{
 		return ERR_OBJECT_NOT_EXIST;
 	}
 	ObjectType type;
-	Status s = reader_snapshot.readers->Get(key, curr_obj_id, type, value);
+	Status s = reader_snapshot->Get(key, curr_obj_id, type, value);
 	if(s != OK)
 	{
 		return s;
@@ -69,7 +69,17 @@ Status ReadOnlyBucket::Get(const StrView& key, String& value)
 
 Status ReadOnlyBucket::NewIterator(IteratorImplPtr& iter)
 {
-    return ERR_INVALID_MODE;
+	m_segment_rwlock.ReadLock();
+    //objectid_t curr_obj_id = m_next_object_id;
+	ObjectReaderListPtr reader_snapshot = m_reader_snapshot;
+	m_segment_rwlock.ReadUnlock();
+
+    if(reader_snapshot)
+    {
+        reader_snapshot->NewIterator();
+        return OK;
+    }
+    return ERR_BUCKET_EMPTY;
 }
 
 void ReadOnlyBucket::GetStat(BucketStat& stat) const
@@ -77,12 +87,12 @@ void ReadOnlyBucket::GetStat(BucketStat& stat) const
 	memset(&stat, 0x00, sizeof(stat));
 
 	m_segment_rwlock.ReadLock();
-	BucketReaderSnapshot reader_snapshot = m_reader_snapshot;
+	ObjectReaderListPtr reader_snapshot = m_reader_snapshot;
 	m_segment_rwlock.ReadUnlock();
 
-	if(reader_snapshot.readers)
+	if(reader_snapshot)
 	{
-		reader_snapshot.readers->GetStat(stat);
+		reader_snapshot->GetStat(stat);
 	}
 }
 

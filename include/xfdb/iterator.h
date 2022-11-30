@@ -34,7 +34,7 @@ public:
 	void First();
 	
 	/**移到到>=key的地方*/
-	//virtual void Seek(const StrView& key) = 0;
+	void Seek(const xfutil::StrView& key);
 	
 	/**向后移到一个元素*/
 	void Next();
@@ -42,8 +42,10 @@ public:
 	/**是否还有下一个元素*/
 	bool Valid() const;
 	
-	/**获取key和value*/
+	/**获取key*/
 	const xfutil::StrView& Key() const;
+    
+	/**获取value*/
 	const xfutil::StrView& Value() const;
 
 private:

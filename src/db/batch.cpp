@@ -15,7 +15,7 @@ limitations under the License.
 ***************************************************************************/
 
 #include "xfdb/batch.h"
-#include "writeonly_memwriter.h"
+#include "writeonly_writer.h"
 #include "engine.h"
 
 namespace xfdb 
@@ -24,14 +24,14 @@ namespace xfdb
 //设置指定bucket中的记录
 Status ObjectBatch::Set(const std::string& bucket_name, const xfutil::StrView& key, const xfutil::StrView& value)
 {
-    WriteOnlyMemWriterPtr writer;
+    WriteOnlyWriterPtr writer;
 
     auto it = m_data.find(bucket_name);
     if(it == m_data.end())
     {
         EnginePtr engine = Engine::GetEngine();
         //4KB内存块
-        writer = NewWriteOnlyMemWriter(engine->GetSmallPool(), 1024);
+        writer = NewWriteOnlyWriter(engine->GetSmallPool(), 1024);
     }
     else
     {
@@ -46,13 +46,13 @@ Status ObjectBatch::Set(const std::string& bucket_name, const xfutil::StrView& k
 //删除指定bucket中的记录
 Status ObjectBatch::Delete(const std::string& bucket_name, const xfutil::StrView& key)
 {
-    WriteOnlyMemWriterPtr writer;
+    WriteOnlyWriterPtr writer;
 
     auto it = m_data.find(bucket_name);
     if(it == m_data.end())
     {
         EnginePtr engine = Engine::GetEngine();
-        writer = NewWriteOnlyMemWriter(engine->GetSmallPool(), 1024);
+        writer = NewWriteOnlyWriter(engine->GetSmallPool(), 1024);
     }
     else
     {

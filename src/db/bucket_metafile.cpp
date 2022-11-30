@@ -40,7 +40,7 @@ enum
 
 BucketMetaFile::BucketMetaFile()
 {
-	m_id = INVALID_FILEID;
+	m_id = INVALID_FILE_ID;
 }
 
 BucketMetaFile::~BucketMetaFile()

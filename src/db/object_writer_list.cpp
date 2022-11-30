@@ -15,14 +15,14 @@ limitations under the License.
 ***************************************************************************/
 
 #include "dbtypes.h"
-#include "table_writer.h"
-#include "table_reader_iterator.h"
-#include "table_writer_snapshot.h"
+#include "object_writer.h"
+#include "iterator_impl.h"
+#include "object_writer_list.h"
 
 namespace xfdb 
 {
 
-TableWriterSnapshot::TableWriterSnapshot(TableWriterPtr& mem_table, TableWriterSnapshot* last_snapshot/* = nullptr*/)
+ObjectWriterList::ObjectWriterList(ObjectWriterPtr& mem_table, ObjectWriterList* last_snapshot/* = nullptr*/)
 {
 	if(last_snapshot != nullptr)
 	{
@@ -32,7 +32,7 @@ TableWriterSnapshot::TableWriterSnapshot(TableWriterPtr& mem_table, TableWriterS
 	m_memwriters.push_back(mem_table);
 }
 
-void TableWriterSnapshot::Finish()
+void ObjectWriterList::Finish()
 {
 	assert(!m_memwriters.empty());
 	
@@ -54,8 +54,11 @@ void TableWriterSnapshot::Finish()
 	}
 }
 
-IteratorImplPtr TableWriterSnapshot::NewIterator()
+IteratorImplPtr ObjectWriterList::NewIterator(objectid_t max_objid)
 {
+    assert(max_objid == MAX_OBJECT_ID);
+    assert(!m_memwriters.empty());
+    
 	if(m_memwriters.size() == 1)
 	{
 		return m_memwriters[0]->NewIterator();
@@ -67,10 +70,10 @@ IteratorImplPtr TableWriterSnapshot::NewIterator()
 	{
 		iters.push_back(m_memwriters[i]->NewIterator());
 	}
-	return NewIteratorSet(iters);
+	return NewIteratorList(iters);
 }
 
-Status TableWriterSnapshot::Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const
+Status ObjectWriterList::Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const
 {
 	for(ssize_t idx = (ssize_t)m_memwriters.size() - 1; idx >= 0; --idx)
 	{
@@ -83,7 +86,7 @@ Status TableWriterSnapshot::Get(const StrView& key, objectid_t obj_id, ObjectTyp
 }
 
 /**返回segment文件总大小*/
-uint64_t TableWriterSnapshot::Size() const
+uint64_t ObjectWriterList::Size() const
 {
 	uint64_t size = 0;
 	for(size_t i = 0; i < m_memwriters.size(); ++i)
@@ -94,7 +97,7 @@ uint64_t TableWriterSnapshot::Size() const
 }
 
 /**获取统计*/
-void TableWriterSnapshot::GetStat(BucketStat& stat) const
+void ObjectWriterList::GetStat(BucketStat& stat) const
 {
 	for(size_t i = 0; i < m_memwriters.size(); ++i)
 	{

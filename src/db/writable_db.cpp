@@ -20,10 +20,10 @@ limitations under the License.
 #include "writeonly_bucket.h"
 #include "bucket_metafile.h"
 #include "db_infofile.h"
-#include "bucket_snapshot.h"
+#include "bucket_list.h"
 #include "file.h"
 #include "directory.h"
-#include "table_reader_snapshot.h"
+#include "object_reader_list.h"
 #include "notify_file.h"
 #include "readwrite_bucket.h"
 #include "logger.h"
@@ -219,7 +219,7 @@ Status WritableDB::CleanBucket()
 {
 	//FIXME: 这里尝试清除所有的bucket
 	m_bucket_rwlock.ReadLock();
-	BucketSnapshotPtr bs_ptr = m_bucket_snapshot;
+	BucketListPtr bs_ptr = m_bucket_list;
 	m_bucket_rwlock.ReadUnlock();
 
 	if(bs_ptr)
@@ -243,7 +243,7 @@ Status WritableDB::WriteDBInfo()
 		{
 			return ERR_NOMORE_DATA;	//没有可写的数据
 		}
-		assert(m_next_dbinfo_fileid < MAX_FILEID);
+		assert(m_next_dbinfo_fileid < MAX_FILE_ID);
 
 		m_bucket_changed_cnt = 0;
 		dbinfo_fileid = m_next_dbinfo_fileid++;
@@ -266,7 +266,7 @@ Status WritableDB::WriteDBInfo()
 	EnginePtr engine = Engine::GetEngine();
 	((WritableEngine*)engine.get())->WriteNotifyFile(nd);
 
-	if(dbinfo_fileid != MIN_FILEID)
+	if(dbinfo_fileid != MIN_FILE_ID)
 	{
 		FileName name;
 		MakeDBInfoFileName(dbinfo_fileid-1, name.str);
@@ -297,7 +297,7 @@ Status WritableDB::CreateBucket(const std::string& bucket_name, BucketPtr& bptr)
 		std::lock_guard<std::mutex> lock(m_mutex);
 		
 		m_bucket_rwlock.ReadLock();
-		BucketSnapshotPtr bs_ptr = m_bucket_snapshot;
+		BucketListPtr bs_ptr = m_bucket_list;
 		m_bucket_rwlock.ReadUnlock();
 
 		std::map<std::string, BucketPtr> new_buckets;
@@ -320,10 +320,10 @@ Status WritableDB::CreateBucket(const std::string& bucket_name, BucketPtr& bptr)
 		}
 		
 		new_buckets[bucket_name] = bptr;
-		BucketSnapshotPtr new_bucket_snapshot = NewBucketSnapshot(new_buckets);
+		BucketListPtr new_bucket_list = NewBucketList(new_buckets);
 
 		m_bucket_rwlock.WriteLock();
-		m_bucket_snapshot.swap(new_bucket_snapshot);
+		m_bucket_list.swap(new_bucket_list);
 		m_bucket_rwlock.WriteUnlock();
 
 		++m_bucket_changed_cnt;
@@ -349,13 +349,13 @@ Status WritableDB::CreateBucketIfMissing(const std::string& bucket_name, BucketP
 
 Status WritableDB::DeleteBucket(const std::string& bucket_name)
 {
-	BucketSnapshotPtr new_bs_ptr;
+	BucketListPtr new_bs_ptr;
 
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
 
 		m_bucket_rwlock.ReadLock();
-		BucketSnapshotPtr bs_ptr = m_bucket_snapshot;
+		BucketListPtr bs_ptr = m_bucket_list;
 		m_bucket_rwlock.ReadUnlock();
 
 		if(!bs_ptr)
@@ -373,10 +373,10 @@ Status WritableDB::DeleteBucket(const std::string& bucket_name)
 		bucket->Clear();
 		buckets.erase(it);
 		
-		new_bs_ptr = NewBucketSnapshot(buckets);
+		new_bs_ptr = NewBucketList(buckets);
 
 		m_bucket_rwlock.WriteLock();
-		m_bucket_snapshot.swap(new_bs_ptr);
+		m_bucket_list.swap(new_bs_ptr);
 		m_bucket_rwlock.WriteUnlock();
 		
 		m_deleting_buckets[bucket->GetInfo().id] = bucket_name;
@@ -467,13 +467,13 @@ Status WritableDB::NewIterator(const std::string& bucket_name, IteratorImplPtr& 
 Status WritableDB::TryFlush()
 {
 	m_bucket_rwlock.ReadLock();
-	BucketSnapshotPtr bucket_snapshot = m_bucket_snapshot;
+	BucketListPtr bucket_list = m_bucket_list;
 	m_bucket_rwlock.ReadUnlock();
 
-	if(bucket_snapshot)
+	if(bucket_list)
 	{
 		//FIXME: 查找m_tobe_flush_buckets
-		bucket_snapshot->TryFlush();
+		bucket_list->TryFlush();
 	}
 	return OK;
 }
@@ -492,13 +492,13 @@ Status WritableDB::TryFlush(const std::string& bucket_name)
 Status WritableDB::Flush()
 {
 	m_bucket_rwlock.ReadLock();
-	BucketSnapshotPtr bucket_snapshot = m_bucket_snapshot;
+	BucketListPtr bucket_list = m_bucket_list;
 	m_bucket_rwlock.ReadUnlock();
 
-	if(bucket_snapshot)
+	if(bucket_list)
 	{
 		//FIXME: 查找m_tobe_flush_buckets
-		bucket_snapshot->Flush();
+		bucket_list->Flush();
 	}
 	return OK;
 }
@@ -517,12 +517,12 @@ Status WritableDB::Flush(const std::string& bucket_name)
 Status WritableDB::Merge()
 {
 	m_bucket_rwlock.ReadLock();
-	BucketSnapshotPtr bucket_snapshot = m_bucket_snapshot;
+	BucketListPtr bucket_list = m_bucket_list;
 	m_bucket_rwlock.ReadUnlock();
 
-	if(bucket_snapshot)
+	if(bucket_list)
 	{
-		bucket_snapshot->Merge();
+		bucket_list->Merge();
 	}
 	return OK;
 }
@@ -542,7 +542,7 @@ void WritableDB::WriteDBInfoData(DBInfoData& bd)
 	//已经获取到锁
 	
 	m_bucket_rwlock.ReadLock();
-	BucketSnapshotPtr bs_ptr = m_bucket_snapshot;
+	BucketListPtr bs_ptr = m_bucket_list;
 	m_bucket_rwlock.ReadUnlock();
 
 	if(bs_ptr)
