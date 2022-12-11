@@ -62,6 +62,8 @@ bool Iterator::Valid() const
 /**获取key和value*/
 const xfutil::StrView& Iterator::Key() const
 {
+    assert(m_iter->object().type != DeleteType);
+    
     return m_iter->object().key;
 }
 

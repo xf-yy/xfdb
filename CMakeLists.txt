@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8)
 
 project(xfdb)
 set(xfdb_VERSION_MAJOR 0)
-set(xfdb_VERSION_MINOR 2)
+set(xfdb_VERSION_MINOR 3)
 set(xfdb_VERSION_PATCH 0)
 
 #判断编译器类型,如果是gcc编译器,则在编译选项中加入c++11支持

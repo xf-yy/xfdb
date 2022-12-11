@@ -17,10 +17,8 @@ limitations under the License.
 #include "dbtypes.h"
 #include "segment_file.h"
 #include "object_writer_list.h"
-#include "writer_iterator.h"
 #include "object_writer.h"
 #include "object_reader_list.h"
-#include "segment_iterator.h"
 #include "engine.h"
 
 namespace xfdb 
@@ -79,6 +77,118 @@ void SegmentReader::GetStat(BucketStat& stat) const
 {
 	stat.segment_stat.Add(Size());
 	stat.object_stat.Add(m_index_reader.GetMeta().object_stat);
+}
+
+SegmentReaderIterator::SegmentReaderIterator(SegmentReaderPtr& segment_reader) 
+ 	: m_segment_reader(segment_reader), 
+	  m_index_block_reader(segment_reader->m_index_reader),
+	  m_data_block_reader(segment_reader->m_data_reader.m_file, segment_reader->m_data_reader.m_path)
+{
+	m_L1index_count = segment_reader->m_index_reader.m_L1indexs.size();
+	First();
+}
+
+StrView SegmentReaderIterator::UpmostKey() const
+{
+	return m_segment_reader->UpmostKey();
+}
+
+Status SegmentReaderIterator::SeekL1Index(size_t idx, const StrView* key)
+{
+    m_L1index_idx = idx;
+    m_data_block_iter.reset();
+
+	Status s = m_index_block_reader.Read(m_segment_reader->m_index_reader.m_L1indexs[idx]);
+    if(s != OK)
+    {
+        return s;
+    }
+	m_index_block_iter = m_index_block_reader.NewIterator();
+    if(key != nullptr)
+    {
+        m_index_block_iter->Seek(*key);
+    }
+
+	s = m_data_block_reader.Read(m_index_block_iter->L0Index());
+    if(s != OK)
+    {
+        return s;
+    }
+	m_data_block_iter = m_data_block_reader.NewIterator();
+    if(key != nullptr)
+    {
+        m_data_block_iter->Seek(*key);
+    }
+
+	return OK;
+}
+
+/**移到第1个元素处*/
+void SegmentReaderIterator::First()
+{
+    SeekL1Index(0);
+}
+
+
+/**移到到>=key的地方*/
+void SegmentReaderIterator::Seek(const StrView& key)
+{
+    size_t idx = m_segment_reader->m_index_reader.Find(key);
+    if(idx == (size_t)-1)
+    {
+        m_data_block_iter.reset();
+        return;
+    }
+
+    Status s = SeekL1Index(idx, &key);
+    if(s == OK)
+    {
+        //继续找第一个满足>=key
+        while(Valid() && object().key < key)
+        {
+            Next();
+        }
+    }
+}
+
+
+/**向后移到一个元素*/
+void SegmentReaderIterator::Next()
+{
+	m_data_block_iter->Next();
+
+	if(m_data_block_iter->Valid())
+	{
+		return;
+	}
+	//读取下一个data block
+	m_index_block_iter->Next();
+	if(m_index_block_iter->Valid())
+	{
+		m_data_block_reader.Read(m_index_block_iter->L0Index());
+		m_data_block_iter = m_data_block_reader.NewIterator();
+		return;
+	}
+	++m_L1index_idx;
+	if(m_L1index_idx < m_L1index_count)
+	{
+		m_index_block_reader.Read(m_segment_reader->m_index_reader.m_L1indexs[m_L1index_idx]);
+		m_index_block_iter = m_index_block_reader.NewIterator();
+
+		m_data_block_reader.Read(m_index_block_iter->L0Index());
+		m_data_block_iter = m_data_block_reader.NewIterator();
+	}
+}
+
+/**是否还有下一个元素*/
+bool SegmentReaderIterator::Valid() const
+{
+	return (m_data_block_iter && m_data_block_iter->Valid());
+}
+
+const Object& SegmentReaderIterator::object() const
+{
+    return m_data_block_iter->object();
 }
 
 

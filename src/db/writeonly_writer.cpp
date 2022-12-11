@@ -16,7 +16,7 @@ limitations under the License.
 
 #include <algorithm>
 #include "writeonly_writer.h"
-#include "writer_iterator.h"
+#include "object_writer_list.h"
 
 namespace xfdb
 {
@@ -93,6 +93,44 @@ StrView WriteOnlyWriter::UpmostKey() const
 	assert(m_finished);
 #endif
 	return m_objects.empty() ? StrView() : m_objects.back()->key;
+}
+
+WriteOnlyWriterIterator::WriteOnlyWriterIterator(WriteOnlyWriterPtr& table)
+	: m_table(table), m_max_num(table->m_objects.size())
+{
+	First();
+}
+
+StrView WriteOnlyWriterIterator::UpmostKey() const
+{
+	return m_table->UpmostKey();
+}
+
+void WriteOnlyWriterIterator::Seek(const StrView& key)
+{
+    //不支持seek
+    assert(false);
+}
+
+void WriteOnlyWriterIterator::Next()
+{
+    assert(m_index < m_max_num);
+
+	//如果key与后面的相同则跳过
+    size_t prev_idx = m_index;
+	while(++m_index < m_max_num)
+	{
+        assert(m_table->m_objects[m_index]->key.Compare(m_table->m_objects[prev_idx]->key) >= 0);
+        if(m_table->m_objects[m_index]->key != m_table->m_objects[prev_idx]->key)
+        {
+            break;
+        }
+	}
+};
+
+const Object& WriteOnlyWriterIterator::object() const
+{
+    return *m_table->m_objects[m_index];
 }
 
 }  

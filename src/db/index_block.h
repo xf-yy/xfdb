@@ -81,7 +81,8 @@ public:
 	{
 		m_idx = 0;
 	}
-	
+	void Seek(const StrView& key);
+
 	/**向后移到一个元素*/
 	void Next()
 	{

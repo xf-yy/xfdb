@@ -15,13 +15,13 @@
         6、支持读cache
         7、支持批量写
         8、BloomFilter
+        9、Iterator遍历
     实现中：  
-        1、Scan
+        1、后台日志输出
    
     待实现：   
         1、Compress   
-        2、Append，Modify   
-        3、WAL+Log   
+        2、Append，Modify
    
 # ●编译方法   
 ***   

@@ -56,7 +56,7 @@ IteratorImplPtr ObjectReaderList::NewIterator()
 	std::vector<IteratorImplPtr> iters;
 	iters.reserve(m_readers.size());
 
-	for(auto it = m_readers.begin(); it != m_readers.end(); ++it)
+	for(auto it = m_readers.rbegin(); it != m_readers.rend(); ++it)
 	{
 		iters.push_back(it->second->NewIterator());
 	}

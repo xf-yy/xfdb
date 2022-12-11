@@ -36,18 +36,6 @@ enum
 	//MID_COMPRESS_TYPE,
 };
 
-
-#if 0
-static bool LowerCmp(const SegmentL1Index index, const StrView key)
-{
-	return index.start_key.Compare(key) < 0;
-}
-#endif
-static bool UpperCmp(const StrView& key, const SegmentL1Index& index)
-{
-	return key.Compare(index.start_key) < 0;
-}
-
 IndexReader::IndexReader() : m_large_pool(Engine::GetEngine()->GetLargePool()), m_buf(m_large_pool)
 {
 	m_conf.bloom_filter_bitnum = 0;
@@ -296,16 +284,30 @@ bool IndexReader::CheckBloomFilter(const SegmentL1Index* L1Index, const StrView&
 	return bf.Check(hc);
 }
 
-const SegmentL1Index* IndexReader::Search(const StrView& key) const
+static bool UpperCmp(const StrView& key, const SegmentL1Index& index)
+{
+	return key < index.start_key;
+}
+size_t IndexReader::Find(const StrView& key) const
 {
 	if(key.Compare(m_L1indexs[0].start_key) < 0 || key.Compare(m_upmost_key) > 0)
 	{
-		return nullptr;
+		return (size_t)-1;
 	}
-	
-	uint32_t pos = std::upper_bound(m_L1indexs.begin(), m_L1indexs.end(), key, UpperCmp) - m_L1indexs.begin();
+	size_t pos = std::upper_bound(m_L1indexs.begin(), m_L1indexs.end(), key, UpperCmp) - m_L1indexs.begin();
 	assert(pos > 0 && pos <= m_L1indexs.size());
-	const SegmentL1Index* L1Index = &m_L1indexs[pos-1];
+    return pos - 1;
+}
+
+const SegmentL1Index* IndexReader::Search(const StrView& key) const
+{
+	size_t idx = Find(key);
+    if(idx == (size_t)-1)
+    {
+        return nullptr;
+    }
+    
+	const SegmentL1Index* L1Index = &m_L1indexs[idx];
 
 	//判断布隆
 	if(L1Index->bloom_filter_size != 0 && !CheckBloomFilter(L1Index, key))
@@ -315,6 +317,7 @@ const SegmentL1Index* IndexReader::Search(const StrView& key) const
 
 	return L1Index;
 }
+
 
 Status IndexReader::Search(const StrView& key, SegmentL0Index& L0_index) const
 {

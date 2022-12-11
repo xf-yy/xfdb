@@ -67,8 +67,7 @@ public:
 	virtual void First() override;
 	
 	/**移到到>=key的地方*/
-	virtual void Seek(const StrView& key) override 
-	{assert(false);}
+	virtual void Seek(const StrView& key) override;
 	
 	/**向后移到一个元素*/
 	virtual void Next() override;

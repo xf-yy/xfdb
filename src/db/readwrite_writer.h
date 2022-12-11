@@ -107,7 +107,46 @@ private:
     ReadWriteWriter& operator=(const ReadWriteWriter&) = delete;
 };
 
+class ReadWriteWriterIterator : public IteratorImpl 
+{
+public:
+	ReadWriteWriterIterator(ReadWriteWriterPtr& table, objectid_t max_objid) 
+        : m_table(table), m_max_objid(max_objid)
+    {
+        First();
+    }
+	virtual ~ReadWriteWriterIterator()
+    {}
 
+public:	
+	/**移到第1个元素处*/
+	virtual void First() override;
+	
+	/**移到到>=key的地方*/
+	virtual void Seek(const StrView& key) override;
+	
+	/**向后移到一个元素*/
+	virtual void Next() override;
+
+	/**是否还有下一个元素*/
+	virtual bool Valid() const override
+    {
+        return m_node != nullptr;
+    }
+
+	virtual const Object& object() const override;	
+
+	virtual StrView UpmostKey() const override;
+
+private:
+	ReadWriteWriterPtr m_table;
+    objectid_t m_max_objid;
+	SkipListNode* m_node;
+	
+private:
+	ReadWriteWriterIterator(const ReadWriteWriterIterator&) = delete;
+	ReadWriteWriterIterator& operator=(const ReadWriteWriterIterator&) = delete;
+};
 
 }  
 

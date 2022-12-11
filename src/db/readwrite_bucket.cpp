@@ -79,14 +79,27 @@ Status ReadWriteBucket::NewIterator(IteratorImplPtr& iter)
 
 	m_segment_rwlock.ReadUnlock();
     
-    if(memwriter)
-    memwriter->NewIterator(curr_obj_id);
-    if(writer_snapshot)
-    writer_snapshot->NewIterator();
-    if(reader_snapshot)
-    reader_snapshot->NewIterator();
+    std::vector<IteratorImplPtr> iters;
+    iters.reserve(3);
 
-    //NewIteratorList();
+    if(memwriter)
+    {
+        IteratorImplPtr iter = memwriter->NewIterator(curr_obj_id);
+        iters.push_back(iter);
+    }
+    if(writer_snapshot)
+    {
+        IteratorImplPtr iter = writer_snapshot->NewIterator();
+        iters.push_back(iter);
+    }
+    if(reader_snapshot)
+    {
+        IteratorImplPtr iter = reader_snapshot->NewIterator();
+        iters.push_back(iter);
+    }
+
+    iter = NewIteratorList(iters);
+    return OK;
 }
 
 }  

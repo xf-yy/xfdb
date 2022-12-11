@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
+#include <algorithm>
 #include <vector>
 #include <map>
 #include <list>
@@ -289,7 +290,18 @@ DataBlockReaderIteratorPtr DataBlockReader::NewIterator()
 DataBlockReaderIterator::DataBlockReaderIterator(DataBlockReader& block) 
 	: m_block(block), m_buf(Engine::GetEngine()->GetSmallPool())
 {
+    m_idx = 0;
+}
 
+static bool UpperCmp(const StrView& key, const Object& obj)
+{
+	return key < obj.key;
+}
+void DataBlockReaderIterator::Seek(const StrView& key)
+{
+	size_t pos = std::upper_bound(m_objects.begin(), m_objects.end(), key, UpperCmp) - m_objects.begin();
+	assert(pos > 0 && pos <= m_objects.size());
+    m_idx = pos - 1;
 }
 
 }  

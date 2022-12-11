@@ -76,7 +76,7 @@ Status ReadOnlyBucket::NewIterator(IteratorImplPtr& iter)
 
     if(reader_snapshot)
     {
-        reader_snapshot->NewIterator();
+        iter = reader_snapshot->NewIterator();
         return OK;
     }
     return ERR_BUCKET_EMPTY;

@@ -20,10 +20,11 @@ limitations under the License.
 #include "dbtypes.h"
 #include "data_file.h"
 #include "index_file.h"
-#include "segment_iterator.h"
-#include "writer_iterator.h"
+#include "iterator_impl.h"
 #include "file.h"
 #include "object_reader.h"
+#include "index_block.h"
+#include "data_block.h"
 
 namespace xfdb 
 {
@@ -64,6 +65,47 @@ private:
 	SegmentReader(const SegmentReader&) = delete;
 	SegmentReader& operator=(const SegmentReader&) = delete;
 	
+};
+
+class SegmentReaderIterator : public IteratorImpl 
+{
+public:
+	explicit SegmentReaderIterator(SegmentReaderPtr& segment_reader);
+	virtual ~SegmentReaderIterator()
+	{}
+
+public:
+	/**移到第1个元素处*/
+	virtual void First() override;
+	
+	/**移到到>=key的地方*/
+	virtual void Seek(const StrView& key) override;
+	
+	/**向后移到一个元素*/
+	virtual void Next() override;
+
+	/**是否还有下一个元素*/
+	virtual bool Valid() const override;
+	
+	virtual const Object& object() const override;	
+
+	virtual StrView UpmostKey() const override;
+	
+private:
+    Status SeekL1Index(size_t idx, const StrView* key = nullptr);  
+        
+private:
+	SegmentReaderPtr m_segment_reader;
+	uint32_t m_L1index_idx;
+	uint32_t m_L1index_count;
+	IndexBlockReader m_index_block_reader;
+	IndexBlockReaderIteratorPtr m_index_block_iter;
+	DataBlockReader m_data_block_reader;
+	DataBlockReaderIteratorPtr m_data_block_iter;
+
+private:
+	SegmentReaderIterator(const SegmentReaderIterator&) = delete;
+	SegmentReaderIterator& operator=(const SegmentReaderIterator&) = delete;
 };
 
 class SegmentWriter

@@ -81,7 +81,8 @@ public:
 	{
 		m_idx = 0;
 	}
-	
+	void Seek(const StrView& key);
+
 	/**向后移到一个元素*/
 	void Next()
 	{
@@ -109,6 +110,7 @@ private:
 		obj.key = CloneKey(m_buf, obj.key);
 		m_objects.push_back(obj);
 	}	
+
 private:
 	DataBlockReader& m_block;
 

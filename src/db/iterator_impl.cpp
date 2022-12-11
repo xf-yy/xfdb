@@ -23,6 +23,7 @@ namespace xfdb
 IteratorList::IteratorList(const std::vector<IteratorImplPtr>& iters)
 	: m_iters(iters)
 {
+    //TODO: iters必须按逆序存放，即最新[0] -> [n]最老
 	assert(iters.size() > 1);
 	GetUpmostKey();
 	First();
@@ -39,6 +40,15 @@ void IteratorList::First()
 	for(size_t i = 0; i < m_iters.size(); ++i)
 	{
 		m_iters[i]->First();
+	}
+	GetMinKey();
+}
+
+void IteratorList::Seek(const StrView& key)
+{
+	for(size_t i = 0; i < m_iters.size(); ++i)
+	{
+		m_iters[i]->Seek(key);
 	}
 	GetMinKey();
 }
@@ -63,29 +73,30 @@ const Object& IteratorList::object() const
 
 void IteratorList::GetMinKey()
 {
-	ssize_t idx = m_iters.size();
-	for(ssize_t i = m_iters.size()-1; i >= 0; --i) 
+	size_t idx = m_iters.size();
+	for(size_t i = 0; i < m_iters.size(); ++i) 
 	{
-		if (m_iters[i]->Valid()) 
+		if (!m_iters[i]->Valid()) 
 		{
-			if (idx == (ssize_t)m_iters.size()) 
-			{
-				idx = i;
-			} 
-			else 
-			{
-				const StrView& curr_key = m_iters[i]->object().key;
-				int ret = curr_key.Compare(m_iters[idx]->object().key);
-				if(ret < 0)
-				{
-					idx = i;
-				}
-				else if(ret == 0)
-				{
-					m_iters[i]->Next();	//剔除相同key的值
-				}
-			}
-		}
+            continue;
+        }
+        if (idx == m_iters.size()) 
+        {
+            idx = i;
+        } 
+        else 
+        {
+            const StrView& curr_key = m_iters[i]->object().key;
+            int ret = curr_key.Compare(m_iters[idx]->object().key);
+            if(ret < 0)
+            {
+                idx = i;
+            }
+            else if(ret == 0)
+            {
+                m_iters[i]->Next();	//剔除相同key的值
+            }
+        }
 	}
 	m_curr_idx = idx;
 }

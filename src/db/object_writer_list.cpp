@@ -66,7 +66,7 @@ IteratorImplPtr ObjectWriterList::NewIterator(objectid_t max_objid)
 	std::vector<IteratorImplPtr> iters;
 	iters.reserve(m_memwriters.size());
 
-	for(size_t i = 0; i < m_memwriters.size(); ++i)
+	for(ssize_t i = (ssize_t)m_memwriters.size() - 1; i >= 0; --i)
 	{
 		iters.push_back(m_memwriters[i]->NewIterator());
 	}

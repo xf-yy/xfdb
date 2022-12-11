@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
+#include <algorithm>
 #include <vector>
 #include <map>
 #include <list>
@@ -310,6 +311,22 @@ IndexBlockReaderIteratorPtr IndexBlockReader::NewIterator()
 IndexBlockReaderIterator::IndexBlockReaderIterator() : m_buf(Engine::GetEngine()->GetSmallPool())
 {
 	m_L0indexs.reserve(MAX_OBJECT_NUM_OF_BLOCK);
+    m_idx = 0;
+}
+
+static bool UpperCmp(const StrView& key, const SegmentL0Index& index)
+{
+	return key < index.start_key;
+}
+void IndexBlockReaderIterator::Seek(const StrView& key)
+{
+	assert(key.Compare(m_L0indexs[0].start_key) >= 0);
+
+	size_t pos = std::upper_bound(m_L0indexs.begin(), m_L0indexs.end(), key, UpperCmp) - m_L0indexs.begin();
+	assert(pos > 0 && pos <= m_L0indexs.size());
+
+    m_idx = pos - 1;
+
 }
 
 }  

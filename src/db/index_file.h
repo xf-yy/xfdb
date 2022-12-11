@@ -55,6 +55,7 @@ public:
 	}
 			
 private:
+	size_t Find(const StrView& key) const;
 	const SegmentL1Index* Search(const StrView& key) const;
 
 	Status ParseL2Index(const byte_t* data, uint32_t L2index_meta_size);

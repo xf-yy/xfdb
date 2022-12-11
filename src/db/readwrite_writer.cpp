@@ -17,8 +17,8 @@ limitations under the License.
 #include <math.h>
 #include <algorithm>
 #include "readwrite_writer.h"
-#include "writer_iterator.h"
 #include "writeonly_writer.h"
+#include "object_writer_list.h"
 
 namespace xfdb
 {
@@ -156,6 +156,56 @@ int ReadWriteWriter::RandomLevel()
         ++level;
     }
     return level;
+}
+
+StrView ReadWriteWriterIterator::UpmostKey() const
+{
+	return m_table->UpmostKey();
+}
+
+/**移到第1个元素处*/
+void ReadWriteWriterIterator::First()
+{
+    m_node = m_table->m_head->Next(0);
+    while(m_node != nullptr && m_node->object->id > m_max_objid)
+    {
+        Next();
+    }
+}
+
+void ReadWriteWriterIterator::Seek(const StrView& key)
+{
+    Object dst_obj(DeleteType, m_max_objid, key);
+    m_node = m_table->LowerBound(dst_obj);
+
+    //return (m_node != nullptr) ? OK : ERR_OBJECT_NOT_EXIST;
+}
+
+void ReadWriteWriterIterator::Next()
+{
+    assert(m_node != nullptr);
+
+	//如果key与后面的相同或id大于m_max_objid则跳过
+    SkipListNode* prev_node = m_node;
+    m_node = m_node->Next(0);
+
+	while(m_node != nullptr)
+	{
+        assert(m_node->object->key.Compare(prev_node->object->key) >= 0);
+        if(m_node->object->id > m_max_objid || m_node->object->key == prev_node->object->key)
+        {
+            m_node = m_node->Next(0);
+        }
+        else
+        {
+            break;
+        }
+	}
+}
+
+const Object& ReadWriteWriterIterator::object() const
+{
+    return *m_node->object;
 }
 
 

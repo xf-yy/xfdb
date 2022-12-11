@@ -56,6 +56,46 @@ private:
 	WriteOnlyWriter& operator=(const WriteOnlyWriter&) = delete;
 };
 
+class WriteOnlyWriterIterator : public IteratorImpl 
+{
+public:
+	WriteOnlyWriterIterator(WriteOnlyWriterPtr& table);
+	virtual ~WriteOnlyWriterIterator()
+    {}
+
+public:
+	/**移到第1个元素处*/
+	virtual void First() override
+	{
+		m_index = 0;
+	}
+	
+	/**移到到>=key的地方*/
+	virtual void Seek(const StrView& key) override;
+	
+	/**向后移到一个元素*/
+	virtual void Next() override;
+
+	/**是否还有下一个元素*/
+	virtual bool Valid() const override
+	{
+		return m_index < m_max_num;
+	}
+	virtual const Object& object() const override;
+
+	virtual StrView UpmostKey() const override;
+
+private:
+	WriteOnlyWriterPtr m_table;
+
+	const size_t m_max_num;
+	size_t m_index;
+	
+private:
+	WriteOnlyWriterIterator(const WriteOnlyWriterIterator&) = delete;
+	WriteOnlyWriterIterator& operator=(const WriteOnlyWriterIterator&) = delete;
+};
+
 }  
 
 #endif 

@@ -19,6 +19,9 @@ limitations under the License.
 
 #include "xfdb/db.h"
 #include "xfdb/types.h"
+#include "xfdb/batch.h"
+#include "xfdb/strutil.h"
+#include "xfdb/iterator.h"
 
 namespace xfdb 
 {
