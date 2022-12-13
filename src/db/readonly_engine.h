@@ -18,7 +18,7 @@ limitations under the License.
 #define __xfdb_readonly_engine_h__
 
 #include "xfdb/strutil.h"
-#include "dbtypes.h"
+#include "db_types.h"
 #include "notify_msg.h"
 #include "file_util.h"
 #include "thread.h"

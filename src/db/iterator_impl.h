@@ -18,7 +18,7 @@ limitations under the License.
 #define __xfdb_iterator_impl_h__
 
 #include "xfdb/iterator.h"
-#include "dbtypes.h"
+#include "db_types.h"
 
 namespace xfdb 
 {

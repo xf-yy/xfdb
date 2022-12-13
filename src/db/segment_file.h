@@ -17,7 +17,7 @@ limitations under the License.
 #ifndef __xfdb_segment_file_h__
 #define __xfdb_segment_file_h__
 
-#include "dbtypes.h"
+#include "db_types.h"
 #include "data_file.h"
 #include "index_file.h"
 #include "iterator_impl.h"

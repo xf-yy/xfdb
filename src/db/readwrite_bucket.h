@@ -17,7 +17,7 @@ limitations under the License.
 #ifndef __xfdb_readwrite_bucket_h__
 #define __xfdb_readwrite_bucket_h__
 
-#include "dbtypes.h"
+#include "db_types.h"
 #include "readwrite_writer.h"
 #include "object_writer_list.h"
 #include "object_reader_list.h"

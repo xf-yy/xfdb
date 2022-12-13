@@ -21,7 +21,7 @@ limitations under the License.
 #include <map>
 #include <vector>
 #include <deque>
-#include "dbtypes.h"
+#include "db_types.h"
 #include "rwlock.h"
 #include "lock_file.h"
 #include "db_impl.h"

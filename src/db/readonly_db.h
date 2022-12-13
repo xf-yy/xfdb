@@ -17,7 +17,7 @@ limitations under the License.
 #ifndef __xfdb_readonly_db_h__
 #define __xfdb_readonly_db_h__
 
-#include "dbtypes.h"
+#include "db_types.h"
 #include "db_impl.h"
 #include "readonly_engine.h"
 

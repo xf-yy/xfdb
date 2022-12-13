@@ -19,7 +19,7 @@ limitations under the License.
 
 #include <algorithm>
 #include <set>
-#include "dbtypes.h"
+#include "db_types.h"
 #include "segment_file.h"
 #include "bucket_metafile.h"
 

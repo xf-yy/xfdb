@@ -19,7 +19,7 @@ limitations under the License.
 
 #include <vector>
 #include <mutex>
-#include "dbtypes.h"
+#include "db_types.h"
 #include "object_writer.h"
 #include "rwlock.h"
 #include "path.h"

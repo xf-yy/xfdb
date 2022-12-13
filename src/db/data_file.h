@@ -19,7 +19,7 @@ limitations under the License.
 
 #include <map>
 #include <deque>
-#include "dbtypes.h"
+#include "db_types.h"
 #include "xfdb/strutil.h"
 #include "buffer.h"
 #include "file.h"

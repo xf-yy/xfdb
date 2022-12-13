@@ -19,7 +19,7 @@ limitations under the License.
 
 #include <map>
 #include <map>
-#include "dbtypes.h"
+#include "db_types.h"
 #include "object_writer.h"
 
 

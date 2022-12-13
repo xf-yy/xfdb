@@ -18,7 +18,7 @@ limitations under the License.
 #define __xfdb_notify_file_h__
 
 #include <atomic>
-#include "dbtypes.h"
+#include "db_types.h"
 #include "file_util.h"
 #include "file.h"
 #include "notify_msg.h"

@@ -16,12 +16,13 @@
         7、支持批量写
         8、BloomFilter
         9、Iterator遍历
+        10、后台日志输出
     实现中：  
-        1、后台日志输出
+        1、Append
    
     待实现：   
-        1、Compress   
-        2、Append，Modify
+        1、Modify
+        2、Compress   
    
 # ●编译方法   
 ***   

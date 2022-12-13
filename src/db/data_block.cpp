@@ -18,7 +18,7 @@ limitations under the License.
 #include <vector>
 #include <map>
 #include <list>
-#include "dbtypes.h"
+#include "db_types.h"
 #include "data_block.h"
 #include "xfdb/strutil.h"
 #include "file.h"

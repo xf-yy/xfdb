@@ -18,7 +18,7 @@ limitations under the License.
 #define __xfdb_bucket_metafile_h__
 
 #include <set>
-#include "dbtypes.h"
+#include "db_types.h"
 #include "file.h"
 #include "buffer.h"
 

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#include "dbtypes.h"
+#include "db_types.h"
 #include "object_writer.h"
 #include "iterator_impl.h"
 #include "object_writer_list.h"

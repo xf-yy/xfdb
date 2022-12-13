@@ -38,6 +38,8 @@ File::~File()
 
 bool File::Open(const char* file_path, uint32_t flags)
 {
+    assert(file_path != nullptr && file_path[0] != '\0');
+    
 	int f = O_LARGEFILE;
 	switch(flags & 3)
 	{

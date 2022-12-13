@@ -17,7 +17,7 @@ limitations under the License.
 #ifndef __xfdb_writeonly_writer_h__
 #define __xfdb_writeonly_writer_h__
 
-#include "dbtypes.h"
+#include "db_types.h"
 #include "buffer.h"
 #include "object_writer.h"
 

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#include "dbtypes.h"
+#include "db_types.h"
 #include "readonly_engine.h"
 #include "logger.h"
 #include "hash.h"

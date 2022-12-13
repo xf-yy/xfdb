@@ -18,7 +18,7 @@ limitations under the License.
 #define __xfdb_readonly_bucket_h__
 
 #include <mutex>
-#include "dbtypes.h"
+#include "db_types.h"
 #include "bucket.h"
 #include "rwlock.h"
 

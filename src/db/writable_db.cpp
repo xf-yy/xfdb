@@ -15,7 +15,7 @@ limitations under the License.
 ***************************************************************************/
 
 #include <atomic>
-#include "dbtypes.h"
+#include "db_types.h"
 #include "writable_db.h"
 #include "writeonly_bucket.h"
 #include "bucket_metafile.h"
@@ -257,7 +257,7 @@ Status WritableDB::WriteDBInfo()
 	Status s = DBInfoFile::Write(m_path.c_str(), dbinfo_filename, bd);
 	if(s != OK)
 	{
-		//LogWarn(msg_fmt, ...);
+        LogWarn("write dbinfo of %s failed, status: %u", m_path.c_str(), s)
 		return s;
 	}
 	

@@ -19,7 +19,7 @@ limitations under the License.
 
 #include <map>
 #include "xfdb/strutil.h"
-#include "dbtypes.h"
+#include "db_types.h"
 #include "notify_msg.h"
 #include "file_util.h"
 #include "block_pool.h"

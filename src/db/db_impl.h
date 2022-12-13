@@ -22,7 +22,7 @@ limitations under the License.
 #include <mutex>
 #include "xfdb/strutil.h"
 #include "xfdb/batch.h"
-#include "dbtypes.h"
+#include "db_types.h"
 #include "rwlock.h"
 #include "db_infofile.h"
 

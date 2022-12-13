@@ -22,7 +22,7 @@ limitations under the License.
 #include "xfdb/strutil.h"
 #include "xfdb/db.h"
 #include "rwlock.h"
-#include "dbtypes.h"
+#include "db_types.h"
 
 namespace xfdb 
 {

@@ -17,7 +17,7 @@ limitations under the License.
 #ifndef __xfdb_file_util_h__
 #define __xfdb_file_util_h__
 
-#include "dbtypes.h"
+#include "db_types.h"
 #include "path.h"
 #include "buffer.h"
 

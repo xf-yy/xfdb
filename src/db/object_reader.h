@@ -19,7 +19,7 @@ limitations under the License.
 
 #include "buffer.h"
 #include "xfdb/strutil.h"
-#include "dbtypes.h"
+#include "db_types.h"
 #include "iterator_impl.h"
 
 namespace xfdb

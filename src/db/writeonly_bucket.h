@@ -17,7 +17,7 @@ limitations under the License.
 #ifndef __xfdb_writeonly_bucket_h__
 #define __xfdb_writeonly_bucket_h__
 
-#include "dbtypes.h"
+#include "db_types.h"
 #include "writable_engine.h"
 #include "writeonly_writer.h"
 #include "object_writer_list.h"

@@ -128,11 +128,16 @@ bool LoggerImpl::Start(const LogConfig& conf)
 	//启用线程
 	m_thread.Start(LogThread, this);
 	
+    m_started = true;
 	return true;
 }
 
 void LoggerImpl::Close()
 {
+    if(!m_started)
+    {
+        return;
+    }
 	//队列中放入退出标记
 	LogData data = {nullptr};
 	m_data_queue.Push(data);
@@ -142,6 +147,8 @@ void LoggerImpl::Close()
 
 	//关闭日志文件
 	m_logfile.Close();
+
+    m_started = false;
 }
 
 //格式: date time [level-desc] [文件名:行号:函数名] message

@@ -20,7 +20,7 @@ limitations under the License.
 #include <vector>
 #include "xfdb/strutil.h"
 #include "buffer.h"
-#include "dbtypes.h"
+#include "db_types.h"
 
 namespace xfdb 
 {

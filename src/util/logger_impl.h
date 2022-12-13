@@ -44,7 +44,12 @@ public:
 	LoggerImpl()
 	{
         m_filesize = 0;
+        m_started = false;
 	}
+    ~LoggerImpl()
+    {
+        Close();
+    }
 public:
 	bool Start(const LogConfig& conf);
 	void Close();
@@ -62,6 +67,8 @@ private:
 
 private:
 	LogConfig m_conf;
+    volatile bool m_started;
+
 	File m_logfile;
     uint64_t m_filesize;
 	BlockingQueue<LogData> m_data_queue;

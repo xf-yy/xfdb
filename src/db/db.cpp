@@ -18,7 +18,7 @@ limitations under the License.
 #include <mutex>
 #include "xfdb/db.h"
 #include "xfdb/iterator.h"
-#include "dbtypes.h"
+#include "db_types.h"
 #include "logger.h"
 #include "process.h"
 #include "db_impl.h"
