@@ -32,9 +32,9 @@ namespace xfdb
 
 //库版本号
 #define XFDB_MAJOR_VERSION		0
-#define XFDB_MINOR_VERSION		2
+#define XFDB_MINOR_VERSION		3
 #define XFDB_PATCH_VERSION		0
-#define XFDB_VERSION_DESC		"0.2.0"
+#define XFDB_VERSION_DESC		"0.3.0"
 
 typedef uint32_t bucketid_t;
 typedef uint64_t fileid_t;

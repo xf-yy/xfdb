@@ -32,7 +32,11 @@ namespace xfutil
 class Path
 {
 public:
-	//static const char* GetFileName(const char* path);
+	static const char* GetFileName(const char* path)
+    {
+        const char* name = strrchr(path, '/');
+        return name == nullptr ? path : name+1;
+    }
 	//static const char* GetExtName(const char* path);
 	//static int GetDirPath(const char* path, char dir_path[MAX_PATH_LEN]);
 

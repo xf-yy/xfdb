@@ -31,37 +31,45 @@ namespace xfutil
 
 //格式: <time> <level-desc> [文件名:行号:函数名] <message>
 
-LogLevel Logger::sm_level = LEVEL_MAX;
-
-static std::mutex s_mutex;
 static LoggerImpl s_logger;
-
+static LogLevel s_level = LEVEL_MAX;
 
 //初始化，成功返回0，其他值错误码
-bool Logger::Init(const LogConf& conf)
+bool Logger::Start(const LogConfig& conf)
 {
-	std::lock_guard<std::mutex> lock(s_mutex);
-
-	return s_logger.Init(conf);
+	if(s_logger.Start(conf))
+    {
+        s_level = conf.level;
+        return true;
+    }
+    return false;
 }
 
 //关闭
 void Logger::Close()
 {
-	std::lock_guard<std::mutex> lock(s_mutex);
+    s_level = LEVEL_MAX;
 	s_logger.Close();
 }
 
-void Logger::LogMsg(LogLevel level, const char *file_name, const char* func_name, int line_num, const char *msg_fmt, ...)
+//设置日志级别
+void Logger::SetLevel(LogLevel level)
 {
-	char msg[MAX_LOG_LEN];
-	
+    s_level = level;
+}
+
+//获取日志级别
+LogLevel Logger::GetLevel()
+{
+    return s_level;
+}
+
+void Logger::LogMsg(LogLevel level, const char *file_name, const char* func_name, int line_num, const char *msg_fmt, ...)
+{	
 	va_list args;
 	va_start(args, msg_fmt);
-	vsnprintf(msg, sizeof(msg), msg_fmt, args);
+	s_logger.LogMsg(level, file_name, func_name, line_num, msg_fmt, args);
 	va_end(args);
-	
-	s_logger.LogMsg(level, file_name, func_name, line_num, msg);
 }
 
 

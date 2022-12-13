@@ -27,36 +27,46 @@ limitations under the License.
 #include "file.h"
 #include "xfdb/strutil.h"
 #include "buffer.h"
+#include "block_pool.h"
 
 namespace xfutil 
 {
 
-#define MAX_LOG_LEN			(512)
-
+struct LogData
+{
+    void* buf;
+    uint32_t len;
+};
 
 class LoggerImpl
 {
 public:
 	LoggerImpl()
 	{
+        m_filesize = 0;
 	}
 public:
-	bool Init(const LogConf& conf);
+	bool Start(const LogConfig& conf);
 	void Close();
 	
-	void LogMsg(LogLevel level, const char *file_name, const char* func_name, int line_num, const char *msg);
+	void LogMsg(LogLevel level, const char *file_name, const char* func_name, int line_num, const char *format, va_list args);
 
 private:
 	bool ParseConf(const char *conf_file);
-	bool Write(const StrView& buf);
-	
+
+	bool Reopen();
+    void Rename();
+	bool Write(const LogData& data);
+
 	static void LogThread(void* arg);
 
 private:
-	LogConf m_conf;
+	LogConfig m_conf;
 	File m_logfile;
-	BlockingQueue<StrView> m_buf_queue;
+    uint64_t m_filesize;
+	BlockingQueue<LogData> m_data_queue;
 	Thread m_thread;
+    BlockPool m_pool;
 };
 
 

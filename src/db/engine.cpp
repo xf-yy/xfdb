@@ -102,16 +102,20 @@ Status Engine::Init()
 		return ERR_INVALID_CONFIG;
 	}
 
+    if(!m_conf.log_file_path.empty())
+    {
+        LogConfig log_conf;
+        log_conf.file_path = m_conf.log_file_path;
+
+        if(!Logger::Start(log_conf)) 
+        {
+            return ERR_FILE_OPEN;
+        }
+    }
+
     //初始化随机数
     srand(time(nullptr));
 
-	//如果多个进程同时打开日志呢？写锁
-	//xfutil::LogConf log_conf;
-	//conf.log_file_path;
-	//if(Logger::Init(log_conf) != 0) 
-	//{
-		//return ERROR;
-	//}
 	uint64_t cache_num = m_conf.write_cache_size / LARGE_BLOCK_SIZE;
 	if(m_conf.write_cache_size % LARGE_BLOCK_SIZE != 0)
 	{
@@ -120,14 +124,18 @@ Status Engine::Init()
 	m_large_pool.Init(LARGE_BLOCK_SIZE, cache_num);
 	m_small_pool.Init(4096, 16384);
 
+    LogInfo("xfdb started");
 	return OK;
 }
 
 void Engine::Uninit()
 {
-	//LogWarn("xfdb stopped");
-	//Logger::Close();
+	LogWarn("xfdb stopped");
 
+    if(!m_conf.log_file_path.empty())
+    {
+        Logger::Close(); 
+    }
 }
 
 Status Engine::OpenDB(const DBConfig& conf, const std::string& db_path, DBPtr& db)

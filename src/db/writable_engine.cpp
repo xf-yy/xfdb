@@ -120,9 +120,9 @@ Status WritableEngine::RemoveDB(const std::string& db_path)
 
 ////////////////////////////////////////////////////////////////
 void WritableEngine::PartMergeThread(size_t index, void* arg)
-{
-	LogInfo("merge db thread %d started", index);
-	
+{	
+	LogDebug("the %dst part merge thread started", index);
+
 	WritableEngine* engine = (WritableEngine*)arg;
 	assert(engine != nullptr);
 	
@@ -138,15 +138,18 @@ void WritableEngine::PartMergeThread(size_t index, void* arg)
 		}
 		assert(msg.type == NOTIFY_PART_MERGE);
 		WriteOnlyBucket* bucket = (WriteOnlyBucket*)msg.bucket.get();
-		bucket->PartMerge();
+		Status s = bucket->PartMerge();
+        if(s != OK)
+        {
+            LogWarn("part merge for %s failed, status: %u", bucket->GetInfo().name.c_str(), s);
+        }
 	}
-	LogInfo("merge db thread %d exit", index);
-	
+	LogDebug("the %dst part merge thread exit", index);	
 }
 
 void WritableEngine::FullMergeThread(size_t index, void* arg)
 {
-	LogInfo("merge db thread %d started", index);
+	LogDebug("the %dst full merge thread started", index);
 	
 	WritableEngine* engine = (WritableEngine*)arg;
 	assert(engine != nullptr);
@@ -163,22 +166,27 @@ void WritableEngine::FullMergeThread(size_t index, void* arg)
 		}
 		assert(msg.type == NOTIFY_FULL_MERGE);
 		WriteOnlyBucket* bucket = (WriteOnlyBucket*)msg.bucket.get();
-		if(bucket->FullMerge() == ERR_IN_PROCESSING)
+        Status s = bucket->FullMerge();
+		if(s == ERR_IN_PROCESSING)
 		{
 			Thread::Sleep(10*1000);
 
 			//重新放入合并队列
 			engine->m_full_merge_queue.TryPush(msg);
 		}
+        else if(s != OK)
+        {
+            LogWarn("full merge for %s failed, status: %u", bucket->GetInfo().name.c_str(), s);
+        }
 	}
-	LogInfo("merge db thread %d exit", index);
+	LogDebug("the %dst full merge thread started", index);
 }
 
 ///////////////////////////////////////////////////////////////////
 
 void WritableEngine::WriteMetaThread(size_t index, void* arg)
 {
-	LogInfo("write meta thread started");
+	LogDebug("the %dst write meta thread started", index);
 	WritableEngine* engine = (WritableEngine*)arg;
 	assert(engine != nullptr);
 	int ms = 30*1000;
@@ -211,8 +219,7 @@ void WritableEngine::WriteMetaThread(size_t index, void* arg)
 			LogWarn("invalid msg type: %d", msg.type);
 		}
 	}
-	LogInfo("write meta thread exit");
-	
+	LogDebug("the %dst write meta thread exit", index);	
 }
 
 
@@ -220,7 +227,7 @@ void WritableEngine::WriteMetaThread(size_t index, void* arg)
 
 void WritableEngine::WriteSegmentThread(size_t index, void* arg)
 {
-	LogInfo("write segment file thread %zd started", index);
+	LogDebug("the %dst write segment thread started", index);	
 	WritableEngine* engine = (WritableEngine*)arg;
 	assert(engine != nullptr);
 
@@ -233,9 +240,13 @@ void WritableEngine::WriteSegmentThread(size_t index, void* arg)
 			break;
 		}
 		WriteOnlyBucket* bucket = (WriteOnlyBucket*)msg.bucket.get();
-		bucket->WriteSegment();
+		Status s = bucket->WriteSegment();
+        if(s != OK)
+        {
+            LogWarn("write segment for %s failed, status: %u", bucket->GetInfo().name.c_str(), s);
+        }
 	}
-	LogInfo("write segment file thread %zd exit", index);
+	LogDebug("the %dst write segment thread exit", index);	
 	
 }
 
@@ -272,7 +283,7 @@ void WritableEngine::TryFlush(std::set<std::string>& clean_dbs)
 //try-flush结构体如何定义？
 void WritableEngine::TryFlushThread(void* arg)
 {
-	LogInfo("try flush thread started");
+	LogDebug("try flush thread started");	
 	
 	WritableEngine* engine = (WritableEngine*)arg;
 	assert(engine != nullptr);
@@ -310,7 +321,7 @@ void WritableEngine::TryFlushThread(void* arg)
 		engine->TryFlush(flush_dbs);
 	}
 	
-	LogInfo("try flush thread exit");
+	LogDebug("try flush thread exit");	
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -414,7 +425,7 @@ void WritableEngine::CleanDB(std::set<std::string>& clean_dbs)
 
 void WritableEngine::CleanThread(void* arg)
 {
-	LogInfo("clean thread started");
+	LogDebug("clean thread started");	
 	
 	WritableEngine* engine = (WritableEngine*)arg;
 	assert(engine != nullptr);
@@ -448,7 +459,7 @@ void WritableEngine::CleanThread(void* arg)
 		engine->CleanNotifyFile();
 	}
 	
-	LogWarn("clean thread exit");
+	LogDebug("clean thread exit");	
 }
 
 

@@ -17,6 +17,7 @@ limitations under the License.
 #include <atomic>
 #include <stdio.h>
 #include <stdarg.h>
+#include <sys/time.h>
 #include "path.h"
 #include "logger_impl.h"
 #include "queue.h"
@@ -24,6 +25,7 @@ limitations under the License.
 #include "file.h"
 #include "xfdb/strutil.h"
 #include "buffer.h"
+#include "directory.h"
 
 namespace xfutil 
 {
@@ -37,56 +39,94 @@ const char* LEVEL_DESC[LogLevel::LEVEL_MAX] =
 	"FATAL",
 };
 
-bool LoggerImpl::Write(const StrView& buf)
-{
-	m_logfile.Write(buf.data, buf.size);
-	
-	if(m_logfile.Size() >= m_conf.max_file_size)
-	{
-		m_logfile.Close();
-		
-		char dst_path[MAX_PATH_LEN];
-		Path::Combine(dst_path, sizeof(dst_path), m_conf.file_path.c_str(), ".1");
-		File::Remove(dst_path);
-		File::Rename(m_conf.file_path.c_str(), dst_path);
+#undef BLOCK_SIZE
+#define BLOCK_SIZE      8192
 
-		m_logfile.Open(m_conf.file_path.c_str(), OF_WRITEONLY|OF_APPEND|OF_CREATE);
+#undef CACHE_NUM 
+#define CACHE_NUM       1024
+
+#undef QUEUE_CAPACITY
+#define QUEUE_CAPACITY  10000
+
+void LoggerImpl::Rename()
+{
+    //尝试删除最老的，然后更名其他的
+    char path[MAX_PATH_LEN], dst_path[MAX_PATH_LEN];
+    snprintf(path, sizeof(path), "%s.%u", m_conf.file_path.c_str(), m_conf.max_file_num);
+    File::Remove(path);
+
+    for(uint16_t i = m_conf.max_file_num-1; i >= 1; --i)
+    {
+        snprintf(path, sizeof(path), "%s.%u", m_conf.file_path.c_str(), i);
+        snprintf(dst_path, sizeof(dst_path), "%s.%u", m_conf.file_path.c_str(), i+1);
+
+        File::Rename(path, dst_path);
+    }
+
+    snprintf(dst_path, sizeof(dst_path), "%s.%u", m_conf.file_path.c_str(), 1);
+    File::Rename(m_conf.file_path.c_str(), dst_path);
+
+}
+
+bool LoggerImpl::Reopen()
+{
+    m_logfile.Close();
+    
+    Rename();
+
+    m_filesize = 0;
+    return m_logfile.Open(m_conf.file_path.c_str(), OF_CREATE|OF_WRITEONLY|OF_APPEND);
+}
+
+bool LoggerImpl::Write(const LogData& data)
+{
+	m_logfile.Write(data.buf, data.len);
+    m_filesize += data.len;
+
+    m_pool.Free((byte_t*)data.buf);
+
+	if(m_filesize >= m_conf.max_file_size)
+	{
+        Reopen();
 	}
 	return true;
 }
 
-//一个日志队列，一个单独的写线程(每隔50ms输出下)
+//日志线程
 void LoggerImpl::LogThread(void* arg)
 {
 	LoggerImpl* logger = (LoggerImpl*)arg;
 	
 	for(;;)
 	{		
-		StrView buf;
-		logger->m_buf_queue.Pop(buf);
-		if(buf.size == 0)	//退出标记
+		LogData data;
+		logger->m_data_queue.Pop(data);
+		if(data.buf == nullptr)	//退出标记
 		{
 			break;
 		}
-		logger->Write(buf);
-		xfree((void*)buf.data);
+		logger->Write(data);
 	}
 }
 
-bool LoggerImpl::Init(const LogConf& conf)
-{
-	Logger::SetLevel(m_conf.level);
-	
+bool LoggerImpl::Start(const LogConfig& conf)
+{	
+    m_conf = conf;
+
 	//打开日志文件
-	if(!m_logfile.Open(m_conf.file_path.c_str(), OF_WRITEONLY|OF_APPEND|OF_CREATE))
+	if(!m_logfile.Open(m_conf.file_path.c_str(), OF_CREATE|OF_WRITEONLY|OF_APPEND))
 	{
 		return false;
 	}
+    m_filesize = m_logfile.Size();
+
+    m_pool.Init(BLOCK_SIZE, CACHE_NUM);
+
 	//初始化队列
-	m_buf_queue.SetCapacity(100000);
+	m_data_queue.SetCapacity(QUEUE_CAPACITY);
 	
 	//启用线程
-	m_thread.Start(LogThread, nullptr);
+	m_thread.Start(LogThread, this);
 	
 	return true;
 }
@@ -94,8 +134,8 @@ bool LoggerImpl::Init(const LogConf& conf)
 void LoggerImpl::Close()
 {
 	//队列中放入退出标记
-	StrView buf;
-	m_buf_queue.Push(buf);
+	LogData data = {nullptr};
+	m_data_queue.Push(data);
 	
 	//等待线程结束
 	m_thread.Join();
@@ -104,36 +144,49 @@ void LoggerImpl::Close()
 	m_logfile.Close();
 }
 
-//格式: [date time] [level-desc] [文件名:行号:函数名] [message]
-void LoggerImpl::LogMsg(LogLevel level, const char *file_name, const char* func_name, int line_num, const char *msg)
+//格式: date time [level-desc] [文件名:行号:函数名] message
+void LoggerImpl::LogMsg(LogLevel level, const char *file_name, const char* func_name, int line_num, const char *format, va_list args)
 {
-	time_t now = time(nullptr);
-	struct tm t_now;
-	localtime_r(&now, &t_now);
-	
-	char name_str[256];
-	switch(m_conf.options)
-	{
-	case OPTION_FILENAME:
-		snprintf(name_str, sizeof(name_str), "[%s] ", file_name);
-		break;
-	case 0: 
-	default:
-		name_str[0] = '\0';
-		break;
-	}
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
 
-	StrView buf;
-    buf.data = (char*)xmalloc(MAX_LOG_LEN);
-    buf.size = snprintf((char*)buf.data, MAX_LOG_LEN, 
-    	"%04d-%02d-%02d %02d:%02d:%02d [%s] %s%s",
+	struct tm t_now;
+	time_t sec = tv.tv_sec;
+	localtime_r(&sec, &t_now);
+	
+    char line_buf[64];
+    if(m_conf.flags & FLAG_OUT_LINENUM)
+    {
+        snprintf(line_buf, sizeof(line_buf), "%d", line_num);
+    }
+    else
+    {
+        line_buf[0] = '\0';
+    }
+    if(m_conf.flags & FLAG_OUT_FILENAME)
+    {
+        file_name = Path::GetFileName(file_name);
+    }
+
+    char* msg = (char*)m_pool.Alloc();
+    vsnprintf(msg, BLOCK_SIZE, format, args);
+
+    LogData data;
+    data.buf = m_pool.Alloc();
+
+    data.len = snprintf((char*)data.buf, BLOCK_SIZE, 
+    	"%04d-%02d-%02d %02d:%02d:%02d-%03lu [%s] [%s:%s:%s] %s\n",
     	t_now.tm_year+1900, t_now.tm_mon+1, t_now.tm_mday, 
-    	t_now.tm_hour, t_now.tm_min, t_now.tm_sec, 
+    	t_now.tm_hour, t_now.tm_min, t_now.tm_sec, (uint64_t)tv.tv_usec/1000,
     	LEVEL_DESC[level],
-    	name_str,
+        (m_conf.flags & FLAG_OUT_FILENAME) ? file_name : "",
+        (m_conf.flags & FLAG_OUT_LINENUM) ? line_buf : "",
+        (m_conf.flags & FLAG_OUT_FUNCTION) ? func_name : "",
     	msg);
     
-	m_buf_queue.Push(buf);
+    m_pool.Free((byte_t*)msg);
+
+	m_data_queue.Push(data);
 }
 
 

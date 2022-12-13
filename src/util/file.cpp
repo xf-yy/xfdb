@@ -38,7 +38,7 @@ File::~File()
 
 bool File::Open(const char* file_path, uint32_t flags)
 {
-	int f = 0;
+	int f = O_LARGEFILE;
 	switch(flags & 3)
 	{
 	case OF_READONLY:	f |= O_RDONLY;	break;
@@ -49,16 +49,13 @@ bool File::Open(const char* file_path, uint32_t flags)
 	if(flags & OF_TRUNCATE)	f |= O_TRUNC;
 	if(flags & OF_CREATE)	f |= O_CREAT;
 
+    
 	mode_t old_mask = umask(0);
-	fd_t fd = open(file_path, f, 0644);
+
+	m_fd = open(file_path, f, 0644);
 	umask(old_mask);
 
-	if(fd == INVALID_FD)
-	{
-		return false;
-	}
-	m_fd = fd;
-	return true;
+	return (m_fd != INVALID_FD);
 }
 
 //SetFilePointerEx() followed by SetEndOfFile()

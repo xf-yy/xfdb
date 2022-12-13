@@ -249,7 +249,7 @@ Status SegmentWriter::Write(const ObjectWriterListPtr& object_writer_list, Segme
 	return Write(iter, stat, seginfo);
 }
 
-Status SegmentWriter::Merge(const MergingSegmentInfo& msinfo, SegmentIndexInfo& seginfo)
+Status SegmentWriter::Write(const MergingSegmentInfo& msinfo, SegmentIndexInfo& seginfo)
 {
 	std::map<fileid_t, ObjectReaderPtr> segment_readers;
 	msinfo.GetMergingReaders(segment_readers);

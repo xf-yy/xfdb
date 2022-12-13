@@ -15,6 +15,7 @@ limitations under the License.
 ***************************************************************************/
 
 #include "dbtypes.h"
+#include "logger.h"
 #include "writeonly_bucket.h"
 #include "readwrite_writer.h"
 #include "object_writer_list.h"
@@ -347,7 +348,7 @@ Status WriteOnlyBucket::WriteSegment()
 		WriteLockGuard lock_guard(m_segment_rwlock);
 		if(!m_memwriter_snapshot)
 		{
-			return ERR_NOMORE_DATA;
+			return OK;
 		}
 		
 		memwriter_snapshot.swap(m_memwriter_snapshot);
@@ -365,7 +366,12 @@ Status WriteOnlyBucket::WriteSegment()
 	}
 
 	SegmentReaderPtr new_segment_reader;
-	WriteSegment(memwriter_snapshot, fileid, new_segment_reader);
+	Status s = WriteSegment(memwriter_snapshot, fileid, new_segment_reader);
+    if(s != OK)
+    {
+        LogWarn("write segment(id=%ld) of bucket(%s) failed, status: %u", fileid, m_bucket_path.c_str(), s);
+        return s;
+    }
 	
 	int writed_segment_inc = 0;
 	{
@@ -441,12 +447,14 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 		Status s = segment_writer.Create(m_bucket_path.c_str(), msinfo.new_segment_fileid);
 		if(s != OK)
 		{
+            LogWarn("open create segment(id=%ld) of bucket(%s) failed, status: %u", msinfo.new_segment_fileid, m_bucket_path.c_str(), s);
 			return s;
 		}
 		
-		s = segment_writer.Merge(msinfo, seginfo);
+		s = segment_writer.Write(msinfo, seginfo);
 		if(s != OK)
 		{
+            LogWarn("open write segment(id=%ld) of bucket(%s) failed, status: %u", msinfo.new_segment_fileid, m_bucket_path.c_str(), s);
 			return s;
 		}
 	}
@@ -455,6 +463,7 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 	Status s = msinfo.new_segment_reader->Open(m_bucket_path.c_str(), seginfo);
 	if(s != OK)
 	{
+        LogWarn("open new segment(id=%ld) of bucket(%s) failed, status: %u", seginfo.segment_fileid, m_bucket_path.c_str(), s);
 		return s;
 	}
 
@@ -682,6 +691,7 @@ Status WriteOnlyBucket::WriteBucketMeta()
 	if(s != OK)
 	{
 		//FIXME:恢复md.deleted_segment_fileids到m_merged_segment_fileids?
+        LogWarn("write meta(id=%ld) of bucket(%s) failed, status: %u", bucket_meta_fileid, m_bucket_path.c_str(), s);
 		return s;
 	}
 	//只读打开segment list file，并替换当前list file

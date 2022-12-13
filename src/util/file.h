@@ -30,8 +30,7 @@ limitations under the License.
 namespace xfutil 
 {
 
-
-enum OpenFlag
+enum
 {
 	OF_READONLY = 0x0001,
 	OF_WRITEONLY = 0x0002,
@@ -82,7 +81,8 @@ public:
 	{
 		return m_fd;
 	}
-	//-1:错误，0表示已存在，1表示成功
+
+    //
 	bool Open(const char* file_path, uint32_t flags);
 	inline void Close()
 	{

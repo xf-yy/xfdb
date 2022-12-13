@@ -92,14 +92,14 @@ struct GlobalConfig
 	//common
 	Mode mode = MODE_WRITEONLY;
 	
-	//std::string log_file_path;		//日志文件路径，如果为空则不输出日志
-	
-	std::string notify_dir;				//通知文件目录，不能以'/'结尾
-	uint16_t notify_file_ttl_s = 30;	//通知文件生存周期，单位秒
-
 	uint64_t index_cache_size = 512ULL*1024*1024;
 	uint64_t data_cache_size = 1024ULL*1024*1024;
 	uint64_t bloom_filter_cache_size = 256ULL*1024*1024;
+
+	uint16_t notify_file_ttl_s = 30;	//通知文件生存周期，单位秒
+	std::string notify_dir;				//通知文件目录，不能以'/'结尾
+
+	std::string log_file_path;          //日志文件名
 
 	//ReadConfig
 	bool auto_reload_db = true;

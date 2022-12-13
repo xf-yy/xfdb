@@ -57,7 +57,6 @@ Status ReadOnlyEngine::Start()
 		}	
 		m_notify_thread.Start(ReadNotifyThread, this);
 	}	
-	LogInfo("xfdb started");
 
 	m_started = true;
 	return OK;
@@ -131,7 +130,11 @@ void ReadOnlyEngine::ProcessNotifyData(const NotifyData& nd)
 			if(db->GetBucket(nd.bucket_name, bptr))
 			{
 				MakeBucketMetaFileName(nd.file_id, file_name);
-				bptr->Open(file_name);
+				Status s = bptr->Open(file_name);
+                if(s != OK)
+                {
+                    LogWarn("open bucket(%s) of db(%s) failed, status: %d", nd.bucket_name.c_str(), nd.db_path.c_str(), s);
+                }
 			}
 		}
 		break;
@@ -140,7 +143,11 @@ void ReadOnlyEngine::ProcessNotifyData(const NotifyData& nd)
 		if(nd.file_id != MIN_FILE_ID)
 		{
 			MakeDBInfoFileName(nd.file_id, file_name);
-			db->OpenBucket(file_name);
+			Status s = db->OpenBucket(file_name);
+            if(s != OK)
+            {
+                LogWarn("open bucket(%s) of db(%s) failed, status: %d", file_name, nd.db_path.c_str(), s);
+            }
 		}
 		else
 		{
@@ -155,8 +162,8 @@ void ReadOnlyEngine::ProcessNotifyData(const NotifyData& nd)
 
 void ReadOnlyEngine::ProcessNotifyThread(size_t index, void* arg)
 {
-	LogInfo("reload thread_%zd started", index);
-	
+	LogDebug("the %dst process notify thread started", index);	
+
 	ReadOnlyEngine* engine = (ReadOnlyEngine*)arg;
 	assert(engine != nullptr);
 	
@@ -172,13 +179,13 @@ void ReadOnlyEngine::ProcessNotifyThread(size_t index, void* arg)
 		}	
 		engine->ProcessNotifyData(nd);
 	}
-	LogWarn("reload thread_%zd exit", index);
+	LogDebug("the %dst process notify thread exit", index);	
 	
 }
 
 void ReadOnlyEngine::ReadNotifyThread(void* arg)
 {
-	LogInfo("notify thread started");
+	LogDebug("read notify thread started");	
 	
 	ReadOnlyEngine* engine = (ReadOnlyEngine*)arg;
 	assert(engine != nullptr);
@@ -195,7 +202,6 @@ void ReadOnlyEngine::ReadNotifyThread(void* arg)
 			xfutil::tid_t notify_pid = NotifyFile::GetNotifyPID(event.file_path);
 			if(notify_pid == pid)
 			{
-				LogWarn("found notify of current pid(%u)", notify_pid);
 				break;
 			}
 			
@@ -216,8 +222,7 @@ void ReadOnlyEngine::ReadNotifyThread(void* arg)
 		}
 	}
 
-	LogWarn("notify thread exit");
-	
+	LogDebug("read notify thread exit");		
 }
 
 

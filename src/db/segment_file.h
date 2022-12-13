@@ -118,7 +118,7 @@ public:
 	Status Create(const char* bucket_path, fileid_t fileid);
 	
 	Status Write(const ObjectWriterListPtr& object_writer_list, SegmentIndexInfo& seginfo);
-	Status Merge(const MergingSegmentInfo& msinfo, SegmentIndexInfo& seginfo);
+	Status Write(const MergingSegmentInfo& msinfo, SegmentIndexInfo& seginfo);
 
 	static Status Remove(const char* bucket_path, fileid_t fileid);
 
