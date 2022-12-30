@@ -17,12 +17,12 @@
         8、BloomFilter
         9、Iterator遍历
         10、后台日志输出
+        11、Append
     实现中：  
-        1、Append
+        1、Backup
    
     待实现：   
-        1、Modify
-        2、Compress   
+        
    
 # ●编译方法   
 ***   
@@ -57,12 +57,12 @@
 	}
 	std::string bucket("testbucket");
 	std::string key("testkey");
-	String value;
+	std::string value;
 	const StrView key_view(key.data(), key.size());
 	s = db->Get(bucket, key_view, value);
 	if(s == OK)
 	{
-		printf("get succeed: %s\n", std::string(value.Data(), value.Size()).c_str());
+		printf("get succeed: %s\n", value.c_str());
 	}
 	else
 	{

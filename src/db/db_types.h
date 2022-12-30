@@ -100,14 +100,16 @@ static_assert(MAX_VALUE_SIZE <= 64*1024, "invalid MAX_VALUE_SIZE");			//待支�
 #define MAX_BUCKET_NAME_LEN			64	//包含结束符'\0'
 #endif
 
-//NOTE:值必须小于32
+//NOTE:值必须小于16
 enum ObjectType : uint8_t
 {
 	DeleteType = 0, 	//直到最终的level后才会消除
 						//如果value长度不为0，则是计数值，
 						//value是剩余消除key的计数，为0时该delete记录也消除
 	SetType = 1,
-	//AppendType,
+	AppendType = 2,
+    
+    MaxObjectType
 };	
 
 struct Object
@@ -326,9 +328,9 @@ class ObjectReader;
 typedef std::shared_ptr<ObjectReader> ObjectReaderPtr;
 
 
-class ObjectReaderList;
-typedef std::shared_ptr<ObjectReaderList> ObjectReaderListPtr;
-#define NewObjectReaderList 	std::make_shared<ObjectReaderList>
+class ObjectReaderSnapshot;
+typedef std::shared_ptr<ObjectReaderSnapshot> ObjectReaderSnapshotPtr;
+#define NewObjectReaderSnapshot 	std::make_shared<ObjectReaderSnapshot>
 
 class ObjectWriter;
 typedef std::shared_ptr<ObjectWriter> ObjectWriterPtr;
@@ -394,7 +396,7 @@ struct MergingSegmentInfo
 	fileid_t new_segment_fileid;
 	SegmentReaderPtr new_segment_reader;
 	std::set<fileid_t> merging_segment_fileids;
-	ObjectReaderListPtr reader_snapshot;
+	ObjectReaderSnapshotPtr reader_snapshot;
 
 public:
 	MergingSegmentInfo()

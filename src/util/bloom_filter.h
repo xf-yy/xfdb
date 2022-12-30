@@ -29,7 +29,7 @@ namespace xfutil
 class BloomFilter
 {
 public:
-	BloomFilter(uint32_t bitnum_perkey);
+	explicit BloomFilter(uint32_t bitnum_perkey);
 	~BloomFilter()
 	{}
 	

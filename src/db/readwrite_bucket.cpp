@@ -20,7 +20,7 @@ limitations under the License.
 #include "object_writer_list.h"
 #include "bucket_metafile.h"
 #include "notify_file.h"
-#include "object_reader_list.h"
+#include "object_reader_snapshot.h"
 #include "writable_db.h"
 
 namespace xfdb 
@@ -41,31 +41,64 @@ ObjectWriterPtr ReadWriteBucket::NewObjectWriter(WritableEngine* engine)
     return NewReadWriteWriter(engine->GetLargePool(), engine->GetConfig().max_memtable_objects);
 }
 
-Status ReadWriteBucket::Get(const StrView& key, String& value)
+Status ReadWriteBucket::Get(const StrView& key, std::string& value)
 {	
 	m_segment_rwlock.ReadLock();
 
     objectid_t curr_obj_id = m_next_object_id;
     ObjectWriterPtr memwriter = m_memwriter;
 	ObjectWriterListPtr writer_snapshot = m_memwriter_snapshot;
-	ObjectReaderListPtr reader_snapshot = m_reader_snapshot;
+	ObjectReaderSnapshotPtr reader_snapshot = m_reader_snapshot;
 
 	m_segment_rwlock.ReadUnlock();
 
-	ObjectType type;
-	if(memwriter && memwriter->Get(key, curr_obj_id, type, value) == OK) 
+    std::vector<ObjectReaderPtr> readers;
+    readers.reserve(3);
+
+    if(memwriter)
+    {
+        readers.push_back(memwriter);
+    }
+    if(writer_snapshot)
+    {
+        readers.push_back(writer_snapshot);
+    }
+    if(reader_snapshot)
+    {
+        readers.push_back(reader_snapshot);
+    }
+
+    ObjectType type;
+    //FIXME: 以下与ObjectReaderSnapshot::Get相仿
+    std::vector<std::string> values;
+	for(size_t idx = 0; idx < readers.size(); ++idx)
 	{
-    	return (type == SetType) ? OK : ERR_OBJECT_NOT_EXIST;
+		if(readers[idx]->Get(key, curr_obj_id, type, value) != OK)
+		{
+            continue;
+        }
+        if(type == DeleteType)
+        {
+            break;
+        }
+        std::string tmp(value);
+        values.push_back(tmp);  
+        if(type == SetType)
+        {
+            break;
+        }
 	}
-	if(writer_snapshot && writer_snapshot->Get(key, curr_obj_id, type, value) == OK)
-	{
-		return (type == SetType) ? OK : ERR_OBJECT_NOT_EXIST;
-	}
-	if(reader_snapshot && reader_snapshot->Get(key, curr_obj_id, type, value) == OK) 
-	{
-		return (type == SetType) ? OK : ERR_OBJECT_NOT_EXIST;
-	}
+    if(!values.empty())
+    {
+        value.clear();
+        for(ssize_t idx = values.size() - 1; idx >= 0; --idx)
+        {
+            value.append(values[idx]);
+        }
+        return OK;
+    }
 	return ERR_OBJECT_NOT_EXIST;
+
 }
 
 Status ReadWriteBucket::NewIterator(IteratorImplPtr& iter)
@@ -75,7 +108,7 @@ Status ReadWriteBucket::NewIterator(IteratorImplPtr& iter)
     objectid_t curr_obj_id = m_next_object_id;
     ObjectWriterPtr memwriter = m_memwriter;
 	ObjectWriterListPtr writer_snapshot = m_memwriter_snapshot;
-	ObjectReaderListPtr reader_snapshot = m_reader_snapshot;
+	ObjectReaderSnapshotPtr reader_snapshot = m_reader_snapshot;
 
 	m_segment_rwlock.ReadUnlock();
     
@@ -84,6 +117,7 @@ Status ReadWriteBucket::NewIterator(IteratorImplPtr& iter)
 
     if(memwriter)
     {
+        assert(memwriter->GetObjectCount() > 0);
         IteratorImplPtr iter = memwriter->NewIterator(curr_obj_id);
         iters.push_back(iter);
     }

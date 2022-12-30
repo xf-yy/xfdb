@@ -15,7 +15,7 @@ limitations under the License.
 ***************************************************************************/
 
 #include "readonly_bucket.h"
-#include "object_reader_list.h"
+#include "object_reader_snapshot.h"
 #include "readonly_db.h"
 
 namespace xfdb 
@@ -47,31 +47,26 @@ Status ReadOnlyBucket::Open()
 	return Bucket::Open(file_names.back().str);
 }
 
-Status ReadOnlyBucket::Get(const StrView& key, String& value)
+Status ReadOnlyBucket::Get(const StrView& key, std::string& value)
 {
 	m_segment_rwlock.ReadLock();
     objectid_t curr_obj_id = m_next_object_id;
-	ObjectReaderListPtr reader_snapshot = m_reader_snapshot;
+	ObjectReaderSnapshotPtr reader_snapshot = m_reader_snapshot;
 	m_segment_rwlock.ReadUnlock();
 
-	if(!reader_snapshot)
-	{
-		return ERR_OBJECT_NOT_EXIST;
-	}
 	ObjectType type;
-	Status s = reader_snapshot->Get(key, curr_obj_id, type, value);
-	if(s != OK)
+	if(reader_snapshot && reader_snapshot->Get(key, curr_obj_id, type, value) == OK)
 	{
-		return s;
+        return (type == DeleteType) ? ERR_OBJECT_NOT_EXIST : OK;
 	}
-	return (type == DeleteType) ? ERR_OBJECT_NOT_EXIST : OK;
+    return ERR_OBJECT_NOT_EXIST;
 }
 
 Status ReadOnlyBucket::NewIterator(IteratorImplPtr& iter)
 {
 	m_segment_rwlock.ReadLock();
     //objectid_t curr_obj_id = m_next_object_id;
-	ObjectReaderListPtr reader_snapshot = m_reader_snapshot;
+	ObjectReaderSnapshotPtr reader_snapshot = m_reader_snapshot;
 	m_segment_rwlock.ReadUnlock();
 
     if(reader_snapshot)
@@ -87,7 +82,7 @@ void ReadOnlyBucket::GetStat(BucketStat& stat) const
 	memset(&stat, 0x00, sizeof(stat));
 
 	m_segment_rwlock.ReadLock();
-	ObjectReaderListPtr reader_snapshot = m_reader_snapshot;
+	ObjectReaderSnapshotPtr reader_snapshot = m_reader_snapshot;
 	m_segment_rwlock.ReadUnlock();
 
 	if(reader_snapshot)

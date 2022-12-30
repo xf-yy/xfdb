@@ -16,37 +16,58 @@ limitations under the License.
 
 #include "path.h"
 #include "logger.h"
-#include "object_reader_list.h"
+#include "object_reader_snapshot.h"
 #include "object_writer_list.h"
 #include "iterator_impl.h"
 
 namespace xfdb 
 {
 
-ObjectReaderList::ObjectReaderList(const BucketMetaFilePtr& meta_file, const std::map<fileid_t, ObjectReaderPtr>& new_readers) 
+ObjectReaderSnapshot::ObjectReaderSnapshot(const BucketMetaFilePtr& meta_file, const std::map<fileid_t, ObjectReaderPtr>& new_readers) 
 	: m_meta_file(meta_file), m_readers(new_readers)
 {
-	GetUpmostKey();
+	GetMaxKey();
 }
 
-ObjectReaderList::~ObjectReaderList()
+ObjectReaderSnapshot::~ObjectReaderSnapshot()
 {
 }
 
-Status ObjectReaderList::Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const
+Status ObjectReaderSnapshot::Get(const StrView& key, objectid_t obj_id, ObjectType& type, std::string& value) const
 {
 	//逆序遍历
+    std::vector<std::string> values;
 	for(auto it = m_readers.rbegin(); it != m_readers.rend(); ++it)
 	{
-		if(it->second->Get(key, obj_id, type, value) == OK)
+		if(it->second->Get(key, obj_id, type, value) != OK)
 		{
-			return OK;
-		}
+            continue;
+        }
+        if(type == DeleteType)
+        {
+            break;
+        }
+        std::string tmp(value);
+        values.push_back(tmp);  
+        if(type == SetType)
+        {
+            break;
+        }
+	
 	}
-	return ERR_OBJECT_NOT_EXIST;
+    if(!values.empty())
+    {
+        value.clear();
+        for(ssize_t idx = values.size() - 1; idx >= 0; --idx)
+        {
+            value.append(values[idx]);
+        }
+        return OK;
+    }
+	return (type == DeleteType) ? OK : ERR_OBJECT_NOT_EXIST;
 }
 
-IteratorImplPtr ObjectReaderList::NewIterator()
+IteratorImplPtr ObjectReaderSnapshot::NewIterator(objectid_t max_objid)
 {
 	if(m_readers.size() == 1)
 	{
@@ -63,7 +84,19 @@ IteratorImplPtr ObjectReaderList::NewIterator()
 	return NewIteratorList(iters);
 }
 
-void ObjectReaderList::GetStat(BucketStat& stat) const
+/**返回segment文件总大小*/
+uint64_t ObjectReaderSnapshot::Size() const
+{
+	uint64_t size = 0;
+	for(auto it = m_readers.begin(); it != m_readers.end(); ++it)
+	{
+		//FIXME: 识别segment类型
+		size += it->second->Size();
+	}
+	return size;
+}
+
+void ObjectReaderSnapshot::GetStat(BucketStat& stat) const
 {	
 	for(auto it = m_readers.begin(); it != m_readers.end(); ++it)
 	{
@@ -72,7 +105,7 @@ void ObjectReaderList::GetStat(BucketStat& stat) const
 	}
 }
 
-void ObjectReaderList::GetUpmostKey()
+void ObjectReaderSnapshot::GetMaxKey()
 {
 	if(m_readers.empty())
 	{
@@ -80,13 +113,13 @@ void ObjectReaderList::GetUpmostKey()
 	}
 	
 	auto it = m_readers.begin();
-	m_upmost_key = it->second->UpmostKey();
+	m_max_key = it->second->MaxKey();
 
 	for(++it; it != m_readers.end(); ++it)
 	{
-		if(m_upmost_key < it->second->UpmostKey())
+		if(m_max_key < it->second->MaxKey())
 		{
-			m_upmost_key = it->second->UpmostKey();
+			m_max_key = it->second->MaxKey();
 		}
 	}
 }

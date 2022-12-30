@@ -34,7 +34,8 @@ public:
 public:
 	//设置指定bucket中的记录
 	Status Set(const std::string& bucket_name, const xfutil::StrView& key, const xfutil::StrView& value);
-	//Append
+	Status Append(const std::string& bucket_name, const xfutil::StrView& key, const xfutil::StrView& value);
+
 
 	//删除指定bucket中的记录
 	Status Delete(const std::string& bucket_name, const xfutil::StrView& key);
@@ -42,6 +43,9 @@ public:
 	//清理
 	void Clear();
 	
+private:
+    Status GetWriter(const std::string& bucket_name, WriteOnlyWriterPtr& writer);    
+
 private:
 	//key:bucket_name
 	std::map<std::string, WriteOnlyWriterPtr> m_data;

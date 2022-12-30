@@ -41,9 +41,9 @@ public:
 
 	Status Search(const StrView& key, SegmentL0Index& idx) const;
 
-	inline const StrView& UpmostKey() const
+	inline const StrView& MaxKey() const
 	{
-		return m_upmost_key;
+		return m_max_key;
 	}
 	inline const SegmentMeta& GetMeta() const
 	{
@@ -55,7 +55,7 @@ public:
 	}
 			
 private:
-	size_t Find(const StrView& key) const;
+	ssize_t Find(const StrView& key) const;
 	const SegmentL1Index* Search(const StrView& key) const;
 
 	Status ParseL2Index(const byte_t* data, uint32_t L2index_meta_size);
@@ -78,7 +78,7 @@ private:
 	
 	WriteBuffer m_buf;
 	std::vector<SegmentL1Index> m_L1indexs;
-	StrView m_upmost_key;
+	StrView m_max_key;
 	SegmentMeta m_meta;
 	
 private:
@@ -98,7 +98,7 @@ public:
 public:	
 	Status Create(const char* bucket_path, fileid_t fileid);
 	Status Write(const SegmentL0Index& L0_index, std::deque<uint32_t>& key_hashs);
-	Status Finish(std::deque<uint32_t>& key_hashs, const StrView& upmost_key, const SegmentMeta& meta);
+	Status Finish(std::deque<uint32_t>& key_hashs, const StrView& max_key, const SegmentMeta& meta);
 	inline uint64_t FileSize()
 	{
 		return m_file.Size();
@@ -116,12 +116,12 @@ private:
 	Status WriteL2GroupIndex(const LnGroupIndex* group_indexs, int index_cnt);
 	Status WriteBlock(uint32_t& index_size);
 	Status WriteBlock(std::deque<uint32_t>& key_hashs);
-	Status WriteL2Index(const StrView& upmost_key, uint32_t& L2index_size);
+	Status WriteL2Index(const StrView& max_key, uint32_t& L2index_size);
 	Status WriteMeta(uint32_t L2index_size, const SegmentMeta& meta);
 	void WriteMeta(const SegmentMeta& meta);
 	void WriteObjectStat(ObjectType type, const ObjectTypeStat& stat);
 	
-	Status WriteL2IndexMeta(const StrView& upmost_key, const SegmentMeta& meta);
+	Status WriteL2IndexMeta(const StrView& max_key, const SegmentMeta& meta);
 
 private:
 	const BucketConfig m_bucket_conf;
@@ -140,7 +140,7 @@ private:
 	
 	std::vector<SegmentL0Index> m_L0indexs;
 	uint32_t m_writing_size;
-	String m_prev_key;
+	//String m_prev_key;
 
 	WriteBuffer m_L0key_buf;
 

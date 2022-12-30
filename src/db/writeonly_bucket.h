@@ -21,7 +21,7 @@ limitations under the License.
 #include "writable_engine.h"
 #include "writeonly_writer.h"
 #include "object_writer_list.h"
-#include "object_reader_list.h"
+#include "object_reader_snapshot.h"
 #include "bucket.h"
 #include <deque>
 #include <mutex>
@@ -76,7 +76,7 @@ private:
 	bool AddMerging(MergingSegmentInfo& msinfo);
 	
 private:
-	void WriteAliveSegmentInfos(ObjectReaderListPtr& trs_ptr, BucketMetaData& md);
+	void WriteAliveSegmentInfos(ObjectReaderSnapshotPtr& trs_ptr, BucketMetaData& md);
 
 protected:
 	WritableEngine* m_engine;

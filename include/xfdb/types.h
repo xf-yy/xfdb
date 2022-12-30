@@ -227,15 +227,17 @@ struct ObjectStat
 {
 	ObjectTypeStat set_stat;		//set的统计
 	ObjectTypeStat delete_stat; 	//删除的次数
+    ObjectTypeStat append_stat;
 
 	inline uint64_t Count() const
 	{
-		return set_stat.count + delete_stat.count;
+		return set_stat.count + delete_stat.count + append_stat.count;
 	}
 	inline void Add(const ObjectStat& stat)
 	{
 		set_stat.Add(stat.set_stat);
 		delete_stat.Add(stat.delete_stat);
+        append_stat.Add(stat.append_stat);
 	}
 };
 

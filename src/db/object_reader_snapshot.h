@@ -14,37 +14,41 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_object_reader_list_h__
-#define __xfdb_object_reader_list_h__
+#ifndef __xfdb_object_reader_snapshot_h__
+#define __xfdb_object_reader_snapshot_h__
 
 #include <algorithm>
 #include <set>
 #include "db_types.h"
 #include "segment_file.h"
 #include "bucket_metafile.h"
+#include "object_reader.h"
 
 namespace xfdb 
 {
 
-class ObjectReaderList
+class ObjectReaderSnapshot : public ObjectReader
 {
 public:
-	ObjectReaderList(const BucketMetaFilePtr& meta_file, const std::map<fileid_t, ObjectReaderPtr>& new_readers);
-	~ObjectReaderList();
+	ObjectReaderSnapshot(const BucketMetaFilePtr& meta_file, const std::map<fileid_t, ObjectReaderPtr>& new_readers);
+	~ObjectReaderSnapshot();
 
 public:	
-	Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const;
+	Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, std::string& value) const override;
 	
-	IteratorImplPtr NewIterator();
+	IteratorImplPtr NewIterator(objectid_t max_objid = MAX_OBJECT_ID) override;
 
 	/**最大key*/
-	StrView UpmostKey() const
+	const StrView& MaxKey() const
 	{
-		return m_upmost_key;
+		return m_max_key;
 	}
 		
-	void GetStat(BucketStat& stat) const;
+	void GetStat(BucketStat& stat) const override;
 
+	/**返回segment文件总大小*/
+	uint64_t Size() const override;
+    
 	inline const std::map<fileid_t, ObjectReaderPtr>& Readers() const
 	{
 		return m_readers;
@@ -54,16 +58,16 @@ public:
 		return m_meta_file;
 	}
 private:
-	void GetUpmostKey();
+	void GetMaxKey();
 	
 private:
     BucketMetaFilePtr m_meta_file;
 	std::map<fileid_t, ObjectReaderPtr> m_readers;
-	StrView m_upmost_key;
+	StrView m_max_key;
 
 private:
-	ObjectReaderList(const ObjectReaderList&) = delete;
-	ObjectReaderList& operator=(const ObjectReaderList&) = delete;
+	ObjectReaderSnapshot(const ObjectReaderSnapshot&) = delete;
+	ObjectReaderSnapshot& operator=(const ObjectReaderSnapshot&) = delete;
 
 };
 

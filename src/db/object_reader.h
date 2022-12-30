@@ -34,19 +34,25 @@ public:
     {}
 
 public:
-	virtual Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const = 0;
+	virtual Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, std::string& value) const = 0;
 
 	/**迭代器*/
 	virtual IteratorImplPtr NewIterator(objectid_t max_objid = MAX_OBJECT_ID) = 0;
 	
 	/**最大key*/
-	virtual StrView UpmostKey() const = 0;
+	const StrView& MaxKey() const
+    {
+        return m_max_key;
+    }
 	
 	/**返回segment文件总大小*/
 	virtual uint64_t Size() const = 0;
 
 	/**获取统计*/
 	virtual void GetStat(BucketStat& stat) const = 0;
+
+protected:
+	StrView m_max_key;
 
 private:
 	ObjectReader(const ObjectReader&) = delete;

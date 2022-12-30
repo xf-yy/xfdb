@@ -32,7 +32,7 @@ public:
 
 public:		
 	Status Open() override;
-	Status Get(const std::string& bucket_name, const StrView& key, String& value) const override;
+	Status Get(const std::string& bucket_name, const StrView& key, std::string& value) const override;
     Status NewIterator(const std::string& bucket_name, IteratorImplPtr& iter) override;
 
 protected:

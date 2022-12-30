@@ -49,7 +49,7 @@ public:
 public:	
 	virtual Status Open() = 0;
 	
-	virtual Status Get(const StrView& key, String& value)
+	virtual Status Get(const StrView& key, std::string& value)
 	{
 		return ERR_INVALID_MODE;
 	}
@@ -80,7 +80,7 @@ public:
 	Status Open(const char* bucket_meta_filename);	
 	
 protected:
-	void OpenSegment(const BucketMetaData& bmd, const ObjectReaderList* last_snapshot, std::map<fileid_t, ObjectReaderPtr>& readers);
+	void OpenSegment(const BucketMetaData& bmd, const ObjectReaderSnapshot* last_snapshot, std::map<fileid_t, ObjectReaderPtr>& readers);
     void OpenSegment(const BucketMetaData& bmd, std::map<fileid_t, ObjectReaderPtr>& readers);
 
 protected:
@@ -97,7 +97,7 @@ protected:
 	fileid_t m_next_bucket_meta_fileid;
 	fileid_t m_next_segment_id;
 
-	ObjectReaderListPtr m_reader_snapshot;
+	ObjectReaderSnapshotPtr m_reader_snapshot;
 
 private:
 	friend class DBImpl;

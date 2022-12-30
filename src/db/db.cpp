@@ -95,7 +95,7 @@ Status DB::GetBucketStat(const std::string& bucket_name, BucketStat& stat) const
 	return m_db->GetBucketStat(bucket_name, stat);
 }
 
-Status DB::Get(const std::string& bucket_name, const StrView& key, String& value) const
+Status DB::Get(const std::string& bucket_name, const StrView& key, std::string& value) const
 {
 	assert(m_db);
 	return m_db->Get(bucket_name, key, value);
@@ -117,6 +117,12 @@ Status DB::Set(const std::string& bucket_name, const StrView& key, const StrView
 {
 	assert(m_db);
 	return m_db->Set(bucket_name, key, value);
+}
+
+Status DB::Append(const std::string& bucket_name, const StrView& key, const StrView& value)
+{
+	assert(m_db);
+	return m_db->Append(bucket_name, key, value);
 }
 
 Status DB::Delete(const std::string& bucket_name, const StrView& key)

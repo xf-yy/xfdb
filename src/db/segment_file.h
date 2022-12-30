@@ -38,12 +38,9 @@ public:
 public:
 	Status Open(const char* bucket_path, const SegmentIndexInfo& info);
 	
-	Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const override;
+	Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, std::string& value) const override;
 	
 	IteratorImplPtr NewIterator(objectid_t max_objid = MAX_OBJECT_ID) override;
-	
-	//最大key
-	StrView UpmostKey() const override;
 
 	/**返回segment文件总大小*/
 	uint64_t Size() const override;
@@ -87,17 +84,18 @@ public:
 	/**是否还有下一个元素*/
 	virtual bool Valid() const override;
 	
-	virtual const Object& object() const override;	
-
-	virtual StrView UpmostKey() const override;
-	
 private:
     Status SeekL1Index(size_t idx, const StrView* key = nullptr);  
-        
+	Status Next_();
+	inline bool Valid_() const
+    {
+        return (m_data_block_iter && m_data_block_iter->Valid());
+    }
 private:
 	SegmentReaderPtr m_segment_reader;
-	uint32_t m_L1index_idx;
-	uint32_t m_L1index_count;
+	const size_t m_L1index_count;
+    
+	size_t m_L1index_idx;
 	IndexBlockReader m_index_block_reader;
 	IndexBlockReaderIteratorPtr m_index_block_iter;
 	DataBlockReader m_data_block_reader;

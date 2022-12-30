@@ -34,7 +34,7 @@ struct SkipListNode
     explicit SkipListNode(const Object* obj) : object(obj) 
     {}
 
-    SkipListNode* Next(int level) 
+    SkipListNode* Next(int level) const
     {
         return this->next[level].load(std::memory_order_acquire);
     }
@@ -43,7 +43,7 @@ struct SkipListNode
         this->next[level].store(n, std::memory_order_release);
     }
 
-    SkipListNode* NoBarrierNext(int level) 
+    SkipListNode* NoBarrierNext(int level) const
     {
         return this->next[level].load(std::memory_order_relaxed);
     }
@@ -59,15 +59,13 @@ class ReadWriteWriter : public ObjectWriter
 public:
     ReadWriteWriter(BlockPool& pool, uint32_t max_object_num);
 
-	virtual Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const override;
+	virtual Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, std::string& value) const override;
 
 	virtual Status Write(objectid_t next_seqid, const Object* object) override;
 	virtual Status Write(objectid_t next_seqid, const WriteOnlyWriterPtr& memtable) override;
-	
+	virtual void Finish() override;
+
 	virtual IteratorImplPtr NewIterator(objectid_t max_objid = MAX_OBJECT_ID) override;
-	
-	//大于最大key的key
-	virtual StrView UpmostKey() const override;
 
 private:
     inline int GetMaxLevel() const 
@@ -110,11 +108,8 @@ private:
 class ReadWriteWriterIterator : public IteratorImpl 
 {
 public:
-	ReadWriteWriterIterator(ReadWriteWriterPtr& table, objectid_t max_objid) 
-        : m_table(table), m_max_objid(max_objid)
-    {
-        First();
-    }
+	ReadWriteWriterIterator(ReadWriteWriterPtr& table, objectid_t max_objid);
+
 	virtual ~ReadWriteWriterIterator()
     {}
 
@@ -131,18 +126,22 @@ public:
 	/**是否还有下一个元素*/
 	virtual bool Valid() const override
     {
-        return m_node != nullptr;
+        return !m_nodes.empty();
     }
 
-	virtual const Object& object() const override;	
-
-	virtual StrView UpmostKey() const override;
+private:
+    bool FindSameKey();
+    void GetObject();
 
 private:
 	ReadWriteWriterPtr m_table;
-    objectid_t m_max_objid;
-	SkipListNode* m_node;
-	
+    const objectid_t m_max_objid;
+
+	const SkipListNode* m_next_node;
+	std::vector<const SkipListNode*> m_nodes;
+    Object m_obj;
+    std::string m_value;
+
 private:
 	ReadWriteWriterIterator(const ReadWriteWriterIterator&) = delete;
 	ReadWriteWriterIterator& operator=(const ReadWriteWriterIterator&) = delete;

@@ -48,10 +48,11 @@ public:
 	Status DeleteBucket(const std::string& bucket_name) override;
 	
 	//object api
-	Status Get(const std::string& bucket_name, const StrView& key, String& value) const override;
+	Status Get(const std::string& bucket_name, const StrView& key, std::string& value) const override;
     Status NewIterator(const std::string& bucket_name, IteratorImplPtr& iter) override;
 
 	Status Set(const std::string& bucket_name, const StrView& key, const StrView& value) override;
+	Status Append(const std::string& bucket_name, const StrView& key, const StrView& value) override;
 	Status Delete(const std::string& bucket_name, const StrView& key) override;
 	Status Write(const ObjectBatch& ob) override;
 		

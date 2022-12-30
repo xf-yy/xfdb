@@ -23,7 +23,7 @@ limitations under the License.
 #include "bucket_list.h"
 #include "file.h"
 #include "directory.h"
-#include "object_reader_list.h"
+#include "object_reader_snapshot.h"
 #include "notify_file.h"
 #include "readwrite_bucket.h"
 #include "logger.h"
@@ -405,13 +405,25 @@ Status WritableDB::Set(const std::string& bucket_name, const StrView& key, const
 {
 	assert(key.size > 0 && key.size <= MAX_KEY_SIZE);
 	assert(value.size <= MAX_VALUE_SIZE);
-	
 	if(key.size == 0 || key.size > MAX_KEY_SIZE || value.size > MAX_VALUE_SIZE)
 	{
 		return ERR_OBJECT_TOO_LARGE;
 	}
-	Object obj = {SetType, key, value};
 
+	Object obj = {SetType, key, value};
+	return Write(bucket_name, &obj);
+}
+
+Status WritableDB::Append(const std::string& bucket_name, const StrView& key, const StrView& value)
+{
+	assert(key.size > 0 && key.size <= MAX_KEY_SIZE);
+	assert(value.size <= MAX_VALUE_SIZE);
+	if(key.size == 0 || key.size > MAX_KEY_SIZE || value.size > MAX_VALUE_SIZE)
+	{
+		return ERR_OBJECT_TOO_LARGE;
+	}
+
+	Object obj = {AppendType, key, value};
 	return Write(bucket_name, &obj);
 }
 
@@ -422,8 +434,8 @@ Status WritableDB::Delete(const std::string& bucket_name, const StrView& key)
 	{
 		return ERR_OBJECT_TOO_LARGE;
 	}
-	Object obj = {DeleteType, key};
 
+	Object obj = {DeleteType, key};
 	return Write(bucket_name, &obj);
 }
 
@@ -442,7 +454,7 @@ Status WritableDB::Write(const ObjectBatch& ob)
 	return OK;
 }
 
-Status WritableDB::Get(const std::string& bucket_name, const StrView& key, String& value) const
+Status WritableDB::Get(const std::string& bucket_name, const StrView& key, std::string& value) const
 {	
 	BucketPtr bptr;
 	if(!GetBucket(bucket_name, bptr))

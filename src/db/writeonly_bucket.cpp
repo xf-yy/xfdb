@@ -21,7 +21,7 @@ limitations under the License.
 #include "object_writer_list.h"
 #include "bucket_metafile.h"
 #include "notify_file.h"
-#include "object_reader_list.h"
+#include "object_reader_snapshot.h"
 #include "writable_db.h"
 
 using namespace xfutil;
@@ -113,7 +113,7 @@ Status WriteOnlyBucket::Open()
 	std::lock_guard<std::mutex> lock(m_mutex);
 
 	m_segment_rwlock.ReadLock();
-	ObjectReaderListPtr reader_snapshot = m_reader_snapshot;
+	ObjectReaderSnapshotPtr reader_snapshot = m_reader_snapshot;
 	m_segment_rwlock.ReadUnlock();	
 	
 	const auto& readers = reader_snapshot->Readers();
@@ -145,7 +145,7 @@ void WriteOnlyBucket::GetStat(BucketStat& stat) const
 	m_segment_rwlock.ReadLock();
 	ObjectWriterPtr memwriter_ptr = m_memwriter;
 	ObjectWriterListPtr writer_snapshot = m_memwriter_snapshot;
-	ObjectReaderListPtr reader_snapshot = m_reader_snapshot;
+	ObjectReaderSnapshotPtr reader_snapshot = m_reader_snapshot;
 	m_segment_rwlock.ReadUnlock();
 
 	if(memwriter_ptr)
@@ -340,6 +340,8 @@ Status WriteOnlyBucket::WriteSegment()
 	fileid_t fileid;
 	
 	{
+        ObjectReaderSnapshotPtr reader_snapshot;
+
 		std::lock_guard<std::mutex> lock(m_mutex);
 		if(m_next_segment_id >= MAX_SEGMENT_ID)
 		{
@@ -350,7 +352,6 @@ Status WriteOnlyBucket::WriteSegment()
 		{
 			return OK;
 		}
-		
 		memwriter_snapshot.swap(m_memwriter_snapshot);
 
 		fileid_t new_segment_id = m_next_segment_id++;
@@ -361,7 +362,7 @@ Status WriteOnlyBucket::WriteSegment()
 		assert(new_readers.find(fileid) == new_readers.end());
 		new_readers[fileid] = memwriter_snapshot;
 
-		ObjectReaderListPtr reader_snapshot = NewObjectReaderList(m_reader_snapshot->MetaFile(), new_readers);
+		reader_snapshot = NewObjectReaderSnapshot(m_reader_snapshot->MetaFile(), new_readers);
 		m_reader_snapshot.swap(reader_snapshot);
 	}
 
@@ -375,6 +376,8 @@ Status WriteOnlyBucket::WriteSegment()
 	
 	int writed_segment_inc = 0;
 	{
+        ObjectReaderSnapshotPtr reader_snapshot;
+
 		std::lock_guard<std::mutex> lock(m_mutex);
 
 		m_writing_segments[fileid] = new_segment_reader->Size();
@@ -397,7 +400,7 @@ Status WriteOnlyBucket::WriteSegment()
 		assert(new_readers.find(fileid) != new_readers.end());		
 		new_readers[fileid] = new_segment_reader;
 
-		ObjectReaderListPtr reader_snapshot = NewObjectReaderList(m_reader_snapshot->MetaFile(), new_readers);
+		reader_snapshot = NewObjectReaderSnapshot(m_reader_snapshot->MetaFile(), new_readers);
 		m_reader_snapshot.swap(reader_snapshot);
 	}
 	
@@ -489,7 +492,7 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 		}
 
 		m_segment_rwlock.ReadLock();
-		ObjectReaderListPtr reader_snapshot = m_reader_snapshot;
+		ObjectReaderSnapshotPtr reader_snapshot = m_reader_snapshot;
 		m_segment_rwlock.ReadUnlock();
 
 		std::map<fileid_t, ObjectReaderPtr> new_readers = reader_snapshot->Readers();
@@ -502,7 +505,7 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 		new_readers[msinfo.new_segment_fileid] = msinfo.new_segment_reader;
 
 		m_segment_rwlock.WriteLock();
-		ObjectReaderListPtr new_reader_snapshot = NewObjectReaderList(reader_snapshot->MetaFile(), new_readers);
+		ObjectReaderSnapshotPtr new_reader_snapshot = NewObjectReaderSnapshot(reader_snapshot->MetaFile(), new_readers);
 		m_reader_snapshot.swap(new_reader_snapshot);
 		m_segment_rwlock.WriteUnlock();
 	}
@@ -637,7 +640,7 @@ Status WriteOnlyBucket::PartMerge()
 	return OK;
 }
 
-void WriteOnlyBucket::WriteAliveSegmentInfos(ObjectReaderListPtr& trs_ptr, BucketMetaData& md)
+void WriteOnlyBucket::WriteAliveSegmentInfos(ObjectReaderSnapshotPtr& trs_ptr, BucketMetaData& md)
 {
 	const std::map<fileid_t, ObjectReaderPtr>& readers = trs_ptr->Readers();
 	assert(!readers.empty());
@@ -657,7 +660,7 @@ void WriteOnlyBucket::WriteAliveSegmentInfos(ObjectReaderListPtr& trs_ptr, Bucke
 //保证只被1个线程调用
 Status WriteOnlyBucket::WriteBucketMeta()
 {
-	ObjectReaderListPtr reader_snapshot;
+	ObjectReaderSnapshotPtr reader_snapshot;
 	fileid_t bucket_meta_fileid;
 	BucketMetaData md;
 	
@@ -698,9 +701,10 @@ Status WriteOnlyBucket::WriteBucketMeta()
 	BucketMetaFilePtr bucket_meta_file = NewBucketMetaFile();
 	bucket_meta_file->Open(m_bucket_path.c_str(), bucket_meta_fileid, xfutil::LF_TRY_READ);
 	{
+        ObjectReaderSnapshotPtr reader_snapshot;
 		WriteLockGuard lock_guard(m_segment_rwlock);
         
-        ObjectReaderListPtr reader_snapshot = NewObjectReaderList(bucket_meta_file, m_reader_snapshot->Readers());
+        reader_snapshot = NewObjectReaderSnapshot(bucket_meta_file, m_reader_snapshot->Readers());
 		m_reader_snapshot.swap(reader_snapshot);
 	}
 

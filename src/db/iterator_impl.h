@@ -45,11 +45,21 @@ public:
 	virtual bool Valid() const = 0;
 	
 	/**获取object*/
-	virtual const Object& object() const = 0;
+	const Object& object() const
+    {
+        return *m_obj_ptr;
+    }
 
 	//最大key
-	virtual xfutil::StrView UpmostKey() const = 0;
+	const xfutil::StrView& MaxKey() const
+    {
+        return m_max_key;
+    }
 	
+protected:
+    const Object* m_obj_ptr;
+    StrView m_max_key;
+
 private:
 	IteratorImpl(const IteratorImpl&) = delete;
 	IteratorImpl& operator=(const IteratorImpl&) = delete;
@@ -59,7 +69,7 @@ private:
 class IteratorList : public IteratorImpl 
 {
 public:
-	IteratorList(const std::vector<IteratorImplPtr>& iters);
+	explicit IteratorList(const std::vector<IteratorImplPtr>& iters);
 	virtual ~IteratorList(){}
 
 public:
@@ -74,19 +84,18 @@ public:
 
 	/**是否还有下一个元素*/
 	virtual bool Valid() const override;
-	
-	virtual const Object& object() const override;	
-
-	virtual StrView UpmostKey() const override;
 
 private:
-	void GetMinKey();
-	void GetUpmostKey();
+	bool GetMinKey();
+	void GetMaxKey();
+    void GetObject();
 
 private:
 	std::vector<IteratorImplPtr> m_iters;
-	StrView m_upmost_key;
-	size_t m_curr_idx;
+    
+    std::vector<size_t> m_minkey_idxs;
+    Object m_obj;
+    std::string m_value;
 	
 private:
 	IteratorList(const IteratorList&) = delete;

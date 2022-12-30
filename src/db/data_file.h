@@ -37,7 +37,7 @@ public:
 	
 public:	
 	Status Open(const char* bucket_path, fileid_t fileid);
-	Status Search(const SegmentL0Index& L0_index, const StrView& key, ObjectType& type, String& value) const;
+	Status Search(const SegmentL0Index& L0_index, const StrView& key, ObjectType& type, std::string& value) const;
 
 private:
 	File m_file;

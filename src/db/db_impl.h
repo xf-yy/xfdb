@@ -50,7 +50,7 @@ public:
 	virtual void ListBucket(std::vector<std::string>& bucket_names) const;
 
 public:	
-	virtual Status Get(const std::string& bucket_name, const StrView& key, String& value) const
+	virtual Status Get(const std::string& bucket_name, const StrView& key, std::string& value) const
 	{
 		return ERR_INVALID_MODE;
 	}
@@ -61,6 +61,10 @@ public:
     }
 
 	virtual Status Set(const std::string& bucket_name, const StrView& key, const StrView& value)
+	{
+		return ERR_INVALID_MODE;
+	}
+	virtual Status Append(const std::string& bucket_name, const StrView& key, const StrView& value)
 	{
 		return ERR_INVALID_MODE;
 	}

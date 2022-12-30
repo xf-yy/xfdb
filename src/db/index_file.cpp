@@ -86,10 +86,23 @@ bool IndexReader::ParseObjectStat(const byte_t* &data, const byte_t* data_end)
 {
 	uint32_t cnt = DecodeV32(data, data_end);
 	
+    ObjectTypeStat* object_stat;
 	for(uint32_t i = 0; i < cnt; ++i)
 	{
 		byte_t type = *data++;
-		ObjectTypeStat* object_stat = (type == SetType) ? &m_meta.object_stat.set_stat : &m_meta.object_stat.delete_stat;
+        switch (type)
+        {
+        case SetType:
+            object_stat = &m_meta.object_stat.set_stat;
+            break;
+        case DeleteType:
+            object_stat = &m_meta.object_stat.delete_stat;
+            break;
+        default:
+            assert(type == AppendType);
+            object_stat = &m_meta.object_stat.append_stat;
+            break;
+        }
 
 		object_stat->count = DecodeV64(data, data_end);
 		object_stat->key_size = DecodeV64(data, data_end);
@@ -178,8 +191,9 @@ Status IndexReader::ParseL2Index(const byte_t* data, uint32_t L2index_size)
 	}
 
 	StrView key = DecodeString(data, data_end);
-	m_upmost_key = CloneKey(m_buf, key);
-	
+	m_max_key = CloneKey(m_buf, key);
+    assert(m_max_key.size != 0);
+
 	//FIXME:未校验crc
 	/*uint32_t crc = */Decode32(data);
 	
@@ -288,21 +302,22 @@ static bool UpperCmp(const StrView& key, const SegmentL1Index& index)
 {
 	return key < index.start_key;
 }
-size_t IndexReader::Find(const StrView& key) const
+
+ssize_t IndexReader::Find(const StrView& key) const
 {
-	if(key.Compare(m_L1indexs[0].start_key) < 0 || key.Compare(m_upmost_key) > 0)
+	if(key.Compare(m_L1indexs[0].start_key) < 0 || key.Compare(m_max_key) > 0)
 	{
-		return (size_t)-1;
+		return -1;
 	}
-	size_t pos = std::upper_bound(m_L1indexs.begin(), m_L1indexs.end(), key, UpperCmp) - m_L1indexs.begin();
-	assert(pos > 0 && pos <= m_L1indexs.size());
+	ssize_t pos = std::upper_bound(m_L1indexs.begin(), m_L1indexs.end(), key, UpperCmp) - m_L1indexs.begin();
+	assert(pos > 0 && pos <= (ssize_t)m_L1indexs.size());
     return pos - 1;
 }
 
 const SegmentL1Index* IndexReader::Search(const StrView& key) const
 {
-	size_t idx = Find(key);
-    if(idx == (size_t)-1)
+	ssize_t idx = Find(key);
+    if(idx < 0)
     {
         return nullptr;
     }
@@ -352,6 +367,8 @@ IndexWriter::IndexWriter(const BucketConfig& bucket_conf, BlockPool& pool)
 	m_block_start = pool.Alloc();
 	m_block_end = m_block_start + m_large_pool.BlockSize();
 	m_block_ptr = m_block_start;
+
+    //m_prev_key.Reserve(1024);
 }
 
 IndexWriter::~IndexWriter()
@@ -618,7 +635,7 @@ Status IndexWriter::Write(const SegmentL0Index& L0_index, std::deque<uint32_t>& 
 	return OK;
 }
 
-Status IndexWriter::WriteL2Index(const StrView& upmost_key, uint32_t& L2index_size)
+Status IndexWriter::WriteL2Index(const StrView& max_key, uint32_t& L2index_size)
 {
 	L2index_size = 0;
 
@@ -656,7 +673,8 @@ Status IndexWriter::WriteL2Index(const StrView& upmost_key, uint32_t& L2index_si
 	}
 	m_L1indexs.clear();
 	
-	m_block_ptr = EncodeString(m_block_ptr, upmost_key.data, upmost_key.size);
+    assert(max_key.size != 0);
+	m_block_ptr = EncodeString(m_block_ptr, max_key.data, max_key.size);
 	m_block_ptr = Encode32(m_block_ptr, 0);//FIXME:crc填0
 
 	uint32_t size = m_block_ptr - m_block_start;
@@ -686,9 +704,10 @@ void IndexWriter::WriteMeta(const SegmentMeta& meta)
 		m_block_ptr = EncodeV64(m_block_ptr, id);
 	}
 	
-	m_block_ptr = EncodeV32(m_block_ptr, 2);//set+delete
+	m_block_ptr = EncodeV32(m_block_ptr, MaxObjectType);
 	WriteObjectStat(SetType, meta.object_stat.set_stat);
 	WriteObjectStat(DeleteType, meta.object_stat.delete_stat);
+	WriteObjectStat(AppendType, meta.object_stat.append_stat);
 
 	if(m_bucket_conf.bloom_filter_bitnum != 0)
 	{
@@ -720,12 +739,12 @@ Status IndexWriter::WriteMeta(uint32_t L2index_size, const SegmentMeta& meta)
 	return OK;
 }
 
-Status IndexWriter::WriteL2IndexMeta(const StrView& upmost_key, const SegmentMeta& meta)
+Status IndexWriter::WriteL2IndexMeta(const StrView& max_key, const SegmentMeta& meta)
 {
 	m_L2offset_start = m_offset;
 
 	uint32_t L2index_size;
-	Status s = WriteL2Index(upmost_key, L2index_size);
+	Status s = WriteL2Index(max_key, L2index_size);
 	if(s != OK)
 	{
 		return s;
@@ -734,7 +753,7 @@ Status IndexWriter::WriteL2IndexMeta(const StrView& upmost_key, const SegmentMet
 	return WriteMeta(L2index_size, meta);
 }
 
-Status IndexWriter::Finish(std::deque<uint32_t>& key_hashs, const StrView& upmost_key, const SegmentMeta& meta)
+Status IndexWriter::Finish(std::deque<uint32_t>& key_hashs, const StrView& max_key, const SegmentMeta& meta)
 {
 	if(!m_L0indexs.empty())
 	{
@@ -744,7 +763,7 @@ Status IndexWriter::Finish(std::deque<uint32_t>& key_hashs, const StrView& upmos
 			return s;
 		}
 	}
-	Status s = WriteL2IndexMeta(upmost_key, meta);
+	Status s = WriteL2IndexMeta(max_key, meta);
 	if(s != OK)
 	{
 		return s;

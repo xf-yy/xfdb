@@ -25,41 +25,28 @@ namespace xfdb
 Status ObjectBatch::Set(const std::string& bucket_name, const xfutil::StrView& key, const xfutil::StrView& value)
 {
     WriteOnlyWriterPtr writer;
+    GetWriter(bucket_name, writer);
 
-    auto it = m_data.find(bucket_name);
-    if(it == m_data.end())
-    {
-        EnginePtr engine = Engine::GetEngine();
-        //4KB内存块
-        writer = NewWriteOnlyWriter(engine->GetSmallPool(), 1024);
-    }
-    else
-    {
-        writer = it->second;
-    }
     Object obj = {SetType, key, value};
-
     return writer->Write(0, &obj);
 }
-//Append
+
+Status ObjectBatch::Append(const std::string& bucket_name, const xfutil::StrView& key, const xfutil::StrView& value)
+{
+    WriteOnlyWriterPtr writer;
+    GetWriter(bucket_name, writer);
+
+    Object obj = {AppendType, key, value};
+    return writer->Write(0, &obj);
+}
 
 //删除指定bucket中的记录
 Status ObjectBatch::Delete(const std::string& bucket_name, const xfutil::StrView& key)
 {
     WriteOnlyWriterPtr writer;
+    GetWriter(bucket_name, writer);
 
-    auto it = m_data.find(bucket_name);
-    if(it == m_data.end())
-    {
-        EnginePtr engine = Engine::GetEngine();
-        writer = NewWriteOnlyWriter(engine->GetSmallPool(), 1024);
-    }
-    else
-    {
-        writer = it->second;
-    }
     Object obj = {DeleteType, key};
-
     return writer->Write(0, &obj);    
 }
 
@@ -69,6 +56,20 @@ void ObjectBatch::Clear()
     m_data.clear();
 }
 
+Status ObjectBatch::GetWriter(const std::string& bucket_name, WriteOnlyWriterPtr& writer)
+{
+    auto it = m_data.find(bucket_name);
+    if(it == m_data.end())
+    {
+        EnginePtr engine = Engine::GetEngine();
+        writer = NewWriteOnlyWriter(engine->GetSmallPool(), 1024);
+    }
+    else
+    {
+        writer = it->second;
+    }
+    return OK;
+}
 
 }  
 

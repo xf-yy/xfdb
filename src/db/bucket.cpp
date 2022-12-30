@@ -16,7 +16,7 @@ limitations under the License.
 
 #include "bucket.h"
 #include "bucket_metafile.h"
-#include "object_reader_list.h"
+#include "object_reader_snapshot.h"
 #include "path.h"
 #include "logger.h"
 #include "engine.h"
@@ -66,7 +66,7 @@ Status Bucket::Open(const char* bucket_meta_filename)
 	}	
 	
 	m_segment_rwlock.ReadLock();
-	ObjectReaderListPtr reader_snapshot = m_reader_snapshot;
+	ObjectReaderSnapshotPtr reader_snapshot = m_reader_snapshot;
 	m_segment_rwlock.ReadUnlock();
 
 	std::map<fileid_t, ObjectReaderPtr> new_readers;
@@ -79,15 +79,16 @@ Status Bucket::Open(const char* bucket_meta_filename)
 	    OpenSegment(bmd, new_readers);
     }
 	
-	ObjectReaderListPtr new_ss_ptr = NewObjectReaderList(bucket_meta_file, new_readers);
+	ObjectReaderSnapshotPtr new_ss_ptr = NewObjectReaderSnapshot(bucket_meta_file, new_readers);
 	
 	m_segment_rwlock.WriteLock();
+
 	m_next_bucket_meta_fileid = fileid+1;
 	m_next_segment_id = bmd.next_segment_id;
 	m_next_object_id = bmd.next_object_id;
 	m_max_level_num = bmd.max_level_num;
-
 	m_reader_snapshot.swap(new_ss_ptr);
+
 	m_segment_rwlock.WriteUnlock();
 
 	return OK;
@@ -108,7 +109,7 @@ void Bucket::OpenSegment(const BucketMetaData& bmd, std::map<fileid_t, ObjectRea
 	}
 }
 
-void Bucket::OpenSegment(const BucketMetaData& bmd, const ObjectReaderList* last_snapshot, std::map<fileid_t, ObjectReaderPtr>& readers)
+void Bucket::OpenSegment(const BucketMetaData& bmd, const ObjectReaderSnapshot* last_snapshot, std::map<fileid_t, ObjectReaderPtr>& readers)
 {
     assert(last_snapshot != nullptr);
 	const std::map<fileid_t, ObjectReaderPtr>& last_readers = last_snapshot->Readers();

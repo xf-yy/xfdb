@@ -38,7 +38,20 @@ StrView ObjectWriter::CloneString(const StrView& str)
 
 Object* ObjectWriter::CloneObject(objectid_t seqid, const Object* object)
 {	
-	ObjectTypeStat* stat = (object->type == SetType) ? &m_object_stat.set_stat : &m_object_stat.delete_stat;
+	ObjectTypeStat* stat;
+    switch (object->type)
+    {
+    case SetType:
+        stat = &m_object_stat.set_stat;
+        break;
+    case DeleteType:
+        stat = &m_object_stat.delete_stat;
+        break;
+    default:
+        assert(object->type == AppendType);
+        stat = &m_object_stat.append_stat;
+        break;
+    }
 	stat->Add(object->key.size, object->value.size);
 
 	StrView clone_key = CloneString(object->key);	

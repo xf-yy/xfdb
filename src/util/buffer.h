@@ -29,7 +29,7 @@ class BlockPool;
 class WriteBuffer
 {
 public:
-	WriteBuffer(BlockPool& pool);
+	explicit WriteBuffer(BlockPool& pool);
 	~WriteBuffer();
 	
 public:

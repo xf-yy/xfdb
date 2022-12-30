@@ -23,15 +23,13 @@ namespace xfdb
 IteratorList::IteratorList(const std::vector<IteratorImplPtr>& iters)
 	: m_iters(iters)
 {
-    //TODO: iters必须按逆序存放，即最新[0] -> [n]最老
+    //NOTE: iters必须按逆序存放，即最新[0] -> [n]最老
 	assert(iters.size() > 1);
-	GetUpmostKey();
-	First();
-}
+    m_minkey_idxs.reserve(iters.size());
+    m_value.reserve(4096);
 
-StrView IteratorList::UpmostKey() const 
-{
-	return m_upmost_key;
+	GetMaxKey();
+	First();
 }
 
 /**移到第1个元素处*/
@@ -41,7 +39,7 @@ void IteratorList::First()
 	{
 		m_iters[i]->First();
 	}
-	GetMinKey();
+	GetObject();
 }
 
 void IteratorList::Seek(const StrView& key)
@@ -50,29 +48,76 @@ void IteratorList::Seek(const StrView& key)
 	{
 		m_iters[i]->Seek(key);
 	}
-	GetMinKey();
+	GetObject();
 }
 
 /**向后移到一个元素*/
 void IteratorList::Next()
 {
-	m_iters[m_curr_idx]->Next();
+    for(size_t i = 0; i < m_minkey_idxs.size(); ++i)
+    {
+        m_iters[m_minkey_idxs[i]]->Next();
+    }
 
-	GetMinKey();
+	GetObject();
 }
 
 bool IteratorList::Valid() const
 {
-	return m_curr_idx != m_iters.size();
+	return !m_minkey_idxs.empty();
 }
 
-const Object& IteratorList::object() const
+void IteratorList::GetObject()
 {
-	return m_iters[m_curr_idx]->object();
+    if(!GetMinKey())
+    {
+        return;
+    }
+
+    m_obj_ptr = &m_iters[m_minkey_idxs[0]]->object();
+    if(m_minkey_idxs.size() == 1 || m_obj_ptr->type != AppendType)
+    {
+        return;
+    }
+    
+    m_obj = *m_obj_ptr;
+
+    //NOTE: 先找到最老的值，然后从最老的值开始append
+    ssize_t idx;
+    for(idx = 1; idx < (ssize_t)m_minkey_idxs.size(); ++idx)
+    {
+        const Object& obj = m_iters[m_minkey_idxs[idx]]->object();
+
+        if(obj.type == SetType)
+        {
+            m_obj.type = SetType;
+            ++idx;
+            break;
+        }
+        else if(obj.type == DeleteType)
+        {
+            m_obj.type = SetType;
+            break;
+        }
+    }
+    assert(idx <= (ssize_t)m_minkey_idxs.size());
+
+    m_value.clear();
+    for(--idx; idx >= 0; --idx)
+    {
+        const Object& obj = m_iters[m_minkey_idxs[idx]]->object();
+        m_value.append(obj.value.data, obj.value.size);
+    }
+
+    m_obj.value.Set(m_value.data(), m_value.size());
+
+	m_obj_ptr = &m_obj;
 }
 
-void IteratorList::GetMinKey()
+bool IteratorList::GetMinKey()
 {
+    m_minkey_idxs.clear();
+
 	size_t idx = m_iters.size();
 	for(size_t i = 0; i < m_iters.size(); ++i) 
 	{
@@ -80,9 +125,10 @@ void IteratorList::GetMinKey()
 		{
             continue;
         }
-        if (idx == m_iters.size()) 
+        if(idx == m_iters.size()) 
         {
             idx = i;
+            m_minkey_idxs.push_back(i);
         } 
         else 
         {
@@ -91,28 +137,31 @@ void IteratorList::GetMinKey()
             if(ret < 0)
             {
                 idx = i;
+                m_minkey_idxs.clear();
+                m_minkey_idxs.push_back(i);
             }
             else if(ret == 0)
             {
-                m_iters[i]->Next();	//剔除相同key的值
+                m_minkey_idxs.push_back(i);
             }
         }
 	}
-	m_curr_idx = idx;
+    return !m_minkey_idxs.empty();
 }
 
-void IteratorList::GetUpmostKey()
+void IteratorList::GetMaxKey()
 {
 	assert(!m_iters.empty());
-	m_upmost_key = m_iters[0]->UpmostKey();
+	m_max_key = m_iters[0]->MaxKey();
 	for(size_t i = 1; i < m_iters.size(); ++i) 
 	{
-		StrView cmp_key = m_iters[i]->UpmostKey();
-		if(m_upmost_key.Compare(cmp_key) < 0)
+		const StrView& cmp_key = m_iters[i]->MaxKey();
+		if(m_max_key.Compare(cmp_key) < 0)
 		{
-			m_upmost_key = cmp_key;
+			m_max_key = cmp_key;
 		}
 	}
+    assert(m_max_key.size != 0);
 }
 
 } 

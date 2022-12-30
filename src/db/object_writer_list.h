@@ -36,15 +36,9 @@ public:
 public:	
 	void Finish();
 	
-	Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const override;
+	Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, std::string& value) const override;
 	
 	IteratorImplPtr NewIterator(objectid_t max_objid = MAX_OBJECT_ID) override;
-
-	/**最大key*/
-	StrView UpmostKey() const override
-	{
-		return m_upmost_key;
-	}
 	
 	/**返回segment文件总大小*/
 	uint64_t Size() const override;
@@ -54,7 +48,7 @@ public:
 
 private:
 	std::vector<ObjectWriterPtr> m_memwriters;
-	StrView m_upmost_key;
+
 		
 private:
 	friend class IteratorList;

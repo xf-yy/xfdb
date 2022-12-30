@@ -37,16 +37,9 @@ public:
 	virtual void Finish() override;
 	
 	virtual IteratorImplPtr NewIterator(objectid_t max_objid = MAX_OBJECT_ID) override;
-	
-	//大于最大key的key
-	virtual StrView UpmostKey() const override;
 
 protected:
 	std::vector<Object*> m_objects;
-
-	#if _DEBUG
-	bool m_finished;
-	#endif
 
 private:
 	friend class WriteOnlyWriterIterator;
@@ -65,10 +58,7 @@ public:
 
 public:
 	/**移到第1个元素处*/
-	virtual void First() override
-	{
-		m_index = 0;
-	}
+	virtual void First() override;
 	
 	/**移到到>=key的地方*/
 	virtual void Seek(const StrView& key) override;
@@ -79,17 +69,22 @@ public:
 	/**是否还有下一个元素*/
 	virtual bool Valid() const override
 	{
-		return m_index < m_max_num;
+		return m_begin_index < m_max_num;
 	}
-	virtual const Object& object() const override;
 
-	virtual StrView UpmostKey() const override;
+private:
+    bool FindSameKey();
+    void GetObject();
 
 private:
 	WriteOnlyWriterPtr m_table;
+	const ssize_t m_max_num;
 
-	const size_t m_max_num;
-	size_t m_index;
+	ssize_t m_begin_index;
+    ssize_t m_end_index;
+
+    Object m_obj;
+    std::string m_value;
 	
 private:
 	WriteOnlyWriterIterator(const WriteOnlyWriterIterator&) = delete;

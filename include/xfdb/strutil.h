@@ -18,6 +18,7 @@ limitations under the License.
 #define __xfutil_strutil_h__
 
 #include <string.h>
+#include <string>
 #include <cassert>
 #include <cstddef>
 #include <errno.h>
@@ -116,16 +117,17 @@ class String
 public:
 	String()
 	{
-		m_buf = m_cache;
+		m_buf = nullptr;
 		m_size = 0;
-		m_capacity = CACHE_SIZE;
+		m_capacity = 0;
 	}
 
 	~String()
 	{
-		if(m_buf != m_cache)
+		if(m_buf != nullptr)
 		{
 			xfree(m_buf);
+            m_buf = nullptr;
 		}
 	}
 	
@@ -160,11 +162,12 @@ public:
 
 	bool Append(const char* data, size_t size);
 	
-	void Clear();
+	void Clear()
+    {
+        m_size = 0;
+    }
 		
 private:
-	enum{CACHE_SIZE=256};
-	char m_cache[CACHE_SIZE];
 	char* m_buf;
 	size_t m_size;
 	size_t m_capacity;
@@ -184,7 +187,8 @@ struct StrView
 public:
 	StrView()
 	{
-		Reset();
+		data = "";
+		size = 0;
 	}
 
 	explicit StrView(const char* data_)
@@ -192,16 +196,19 @@ public:
         Set(data_, strlen(data_));
 	}
 
-	StrView(const char* data_, size_t size_)
+	explicit StrView(const char* data_, size_t size_)
 	{
         Set(data_, size_);
 	}
 	
-	StrView(const String& str)
+	explicit StrView(const String& str)
 	{
         Set(str.Data(), str.Size());
 	}
-
+	explicit StrView(const std::string& str)
+	{
+        Set(str.data(), str.size());
+	}
 public:
 	inline const char* Data() const 
 	{
@@ -224,7 +231,7 @@ public:
 		return data[idx];
 	}
 
-	inline void Reset() 
+	inline void Clear() 
 	{
 		data = "";
 		size = 0;
@@ -234,15 +241,15 @@ public:
 		data = data_;
 		size = size_;
 	}
-	inline void Set(const String& str)
-	{
-		data = str.Data();
-		size = str.Size();
-	}
 	inline void Set(const char* data_)
 	{
 		data = data_;
 		size = strlen(data_);
+	}
+	inline void Set(const String& str)
+	{
+		data = str.Data();
+		size = str.Size();
 	}
 	inline void Skip(size_t n) 
 	{

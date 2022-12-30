@@ -30,7 +30,7 @@ namespace xfdb
 class BucketList
 {
 public:
-	BucketList(std::map<std::string, BucketPtr>& buckets);
+	explicit BucketList(std::map<std::string, BucketPtr>& buckets);
 	~BucketList(){}
 
 public:

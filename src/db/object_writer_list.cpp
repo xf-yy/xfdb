@@ -43,15 +43,16 @@ void ObjectWriterList::Finish()
 	}
 
 	//找最大的key
-	m_upmost_key = m_memwriters[0]->UpmostKey();
+	m_max_key = m_memwriters[0]->MaxKey();
 	for(size_t i = 1; i < m_memwriters.size(); ++i)
 	{
-		StrView cmp_key = m_memwriters[i]->UpmostKey();
-		if(m_upmost_key.Compare(cmp_key) < 0)
+		StrView cmp_key = m_memwriters[i]->MaxKey();
+		if(m_max_key.Compare(cmp_key) < 0)
 		{
-			m_upmost_key = cmp_key;
+			m_max_key = cmp_key;
 		}
 	}
+    assert(m_max_key.size != 0);
 }
 
 IteratorImplPtr ObjectWriterList::NewIterator(objectid_t max_objid)
@@ -73,7 +74,7 @@ IteratorImplPtr ObjectWriterList::NewIterator(objectid_t max_objid)
 	return NewIteratorList(iters);
 }
 
-Status ObjectWriterList::Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const
+Status ObjectWriterList::Get(const StrView& key, objectid_t obj_id, ObjectType& type, std::string& value) const
 {
 	for(ssize_t idx = (ssize_t)m_memwriters.size() - 1; idx >= 0; --idx)
 	{

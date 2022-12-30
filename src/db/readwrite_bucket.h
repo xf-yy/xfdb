@@ -20,7 +20,7 @@ limitations under the License.
 #include "db_types.h"
 #include "readwrite_writer.h"
 #include "object_writer_list.h"
-#include "object_reader_list.h"
+#include "object_reader_snapshot.h"
 #include "bucket.h"
 #include <deque>
 #include <mutex>
@@ -38,7 +38,7 @@ public:
 	virtual ~ReadWriteBucket();
 	
 public:	
-	virtual Status Get(const StrView& key, String& value) override;	
+	virtual Status Get(const StrView& key, std::string& value) override;	
 	virtual Status NewIterator(IteratorImplPtr& iter) override;
     
 protected:

@@ -157,12 +157,12 @@ int main(int argc, char* argv[])
 			}
 			else
 			{
-				String value;
+				std::string value;
 				const StrView key_view(strs[2].data(), strs[2].size());
 				s = db->Get(strs[1], key_view, value);
 				if(s == OK)
 				{
-					printf("get succeed: %s\n", std::string(value.Data(), value.Size()).c_str());
+					printf("get succeed: %s\n", value.c_str());
 				}
 				else
 				{
@@ -222,6 +222,9 @@ int main(int argc, char* argv[])
 					printf("    set object num: %lu\n", stat.object_stat.set_stat.count);
 					printf("    set object key size: %lu\n", stat.object_stat.set_stat.key_size);
 					printf("    set object value size: %lu\n", stat.object_stat.set_stat.value_size);
+					printf("    append object num: %lu\n", stat.object_stat.append_stat.count);
+					printf("    append object key size: %lu\n", stat.object_stat.append_stat.key_size);
+					printf("    append object value size: %lu\n", stat.object_stat.append_stat.value_size);
 					printf("    delete object num: %lu\n", stat.object_stat.delete_stat.count);
 					printf("    delete object key size: %lu\n", stat.object_stat.delete_stat.key_size);
 				}

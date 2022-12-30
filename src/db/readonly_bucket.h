@@ -34,7 +34,7 @@ public:
 public:	
 	virtual Status Open() override;
 
-	virtual Status Get(const StrView& key, String& value) override;
+	virtual Status Get(const StrView& key, std::string& value) override;
 
 	virtual Status NewIterator(IteratorImplPtr& iter) override;
 

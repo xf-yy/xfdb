@@ -38,7 +38,7 @@ public:
 	virtual Status Write(objectid_t next_seqid, const WriteOnlyWriterPtr& memtable) = 0;
 	virtual void Finish(){}
 	
-	virtual Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const
+	virtual Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, std::string& value) const override
 	{
 		return ERR_INVALID_MODE;
 	}

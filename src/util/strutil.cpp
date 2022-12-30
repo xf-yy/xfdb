@@ -30,9 +30,9 @@ bool String::Reserve(size_t size)
 	{
 		return false;
 	}
-	memcpy(ptr, m_buf, m_size);
-	if(m_buf != m_cache)
+	if(m_buf != nullptr)
 	{
+        memcpy(ptr, m_buf, m_size);
 		xfree(m_buf);
 	}
 	m_buf = (char*)ptr;
@@ -42,12 +42,12 @@ bool String::Reserve(size_t size)
 
 bool String::Resize(size_t size)
 {
-	if(!Reserve(size))
+	if(Reserve(size))
 	{
-		return false;
+        m_size = size;
+        return true;
 	}
-	m_size = size;
-	return true;
+    return false;
 }	
 
 bool String::Append(const char* data, size_t size)
@@ -66,16 +66,6 @@ bool String::Append(const char* data, size_t size)
 	return true;
 }
 
-void String::Clear()
-{
-	if(m_buf != m_cache)
-	{
-		xfree(m_buf);
-		m_buf = m_cache;
-		m_capacity = CACHE_SIZE;
-	}
-	m_size = 0;
-}
 
 int StrView::Compare(const StrView& dst) const
 {

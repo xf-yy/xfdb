@@ -50,7 +50,7 @@ Status DataReader::Open(const char* bucket_path, fileid_t fileid)
 }
 
 
-Status DataReader::Search(const SegmentL0Index& L0_index, const StrView& key, ObjectType& type, String& value) const
+Status DataReader::Search(const SegmentL0Index& L0_index, const StrView& key, ObjectType& type, std::string& value) const
 {
 	DataBlockReader block(m_file, m_path);
 	Status s = block.Read(L0_index);
@@ -72,6 +72,8 @@ DataWriter::DataWriter(const BucketConfig& bucket_conf, BlockPool& pool, IndexWr
 	m_block_start = m_large_pool.Alloc();
 	m_block_end = m_block_start + m_large_pool.BlockSize();
 	m_block_ptr = m_block_start;
+
+    m_prev_key.Reserve(1024);
 }
 
 DataWriter::~DataWriter()

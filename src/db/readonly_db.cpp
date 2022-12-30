@@ -17,7 +17,7 @@ limitations under the License.
 #include <atomic>
 #include "readonly_db.h"
 #include "readonly_bucket.h"
-#include "object_reader_list.h"
+#include "object_reader_snapshot.h"
 #include "bucket.h"
 #include "segment_file.h"
 #include "db_infofile.h"
@@ -69,7 +69,7 @@ Status ReadOnlyDB::Open()
 	return OK;
 }
 
-Status ReadOnlyDB::Get(const std::string& bucket_name, const StrView& key, String& value) const
+Status ReadOnlyDB::Get(const std::string& bucket_name, const StrView& key, std::string& value) const
 {	
 	BucketPtr bptr;
 	if(!GetBucket(bucket_name, bptr))

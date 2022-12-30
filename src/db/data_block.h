@@ -41,13 +41,13 @@ public:
 	
 public:	
 	Status Read(const SegmentL0Index& L0_index);
-	Status Search(const StrView& key, ObjectType& type, String& value);
+	Status Search(const StrView& key, ObjectType& type, std::string& value);
 	DataBlockReaderIteratorPtr NewIterator();
 
 private:
-	Status SearchGroup(const byte_t* group, uint32_t group_size, const L0GroupIndex& group_index, const StrView& key, ObjectType& type, String& value) const;
-	Status SearchL2Group(const byte_t* group_start, uint32_t group_size, const LnGroupIndex& lngroup_index, const StrView& key, ObjectType& type, String& value) const;
-	Status SearchBlock(const byte_t* block, uint32_t block_size, const SegmentL0Index& L0_index, const StrView& key, ObjectType& type, String& value) const;
+	Status SearchGroup(const byte_t* group, uint32_t group_size, const L0GroupIndex& group_index, const StrView& key, ObjectType& type, std::string& value) const;
+	Status SearchL2Group(const byte_t* group_start, uint32_t group_size, const LnGroupIndex& lngroup_index, const StrView& key, ObjectType& type, std::string& value) const;
+	Status SearchBlock(const byte_t* block, uint32_t block_size, const SegmentL0Index& L0_index, const StrView& key, ObjectType& type, std::string& value) const;
 
 	Status ParseGroup(const byte_t* group, uint32_t group_size, const L0GroupIndex& group_index, DataBlockReaderIteratorPtr& iter_ptr) const;
 	Status ParseL2Group(const byte_t* group_start, uint32_t group_size, const LnGroupIndex& lngroup_index, DataBlockReaderIteratorPtr& iter_ptr) const;

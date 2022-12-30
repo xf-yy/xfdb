@@ -50,7 +50,7 @@ namespace xfutil
 class SpinLockGuard
 {
 public:
-	SpinLockGuard(spinlock_t& lock) : m_lock(lock)
+	explicit SpinLockGuard(spinlock_t& lock) : m_lock(lock)
 	{
 		spinlock_lock(&m_lock);
 	}

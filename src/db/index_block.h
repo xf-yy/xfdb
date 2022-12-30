@@ -37,7 +37,7 @@ class IndexReader;
 class IndexBlockReader
 {
 public:
-	IndexBlockReader(const IndexReader& index_reader);
+	explicit IndexBlockReader(const IndexReader& index_reader);
 	~IndexBlockReader();
 
 public:	

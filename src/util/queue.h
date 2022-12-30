@@ -28,7 +28,7 @@ template <typename T>
 class BlockingQueue
 {
 public:
-	BlockingQueue(uint64_t capacity = (uint64_t)-1)
+	explicit BlockingQueue(uint64_t capacity = (uint64_t)-1)
 		: m_capacity(capacity)
 	{}
 	~BlockingQueue()

@@ -69,7 +69,7 @@ Status DataBlockReader::Read(const SegmentL0Index& L0_index)
 	return OK;
 }
 
-Status DataBlockReader::SearchGroup(const byte_t* group, uint32_t group_size, const L0GroupIndex& group_index, const StrView& key, ObjectType& type, String& value) const
+Status DataBlockReader::SearchGroup(const byte_t* group, uint32_t group_size, const L0GroupIndex& group_index, const StrView& key, ObjectType& type, std::string& value) const
 {
 	assert(group_size != 0);
 	const byte_t* group_end = group + group_size;
@@ -91,7 +91,7 @@ Status DataBlockReader::SearchGroup(const byte_t* group, uint32_t group_size, co
 		if(ret == 0)
 		{
 			type = (ObjectType)(curr_type & 0x0F);
-			value.Assign(curr_value.data, curr_value.size);
+			value.assign(curr_value.data, curr_value.size);
 			return OK;
 		}
 		else if(ret < 0)
@@ -103,7 +103,7 @@ Status DataBlockReader::SearchGroup(const byte_t* group, uint32_t group_size, co
 	return ERR_OBJECT_NOT_EXIST;
 }
 
-Status DataBlockReader::SearchL2Group(const byte_t* group_start, uint32_t group_size, const LnGroupIndex& lngroup_index, const StrView& key, ObjectType& type, String& value) const
+Status DataBlockReader::SearchL2Group(const byte_t* group_start, uint32_t group_size, const LnGroupIndex& lngroup_index, const StrView& key, ObjectType& type, std::string& value) const
 {
 	assert(group_size != 0);
 	const byte_t* group_end = group_start + group_size;
@@ -141,7 +141,7 @@ Status DataBlockReader::SearchL2Group(const byte_t* group_start, uint32_t group_
 	return SearchGroup(group_ptr-group_index.group_size, group_index.group_size, group_index, key, type, value);;
 }
 
-Status DataBlockReader::SearchBlock(const byte_t* block, uint32_t block_size, const SegmentL0Index& L0_index, const StrView& key, ObjectType& type, String& value) const
+Status DataBlockReader::SearchBlock(const byte_t* block, uint32_t block_size, const SegmentL0Index& L0_index, const StrView& key, ObjectType& type, std::string& value) const
 {
 	assert(block_size != 0);
 	const byte_t* block_end = block + block_size;
@@ -181,7 +181,7 @@ Status DataBlockReader::SearchBlock(const byte_t* block, uint32_t block_size, co
 	return SearchL2Group(group_ptr-lngroup_index.group_size, lngroup_index.group_size, lngroup_index, key, type, value);;
 }
 
-Status DataBlockReader::Search(const StrView& key, ObjectType& type, String& value)
+Status DataBlockReader::Search(const StrView& key, ObjectType& type, std::string& value)
 {
 	return SearchBlock((byte_t*)m_data.data(), m_L0Index.L0compress_size, m_L0Index, key, type, value);
 }

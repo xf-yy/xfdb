@@ -18,7 +18,7 @@ limitations under the License.
 #include "segment_file.h"
 #include "object_writer_list.h"
 #include "object_writer.h"
-#include "object_reader_list.h"
+#include "object_reader_snapshot.h"
 #include "engine.h"
 
 namespace xfdb 
@@ -40,10 +40,16 @@ Status SegmentReader::Open(const char* bucket_path, const SegmentIndexInfo& info
 	{
 		return s;
 	}
-	return m_data_reader.Open(bucket_path, info.segment_fileid);
+	s = m_data_reader.Open(bucket_path, info.segment_fileid);
+    if(s != OK)
+    {
+        return s;
+    }
+    m_max_key = m_index_reader.MaxKey();
+    return s;
 }
 
-Status SegmentReader::Get(const StrView& key, objectid_t obj_id, ObjectType& type, String& value) const
+Status SegmentReader::Get(const StrView& key, objectid_t obj_id, ObjectType& type, std::string& value) const
 {
 	SegmentL0Index L0index;
 	Status s = m_index_reader.Search(key, L0index);
@@ -62,12 +68,6 @@ IteratorImplPtr SegmentReader::NewIterator(objectid_t max_objid)
 	return NewSegmentReaderIterator(ptr);
 }
 
-//最大key
-StrView SegmentReader::UpmostKey() const
-{
-	return m_index_reader.UpmostKey();
-}
-
 uint64_t SegmentReader::Size() const
 {
 	return m_index_info.index_filesize + m_index_info.data_filesize;
@@ -79,18 +79,16 @@ void SegmentReader::GetStat(BucketStat& stat) const
 	stat.object_stat.Add(m_index_reader.GetMeta().object_stat);
 }
 
+// /////////////////////////////////////////////////////////////////////////////////////////////
 SegmentReaderIterator::SegmentReaderIterator(SegmentReaderPtr& segment_reader) 
  	: m_segment_reader(segment_reader), 
+      m_L1index_count(segment_reader->m_index_reader.m_L1indexs.size()),
 	  m_index_block_reader(segment_reader->m_index_reader),
 	  m_data_block_reader(segment_reader->m_data_reader.m_file, segment_reader->m_data_reader.m_path)
 {
-	m_L1index_count = segment_reader->m_index_reader.m_L1indexs.size();
+    m_max_key = m_segment_reader->MaxKey();
+    assert(m_max_key.size != 0);    
 	First();
-}
-
-StrView SegmentReaderIterator::UpmostKey() const
-{
-	return m_segment_reader->UpmostKey();
 }
 
 Status SegmentReaderIterator::SeekL1Index(size_t idx, const StrView* key)
@@ -118,6 +116,16 @@ Status SegmentReaderIterator::SeekL1Index(size_t idx, const StrView* key)
     if(key != nullptr)
     {
         m_data_block_iter->Seek(*key);
+
+        //继续找第一个满足>=key
+        while(Valid_() && m_data_block_iter->object().key < *key)
+        {
+            s = Next_();
+            if(s != OK)
+            {
+                return s;
+            }
+        }
     }
 
 	return OK;
@@ -127,27 +135,26 @@ Status SegmentReaderIterator::SeekL1Index(size_t idx, const StrView* key)
 void SegmentReaderIterator::First()
 {
     SeekL1Index(0);
+    if(Valid_())
+    {
+        m_obj_ptr = &m_data_block_iter->object();
+    }
 }
 
 
 /**移到到>=key的地方*/
 void SegmentReaderIterator::Seek(const StrView& key)
 {
-    size_t idx = m_segment_reader->m_index_reader.Find(key);
-    if(idx == (size_t)-1)
+    m_data_block_iter.reset();
+    ssize_t idx = m_segment_reader->m_index_reader.Find(key);
+    if(idx < 0)
     {
-        m_data_block_iter.reset();
         return;
     }
-
-    Status s = SeekL1Index(idx, &key);
-    if(s == OK)
+    SeekL1Index(idx, &key);
+    if(Valid_())
     {
-        //继续找第一个满足>=key
-        while(Valid() && object().key < key)
-        {
-            Next();
-        }
+        m_obj_ptr = &m_data_block_iter->object();
     }
 }
 
@@ -155,43 +162,64 @@ void SegmentReaderIterator::Seek(const StrView& key)
 /**向后移到一个元素*/
 void SegmentReaderIterator::Next()
 {
-	m_data_block_iter->Next();
+    if(Next_() != OK)
+    {
+        m_data_block_iter.reset();
+        return;
+    }
+    if(Valid_())
+    {
+        m_obj_ptr = &m_data_block_iter->object();
+    }
+}
 
+Status SegmentReaderIterator::Next_()
+{
+	m_data_block_iter->Next();
 	if(m_data_block_iter->Valid())
 	{
-		return;
+		return OK;
 	}
+
 	//读取下一个data block
 	m_index_block_iter->Next();
 	if(m_index_block_iter->Valid())
 	{
-		m_data_block_reader.Read(m_index_block_iter->L0Index());
+		Status s = m_data_block_reader.Read(m_index_block_iter->L0Index());
+        if(s != OK)
+        {
+            return s;
+        }
 		m_data_block_iter = m_data_block_reader.NewIterator();
-		return;
+		return OK;
 	}
-	++m_L1index_idx;
-	if(m_L1index_idx < m_L1index_count)
+
+	if(++m_L1index_idx < m_L1index_count)
 	{
-		m_index_block_reader.Read(m_segment_reader->m_index_reader.m_L1indexs[m_L1index_idx]);
+		Status s = m_index_block_reader.Read(m_segment_reader->m_index_reader.m_L1indexs[m_L1index_idx]);
+        if(s != OK)
+        {
+            return s;
+        }
 		m_index_block_iter = m_index_block_reader.NewIterator();
 
-		m_data_block_reader.Read(m_index_block_iter->L0Index());
+		s = m_data_block_reader.Read(m_index_block_iter->L0Index());
+        if(s != OK)
+        {
+            return s;
+        }
 		m_data_block_iter = m_data_block_reader.NewIterator();
 	}
+    return OK;
 }
 
 /**是否还有下一个元素*/
 bool SegmentReaderIterator::Valid() const
 {
-	return (m_data_block_iter && m_data_block_iter->Valid());
+	return Valid_();
 }
 
-const Object& SegmentReaderIterator::object() const
-{
-    return m_data_block_iter->object();
-}
-
-
+/////////////////////////////////////////////////////////////////////////////////////////////////////
 SegmentWriter::SegmentWriter(const BucketConfig& bucket_conf, BlockPool& pool)
 	: m_index_writer(bucket_conf, pool), m_data_writer(bucket_conf, pool, m_index_writer)
 {
@@ -227,7 +255,7 @@ Status SegmentWriter::Write(IteratorImplPtr& iter, const BucketStat& stat, Segme
 	SegmentMeta meta;
 	meta.object_stat = stat.object_stat;
 
-	s = m_index_writer.Finish(m_data_writer.m_key_hashs, iter->UpmostKey(), meta);
+	s = m_index_writer.Finish(m_data_writer.m_key_hashs, iter->MaxKey(), meta);
 	if(s != OK)
 	{
 		return s;
@@ -255,7 +283,7 @@ Status SegmentWriter::Write(const MergingSegmentInfo& msinfo, SegmentIndexInfo& 
 	msinfo.GetMergingReaders(segment_readers);
 
     BucketMetaFilePtr meta_file;
-	ObjectReaderList tmp_reader_snapshot(meta_file, segment_readers);
+	ObjectReaderSnapshot tmp_reader_snapshot(meta_file, segment_readers);
 	IteratorImplPtr iter = tmp_reader_snapshot.NewIterator();
 
 	BucketStat stat = {0};
