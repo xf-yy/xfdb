@@ -142,7 +142,7 @@ void ReadOnlyEngine::ProcessNotifyData(const NotifyData& nd)
 	case NOTIFY_UPDATE_DB_META:
 		if(nd.file_id != MIN_FILE_ID)
 		{
-			MakeDBInfoFileName(nd.file_id, file_name);
+			MakeDBMetaFileName(nd.file_id, file_name);
 			Status s = db->OpenBucket(file_name);
             if(s != OK)
             {

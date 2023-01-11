@@ -46,7 +46,7 @@ public:
 private:
 	static Status Parse(const byte_t* data, uint32_t size, NotifyData& nd);
 	static Status Serialize(const NotifyData& nd, String& str);
-	static constexpr uint32_t EstimateSize(const NotifyData& bd);
+	static constexpr uint32_t EstimateSize(const NotifyData& dm);
 
 private:
 	static std::atomic<uint32_t> ms_id;

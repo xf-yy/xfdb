@@ -20,7 +20,7 @@ limitations under the License.
 #include "object_reader_snapshot.h"
 #include "bucket.h"
 #include "segment_file.h"
-#include "db_infofile.h"
+#include "db_metafile.h"
 #include "bucket_metafile.h"
 #include "lock_file.h"
 #include "file.h"

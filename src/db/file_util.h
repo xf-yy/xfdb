@@ -28,21 +28,21 @@ namespace xfutil
 namespace xfdb 
 {
 
-#define DB_INFO_FILE_VERSION		1
+#define DB_META_FILE_VERSION		1
 #define BUCKET_META_FILE_VERSION	1
 #define INDEX_FILE_VERSION			1
 #define DATA_FILE_VERSION			1
 #define NOTIFY_FILE_VERSION			1
 
-#define DB_INFO_FILE_MAGIC			"INFO"
-#define BUCKET_META_FILE_MAGIC 		"META"
-#define INDEX_FILE_MAGIC			"IDXF"
+#define DB_META_FILE_MAGIC			"DMTA"
+#define BUCKET_META_FILE_MAGIC 		"BMTA"
+#define INDEX_FILE_MAGIC			"INDX"
 #define DATA_FILE_MAGIC				"DATA"
-#define NOTIFY_FILE_MAGIC			"MSGF"
+#define NOTIFY_FILE_MAGIC			"MSG "
 
-#define DB_INFO_FILE_EXT			".info"
-#define BUCKET_META_FILE_EXT 		".meta"
-#define INDEX_FILE_EXT				".idx"
+#define DB_META_FILE_EXT			".dmeta"
+#define BUCKET_META_FILE_EXT 		".bmeta"
+#define INDEX_FILE_EXT				".index"
 #define DATA_FILE_EXT				".data"
 #define NOTIFY_FILE_EXT				".msg"
 
@@ -78,11 +78,11 @@ static inline void MakeBucketPath(const char* db_path, const char* bucket_name, 
 	snprintf(path, MAX_PATH_LEN, "%s/%s.%u", db_path, bucket_name, bucket_id);
 }
 
-static inline void MakeDBInfoFileName(fileid_t seqid, char name[MAX_FILENAME_LEN])
+static inline void MakeDBMetaFileName(fileid_t seqid, char name[MAX_FILENAME_LEN])
 {
-	snprintf(name, MAX_FILENAME_LEN, "%lu" DB_INFO_FILE_EXT, seqid);
+	snprintf(name, MAX_FILENAME_LEN, "%lu" DB_META_FILE_EXT, seqid);
 }
-static inline void MakeDBInfoFilePath(const char* db_path, const char* filename, char path[MAX_PATH_LEN])
+static inline void MakeDBMetaFilePath(const char* db_path, const char* filename, char path[MAX_PATH_LEN])
 {
 	snprintf(path, MAX_PATH_LEN, "%s/%s", db_path, filename);
 }
@@ -125,9 +125,9 @@ static inline void MakeNotifyFilePath(const char* notify_path, tid_t pid, fileid
 }
 
 Status ListFile(const char* path, const char* pattern, std::vector<FileName>& names, bool sort = false);	
-static inline Status ListDBInfoFile(const char* path, std::vector<FileName>& names)
+static inline Status ListDBMetaFile(const char* path, std::vector<FileName>& names)
 {
-	return ListFile(path, "*" DB_INFO_FILE_EXT, names, true);
+	return ListFile(path, "*" DB_META_FILE_EXT, names, true);
 }
 static inline Status ListBucketMetaFile(const char* path, std::vector<FileName>& names)
 {
@@ -142,13 +142,13 @@ static inline Status ListNotifyFile(const char* path, std::vector<FileName>& nam
 byte_t* WriteHeader(byte_t* data, const char magic[FILE_MAGIC_SIZE], uint16_t version);
 bool ParseHeader(const byte_t* &data, size_t size, const char expect_magic[FILE_MAGIC_SIZE], uint16_t max_version, FileHeader& header);
 
-static inline byte_t* WriteDBInfoFileHeader(byte_t* buf)
+static inline byte_t* WriteDBMetaFileHeader(byte_t* buf)
 {
-	return WriteHeader(buf, DB_INFO_FILE_MAGIC, DB_INFO_FILE_VERSION);
+	return WriteHeader(buf, DB_META_FILE_MAGIC, DB_META_FILE_VERSION);
 }
-static inline bool ParseDBInfoFileHeader(const byte_t* &data, size_t size, FileHeader& header)
+static inline bool ParseDBMetaFileHeader(const byte_t* &data, size_t size, FileHeader& header)
 {
-	return ParseHeader(data, size, DB_INFO_FILE_MAGIC, DB_INFO_FILE_VERSION, header);
+	return ParseHeader(data, size, DB_META_FILE_MAGIC, DB_META_FILE_VERSION, header);
 }
 
 static inline byte_t* WriteBucketMetaFileHeader(byte_t* buf)

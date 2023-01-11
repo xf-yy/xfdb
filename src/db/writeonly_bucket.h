@@ -20,7 +20,7 @@ limitations under the License.
 #include "db_types.h"
 #include "writable_engine.h"
 #include "writeonly_writer.h"
-#include "object_writer_list.h"
+#include "object_writer_snapshot.h"
 #include "object_reader_snapshot.h"
 #include "bucket.h"
 #include <deque>
@@ -66,7 +66,7 @@ private:
 	Status RemoveMetaFile();
 
 	Status WriteSegment();			//同步刷盘
-	Status WriteSegment(ObjectWriterListPtr& memwriter_snapshot, fileid_t fileid, SegmentReaderPtr& new_segment_reader);
+	Status WriteSegment(ObjectWriterSnapshotPtr& memwriter_snapshot, fileid_t fileid, SegmentReaderPtr& new_segment_reader);
 	Status WriteBucketMeta();		//同步刷盘
 	void FlushMemWriter();
 
@@ -76,7 +76,7 @@ private:
 	bool AddMerging(MergingSegmentInfo& msinfo);
 	
 private:
-	void WriteAliveSegmentInfos(ObjectReaderSnapshotPtr& trs_ptr, BucketMetaData& md);
+	void WriteAliveSegmentStat(ObjectReaderSnapshotPtr& trs_ptr, BucketMeta& bm);
 
 protected:
 	WritableEngine* m_engine;
@@ -84,7 +84,7 @@ protected:
 	const uint32_t m_max_memtable_objects;								//1000~100*10000
 				
 	ObjectWriterPtr m_memwriter;											//当前正在写的memwriter
-	ObjectWriterListPtr m_memwriter_snapshot;						//只读待落盘的memwriter集
+	ObjectWriterSnapshotPtr m_memwriter_snapshot;						//只读待落盘的memwriter集
 
 	//FIXME:segment文件生成了，但没有写入bucket meta，怎么淘汰？
 	//对于大于bucket meta中的segment都要淘汰？还是重新加入bucket meta？

@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_db_infofile_h__
-#define __xfdb_db_infofile_h__
+#ifndef __xfdb_db_metafile_h__
+#define __xfdb_db_metafile_h__
 
 #include <vector>
 #include "xfdb/strutil.h"
@@ -25,26 +25,26 @@ limitations under the License.
 namespace xfdb 
 {
 
-struct DBInfoData
+struct DBMeta
 {
 	std::vector<BucketInfo> alive_buckets;
 	std::vector<BucketInfo> deleted_buckets;//只有name和id值有效
 	uint32_t next_bucketid;
 };
 
-class DBInfoFile
+class DBMetaFile
 {
 public:	
 	//按升序排列
-	static Status Read(const char* db_path, const char* file_name, DBInfoData& bd);
-	static Status Write(const char* db_path, const char* file_name, DBInfoData& bd);
+	static Status Read(const char* db_path, const char* file_name, DBMeta& dm);
+	static Status Write(const char* db_path, const char* file_name, DBMeta& dm);
 	
 	static Status Remove(const char* db_path, const char* file_name);
 	
 private:
-	static Status Parse(const byte_t* data, uint32_t size, DBInfoData& bd);
-	static Status Serialize(const DBInfoData& bd, String& str);
-	static uint32_t EstimateSize(const DBInfoData& bd);
+	static Status Parse(const byte_t* data, uint32_t size, DBMeta& dm);
+	static Status Serialize(const DBMeta& dm, String& str);
+	static uint32_t EstimateSize(const DBMeta& dm);
 	static Status Check(const byte_t* data, uint32_t size);
 
 };

@@ -84,7 +84,7 @@ public:
 
     //
 	bool Open(const char* file_path, uint32_t flags);
-	inline void Close()
+	void Close()
 	{
 		if(m_fd != INVALID_FD)
 		{
@@ -95,31 +95,61 @@ public:
 	
 	inline int64_t Read(void* buf, size_t buf_size) const
 	{
-		return read(m_fd, buf, buf_size);
+		ssize_t rs = read(m_fd, buf, buf_size);
+        while(rs == -1 && LastError == EINTR)
+        {
+            rs = read(m_fd, buf, buf_size);
+        }
+        return rs;
 	}
 	inline int64_t Read(uint64_t offset, void* buf, size_t buf_size) const
 	{
-		return pread(m_fd, buf, buf_size, offset);
+		ssize_t rs = pread(m_fd, buf, buf_size, offset);
+        while(rs == -1 && LastError == EINTR)
+        {
+            rs = pread(m_fd, buf, buf_size, offset);
+        }
+        return rs;
 	}
 	inline int64_t Read(uint64_t offset, void* buf1, size_t buf1_size, void* buf2, size_t buf2_size) const
 	{
 		struct iovec iov[2] = {{(void*)buf1, buf1_size}, {(void*)buf2, buf2_size}};
 
-		return preadv(m_fd, iov, 2, offset);
+		ssize_t rs = preadv(m_fd, iov, 2, offset);
+        while(rs == -1 && LastError == EINTR)
+        {
+            rs = preadv(m_fd, iov, 2, offset);
+        }
+        return rs;
 	}
 	
 	inline int64_t Write(const void* buf, size_t buf_size)
 	{
-		return write(m_fd, buf, buf_size);
+		ssize_t ws = write(m_fd, buf, buf_size);
+        while(ws == -1 && LastError == EINTR)
+        {
+            ws = write(m_fd, buf, buf_size);
+        }
+        return ws;
 	}
 	inline int64_t Write(const void* buf1, size_t buf1_size, const void* buf2, size_t buf2_size)
 	{
 		struct iovec iov[2] = {{(void*)buf1, buf1_size}, {(void*)buf2, buf2_size}};
-		return writev(m_fd, iov, 2);
+		ssize_t ws = writev(m_fd, iov, 2);
+        while(ws == -1 && LastError == EINTR)
+        {
+            ws = writev(m_fd, iov, 2);
+        }
+        return ws;
 	}	
 	inline int64_t Write(uint64_t offset, const void* buf, size_t buf_size)
 	{
-		return pwrite(m_fd, buf, buf_size, offset);
+		ssize_t ws = pwrite(m_fd, buf, buf_size, offset);
+        while(ws == -1 && LastError == EINTR)
+        {
+            ws = pwrite(m_fd, buf, buf_size, offset);
+        }
+        return ws;
 	}
 	
 	inline bool Sync()
@@ -183,7 +213,9 @@ public:
 	{
 		return rename(src_filepath, dst_filepath) == 0;
 	}
-	
+	static bool Copy(const char *src_filepath, const char *dst_filepath, bool sync = false);
+
+
 protected:
 	fd_t m_fd;
 	

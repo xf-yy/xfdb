@@ -39,20 +39,26 @@ public:
 	/**迭代器*/
 	virtual IteratorImplPtr NewIterator(objectid_t max_objid = MAX_OBJECT_ID) = 0;
 	
+	/**返回segment文件总大小*/
+	virtual uint64_t Size() const = 0;
+
+	/**获取统计*/
+	virtual void GetBucketStat(BucketStat& stat) const = 0;
+    
 	/**最大key*/
 	const StrView& MaxKey() const
     {
         return m_max_key;
     }
-	
-	/**返回segment文件总大小*/
-	virtual uint64_t Size() const = 0;
-
-	/**获取统计*/
-	virtual void GetStat(BucketStat& stat) const = 0;
+	/**最大key*/
+	objectid_t MaxObjectID() const
+    {
+        return m_max_objid;
+    }	
 
 protected:
 	StrView m_max_key;
+    objectid_t m_max_objid;
 
 private:
 	ObjectReader(const ObjectReader&) = delete;

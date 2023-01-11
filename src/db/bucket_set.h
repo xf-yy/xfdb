@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_bucket_list_h__
-#define __xfdb_bucket_list_h__
+#ifndef __xfdb_bucket_set_h__
+#define __xfdb_bucket_set_h__
 
 #include <vector>
 #include <map>
@@ -27,11 +27,11 @@ limitations under the License.
 namespace xfdb 
 {
 
-class BucketList
+class BucketSet
 {
 public:
-	explicit BucketList(std::map<std::string, BucketPtr>& buckets);
-	~BucketList(){}
+	explicit BucketSet(std::map<std::string, BucketPtr>& buckets);
+	~BucketSet(){}
 
 public:
 	void TryFlush();
@@ -43,15 +43,15 @@ public:
 	{
 		return m_buckets;
 	}
-	void ListBucket(std::vector<std::string>& bucket_names) const;
+	void List(std::vector<std::string>& bucket_names) const;
 				
 protected:
 	//key: bucket_name
 	std::map<std::string, BucketPtr> m_buckets;
 
 private:
-	BucketList(const BucketList&) = delete;
-  	BucketList& operator=(const BucketList&) = delete;
+	BucketSet(const BucketSet&) = delete;
+  	BucketSet& operator=(const BucketSet&) = delete;
 	
 };
 

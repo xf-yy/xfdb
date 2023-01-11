@@ -16,7 +16,7 @@ limitations under the License.
 
 #include <algorithm>
 #include "writeonly_writer.h"
-#include "object_writer_list.h"
+#include "object_writer_snapshot.h"
 
 namespace xfdb
 {
@@ -43,6 +43,8 @@ Status WriteOnlyWriter::Write(objectid_t next_seqid, const Object* object)
 {
 	Object* obj = CloneObject(next_seqid, object);
 	m_objects.push_back(obj);
+
+    m_max_objid = object->id;
 	return OK;
 }
 
@@ -58,6 +60,8 @@ Status WriteOnlyWriter::Write(objectid_t next_seqid, const WriteOnlyWriterPtr& m
 		objs[i]->id = next_seqid + i;
 		m_objects.push_back(objs[i]);
 	}
+
+    m_max_objid = next_seqid + objs.size() - 1;
 	return OK;
 }
 
@@ -84,6 +88,9 @@ WriteOnlyWriterIterator::WriteOnlyWriterIterator(WriteOnlyWriterPtr& table)
 
     m_max_key = m_table->MaxKey();
     assert(m_max_key.size != 0);
+
+    m_max_objid = m_table->MaxObjectID();
+    
 	First();
 }
 

@@ -17,7 +17,7 @@ limitations under the License.
 #include "path.h"
 #include "logger.h"
 #include "object_reader_snapshot.h"
-#include "object_writer_list.h"
+#include "object_writer_snapshot.h"
 #include "iterator_impl.h"
 
 namespace xfdb 
@@ -81,7 +81,7 @@ IteratorImplPtr ObjectReaderSnapshot::NewIterator(objectid_t max_objid)
 	{
 		iters.push_back(it->second->NewIterator());
 	}
-	return NewIteratorList(iters);
+	return NewIteratorSet(iters);
 }
 
 /**返回segment文件总大小*/
@@ -96,12 +96,12 @@ uint64_t ObjectReaderSnapshot::Size() const
 	return size;
 }
 
-void ObjectReaderSnapshot::GetStat(BucketStat& stat) const
+void ObjectReaderSnapshot::GetBucketStat(BucketStat& stat) const
 {	
 	for(auto it = m_readers.begin(); it != m_readers.end(); ++it)
 	{
 		//FIXME: 识别segment类型
-		it->second->GetStat(stat);
+		it->second->GetBucketStat(stat);
 	}
 }
 
@@ -117,13 +117,33 @@ void ObjectReaderSnapshot::GetMaxKey()
 
 	for(++it; it != m_readers.end(); ++it)
 	{
-		if(m_max_key < it->second->MaxKey())
+        const StrView& max_key = it->second->MaxKey();
+		if(m_max_key < max_key)
 		{
-			m_max_key = it->second->MaxKey();
+			m_max_key = max_key;
 		}
 	}
 }
 
+void ObjectReaderSnapshot::GetMaxObjectID()
+{
+	if(m_readers.empty())
+	{
+		return;
+	}
+	
+	auto it = m_readers.begin();
+	m_max_objid = it->second->MaxObjectID();
+
+	for(++it; it != m_readers.end(); ++it)
+	{
+        objectid_t max_objid = it->second->MaxObjectID();
+		if(m_max_objid < max_objid)
+		{
+			m_max_objid = max_objid;
+		}
+	}
+}
 
 }  
 

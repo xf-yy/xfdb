@@ -48,7 +48,7 @@ public:
 		return m_buf.Usage() + m_ex_size;
 	}	
 	
-	void GetStat(BucketStat& stat) const
+	void GetBucketStat(BucketStat& stat) const
 	{
 		stat.memwriter_stat.Add(Size());
 		stat.object_stat.Add(m_object_stat);

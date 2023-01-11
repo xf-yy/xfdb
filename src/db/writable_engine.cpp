@@ -212,7 +212,7 @@ void WritableEngine::WriteMetaThread(size_t index, void* arg)
 		{
 			WritableDBPtr db = std::dynamic_pointer_cast<WritableDB>(msg.db);
 			assert(db);
-			db->WriteDBInfo();
+			db->WriteDBMeta();
 		}
 		else
 		{

@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_object_writer_list_h__
-#define __xfdb_object_writer_list_h__
+#ifndef __xfdb_object_writer_snapshot_h__
+#define __xfdb_object_writer_snapshot_h__
 
 #include <deque>
 #include <map>
@@ -26,11 +26,11 @@ limitations under the License.
 namespace xfdb 
 {
 
-class ObjectWriterList : public ObjectReader
+class ObjectWriterSnapshot : public ObjectReader
 {
 public:
-	ObjectWriterList(ObjectWriterPtr& mem_table, ObjectWriterList* last_snapshot = nullptr);
-	~ObjectWriterList()
+	ObjectWriterSnapshot(ObjectWriterPtr& mem_table, ObjectWriterSnapshot* last_snapshot = nullptr);
+	~ObjectWriterSnapshot()
     {}
 	
 public:	
@@ -44,16 +44,19 @@ public:
 	uint64_t Size() const override;
 
 	/**获取统计*/
-	void GetStat(BucketStat& stat) const override;
+	void GetBucketStat(BucketStat& stat) const override;
 
+private:
+    void GetMaxKey();
+    
 private:
 	std::vector<ObjectWriterPtr> m_memwriters;
 
 		
 private:
-	friend class IteratorList;
-	ObjectWriterList(const ObjectWriterList&) = delete;
-	ObjectWriterList& operator=(const ObjectWriterList&) = delete;
+	friend class IteratorSet;
+	ObjectWriterSnapshot(const ObjectWriterSnapshot&) = delete;
+	ObjectWriterSnapshot& operator=(const ObjectWriterSnapshot&) = delete;
 };
 
 

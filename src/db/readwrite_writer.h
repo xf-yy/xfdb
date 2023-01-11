@@ -135,7 +135,6 @@ private:
 
 private:
 	ReadWriteWriterPtr m_table;
-    const objectid_t m_max_objid;
 
 	const SkipListNode* m_next_node;
 	std::vector<const SkipListNode*> m_nodes;

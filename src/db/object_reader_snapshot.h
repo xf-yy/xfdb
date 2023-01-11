@@ -37,14 +37,8 @@ public:
 	Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, std::string& value) const override;
 	
 	IteratorImplPtr NewIterator(objectid_t max_objid = MAX_OBJECT_ID) override;
-
-	/**最大key*/
-	const StrView& MaxKey() const
-	{
-		return m_max_key;
-	}
 		
-	void GetStat(BucketStat& stat) const override;
+	void GetBucketStat(BucketStat& stat) const override;
 
 	/**返回segment文件总大小*/
 	uint64_t Size() const override;
@@ -59,11 +53,11 @@ public:
 	}
 private:
 	void GetMaxKey();
-	
+	void GetMaxObjectID();
+
 private:
     BucketMetaFilePtr m_meta_file;
 	std::map<fileid_t, ObjectReaderPtr> m_readers;
-	StrView m_max_key;
 
 private:
 	ObjectReaderSnapshot(const ObjectReaderSnapshot&) = delete;

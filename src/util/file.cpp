@@ -22,6 +22,7 @@ limitations under the License.
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include "buffer.h"
 
 namespace xfutil 
 {
@@ -53,7 +54,6 @@ bool File::Open(const char* file_path, uint32_t flags)
 
     
 	mode_t old_mask = umask(0);
-
 	m_fd = open(file_path, f, 0644);
 	umask(old_mask);
 
@@ -62,7 +62,47 @@ bool File::Open(const char* file_path, uint32_t flags)
 
 //SetFilePointerEx() followed by SetEndOfFile()
 	
+bool File::Copy(const char *src_filepath, const char *dst_filepath, bool sync/* = false*/)
+{
+    File src_file;
+    if(!src_file.Open(src_filepath, OF_READONLY))
+    {
+        return false;
+    }
 
+    File dst_file;
+    if(!dst_file.Open(dst_filepath, OF_CREATE|OF_WRITEONLY|OF_TRUNCATE))
+    {
+        return false;
+    }
+
+    //1MB为单位
+    constexpr int BUF_SIZE = 1024*1024;
+    BufferGuard buf(BUF_SIZE);
+
+    for(;;)
+    {
+        int64_t read_size = src_file.Read(buf.Buffer(), BUF_SIZE);
+        if(read_size < 0)
+        {
+            return false;
+        }
+        else if(read_size == 0)
+        {
+            break;
+        }
+        if(dst_file.Write(buf.Buffer(), read_size) != read_size)
+        {
+            return false;
+        }
+    }
+    
+    if(sync)
+    {
+        dst_file.Sync();
+    }
+    return true;
+}	
 } 
 
 

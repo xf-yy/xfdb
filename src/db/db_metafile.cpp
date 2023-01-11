@@ -19,7 +19,7 @@ limitations under the License.
 #include "path.h"
 #include "coding.h"
 #include "file_util.h"
-#include "db_infofile.h"
+#include "db_metafile.h"
 #include "writeonly_bucket.h"
 
 using namespace xfutil;
@@ -36,7 +36,7 @@ enum
 	MID_CREATE_TIME,
 };
 
-Status DBInfoFile::Read(const char* db_path, const char* file_name, DBInfoData& bd)
+Status DBMetaFile::Read(const char* db_path, const char* file_name, DBMeta& dm)
 {
 	char full_path[MAX_PATH_LEN];
 	Path::Combine(full_path, sizeof(full_path), db_path, file_name);
@@ -47,13 +47,13 @@ Status DBInfoFile::Read(const char* db_path, const char* file_name, DBInfoData& 
 	{
 		return s;
 	}
-	return Parse((byte_t*)str.Data(), str.Size(), bd);
+	return Parse((byte_t*)str.Data(), str.Size(), dm);
 }
 
-Status DBInfoFile::Write(const char* db_path, const char* file_name, DBInfoData& bd)
+Status DBMetaFile::Write(const char* db_path, const char* file_name, DBMeta& dm)
 {
 	String str;
-	Status s = Serialize(bd, str);
+	Status s = Serialize(dm, str);
 	if(s != OK)
 	{
 		return s;
@@ -91,7 +91,7 @@ static const bool ParseBucketInfo(const byte_t*& data, const byte_t* data_end, B
 	return false;
 }
 
-static const bool ParseBucketMeta(const byte_t*& data, const byte_t* data_end, DBInfoData& bd)
+static const bool ParseBucketMeta(const byte_t*& data, const byte_t* data_end, DBMeta& dm)
 {
 	for(;;)
 	{
@@ -99,7 +99,7 @@ static const bool ParseBucketMeta(const byte_t*& data, const byte_t* data_end, D
 		switch(id)
 		{
 		case MID_NEXT_BUCKET_ID:
-			bd.next_bucketid = DecodeV32(data, data_end);
+			dm.next_bucketid = DecodeV32(data, data_end);
 			break;
 		case MID_END:
 			return true;
@@ -112,69 +112,69 @@ static const bool ParseBucketMeta(const byte_t*& data, const byte_t* data_end, D
 	return false;
 }
 
-static const bool ParseBucketData(const byte_t*& data, const byte_t* data_end, DBInfoData& bd)
+static const bool ParseBucketData(const byte_t*& data, const byte_t* data_end, DBMeta& dm)
 {
 	uint32_t bucket_cnt = DecodeV32(data, data_end);
-	bd.alive_buckets.resize(bucket_cnt);
+	dm.alive_buckets.resize(bucket_cnt);
 	for(uint32_t i = 0; i < bucket_cnt; ++i)
 	{
-		ParseBucketInfo(data, data_end, bd.alive_buckets[i]);
+		ParseBucketInfo(data, data_end, dm.alive_buckets[i]);
 	}
 	
 	bucket_cnt = DecodeV32(data, data_end);
-	bd.deleted_buckets.resize(bucket_cnt);
+	dm.deleted_buckets.resize(bucket_cnt);
 	for(uint32_t i = 0; i < bucket_cnt; ++i)
 	{
-		ParseBucketInfo(data, data_end, bd.deleted_buckets[i]);
+		ParseBucketInfo(data, data_end, dm.deleted_buckets[i]);
 	}
-	return ParseBucketMeta(data, data_end, bd);
+	return ParseBucketMeta(data, data_end, dm);
 }
 
-Status DBInfoFile::Parse(const byte_t* data, uint32_t size, DBInfoData& bd)
+Status DBMetaFile::Parse(const byte_t* data, uint32_t size, DBMeta& dm)
 {
 	const byte_t* data_end = data + size;
 
 	FileHeader header;
-	if(!ParseDBInfoFileHeader(data, size, header))
+	if(!ParseDBMetaFileHeader(data, size, header))
 	{
 		return ERR_FILE_FORMAT;
 	}
-	return ParseBucketData(data, data_end, bd) ? OK : ERR_FILE_FORMAT;
+	return ParseBucketData(data, data_end, dm) ? OK : ERR_FILE_FORMAT;
 }
 
-Status DBInfoFile::Serialize(const DBInfoData& bd, String& str)
+Status DBMetaFile::Serialize(const DBMeta& dm, String& str)
 {
-	uint32_t esize = EstimateSize(bd);
+	uint32_t esize = EstimateSize(dm);
 	if(!str.Reserve(esize))
 	{
 		return ERR_MEMORY_NOT_ENOUGH;
 	}
 	
-	byte_t* ptr = WriteDBInfoFileHeader((byte_t*)str.Data());
+	byte_t* ptr = WriteDBMetaFileHeader((byte_t*)str.Data());
 	assert(ptr - (byte_t*)str.Data() == FILE_HEAD_SIZE);
 		
-	uint32_t bucket_cnt = bd.alive_buckets.size();
+	uint32_t bucket_cnt = dm.alive_buckets.size();
 	ptr = EncodeV32(ptr, bucket_cnt);
 	
 	for(uint32_t i = 0; i < bucket_cnt; ++i)
 	{
-		const BucketInfo& info = bd.alive_buckets[i];
+		const BucketInfo& info = dm.alive_buckets[i];
 		ptr = EncodeV32(ptr, MID_BUCKET_ID, info.id);
 		ptr = EncodeString(ptr, MID_BUCKET_NAME, info.name.data(), info.name.size());
 		ptr = EncodeV64(ptr, MID_CREATE_TIME, info.create_time);
 		ptr = EncodeV32(ptr, MID_END);
 	}
-	bucket_cnt = bd.deleted_buckets.size();
+	bucket_cnt = dm.deleted_buckets.size();
 	ptr = EncodeV32(ptr, bucket_cnt);
 	for(uint32_t i = 0; i < bucket_cnt; ++i)
 	{
-		const BucketInfo& info = bd.deleted_buckets[i];
+		const BucketInfo& info = dm.deleted_buckets[i];
 		ptr = EncodeV32(ptr, MID_BUCKET_ID, info.id);
 		ptr = EncodeString(ptr, MID_BUCKET_NAME, info.name.data(), info.name.size());
 		ptr = EncodeV32(ptr, MID_END);
 	}
 	
-	ptr = EncodeV32(ptr, MID_NEXT_BUCKET_ID, bd.next_bucketid);
+	ptr = EncodeV32(ptr, MID_NEXT_BUCKET_ID, dm.next_bucketid);
 	ptr = EncodeV32(ptr, MID_END);
 
 	ptr = Encode32(ptr, 0);//FIXME: crc填0
@@ -189,21 +189,21 @@ static constexpr uint32_t EstimateBucketInfoSize()
 	return MAX_BUCKET_NAME_LEN+(MAX_V32_SIZE + MAX_V64_SIZE)*4/*属性数*/;
 }
 
-uint32_t DBInfoFile::EstimateSize(const DBInfoData& bd)
+uint32_t DBMetaFile::EstimateSize(const DBMeta& dm)
 {
 	//重新计算
 	return    FILE_HEAD_SIZE 
-			+ bd.alive_buckets.size() *  EstimateBucketInfoSize() 
-			+ bd.deleted_buckets.size() * EstimateBucketInfoSize()
+			+ dm.alive_buckets.size() *  EstimateBucketInfoSize() 
+			+ dm.deleted_buckets.size() * EstimateBucketInfoSize()
 			+ (MAX_V32_SIZE + MAX_V64_SIZE)*2
 			+ sizeof(uint32_t)/*crc*/;
 			
 }
 
-Status DBInfoFile::Remove(const char* db_path, const char* file_name)
+Status DBMetaFile::Remove(const char* db_path, const char* file_name)
 {
-	DBInfoData bld;
-	Status s = DBInfoFile::Read(db_path, file_name, bld);
+	DBMeta dm;
+	Status s = DBMetaFile::Read(db_path, file_name, dm);
 	if(s != OK)
 	{
 		assert(s != ERR_FILE_READ);
@@ -211,7 +211,7 @@ Status DBInfoFile::Remove(const char* db_path, const char* file_name)
 	}
 
 	char path[MAX_PATH_LEN];
-	for(const auto& bi : bld.deleted_buckets)
+	for(const auto& bi : dm.deleted_buckets)
 	{
 		MakeBucketPath(db_path, bi.name.c_str(), bi.id, path);
 		s = WriteOnlyBucket::Remove(path);
@@ -221,7 +221,7 @@ Status DBInfoFile::Remove(const char* db_path, const char* file_name)
 			return s;
 		}
 	}
-	MakeDBInfoFilePath(db_path, file_name, path);
+	MakeDBMetaFilePath(db_path, file_name, path);
 	return File::Remove(path) ? OK : ERR_PATH_DELETE;
 }
 

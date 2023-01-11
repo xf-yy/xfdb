@@ -20,7 +20,7 @@ limitations under the License.
 namespace xfdb 
 {
 
-IteratorList::IteratorList(const std::vector<IteratorImplPtr>& iters)
+IteratorSet::IteratorSet(const std::vector<IteratorImplPtr>& iters)
 	: m_iters(iters)
 {
     //NOTE: iters必须按逆序存放，即最新[0] -> [n]最老
@@ -33,7 +33,7 @@ IteratorList::IteratorList(const std::vector<IteratorImplPtr>& iters)
 }
 
 /**移到第1个元素处*/
-void IteratorList::First()
+void IteratorSet::First()
 {
 	for(size_t i = 0; i < m_iters.size(); ++i)
 	{
@@ -42,7 +42,7 @@ void IteratorList::First()
 	GetObject();
 }
 
-void IteratorList::Seek(const StrView& key)
+void IteratorSet::Seek(const StrView& key)
 {
 	for(size_t i = 0; i < m_iters.size(); ++i)
 	{
@@ -52,7 +52,7 @@ void IteratorList::Seek(const StrView& key)
 }
 
 /**向后移到一个元素*/
-void IteratorList::Next()
+void IteratorSet::Next()
 {
     for(size_t i = 0; i < m_minkey_idxs.size(); ++i)
     {
@@ -62,12 +62,12 @@ void IteratorList::Next()
 	GetObject();
 }
 
-bool IteratorList::Valid() const
+bool IteratorSet::Valid() const
 {
 	return !m_minkey_idxs.empty();
 }
 
-void IteratorList::GetObject()
+void IteratorSet::GetObject()
 {
     if(!GetMinKey())
     {
@@ -114,7 +114,7 @@ void IteratorList::GetObject()
 	m_obj_ptr = &m_obj;
 }
 
-bool IteratorList::GetMinKey()
+bool IteratorSet::GetMinKey()
 {
     m_minkey_idxs.clear();
 
@@ -149,7 +149,7 @@ bool IteratorList::GetMinKey()
     return !m_minkey_idxs.empty();
 }
 
-void IteratorList::GetMaxKey()
+void IteratorSet::GetMaxKey()
 {
 	assert(!m_iters.empty());
 	m_max_key = m_iters[0]->MaxKey();
@@ -162,6 +162,21 @@ void IteratorList::GetMaxKey()
 		}
 	}
     assert(m_max_key.size != 0);
+}
+
+void IteratorSet::GetMaxObjectID()
+{
+	assert(!m_iters.empty());
+	m_max_objid = m_iters[0]->MaxObjectID();
+	for(size_t i = 1; i < m_iters.size(); ++i) 
+	{
+		objectid_t max_objid = m_iters[i]->MaxObjectID();
+		if(m_max_objid < max_objid)
+		{
+			m_max_objid = max_objid;
+		}
+	}
+    assert(m_max_objid != INVALID_OBJECT_ID);
 }
 
 } 

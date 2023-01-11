@@ -67,6 +67,36 @@ private:
 	WriteBuffer& operator=(const WriteBuffer&) = delete;
 };
 
+class BufferGuard
+{
+public:
+	explicit BufferGuard(size_t size)
+	{
+		m_buf = xmalloc(size);
+        m_size = size;
+	}
+	~BufferGuard()
+	{
+		xfree(m_buf);
+	}
+	inline byte_t* Buffer()
+    {
+        return m_buf;
+    }
+    inline size_t Size()
+    {
+        return m_size;
+    }
+    
+private:
+	byte_t* m_buf;
+    size_t m_size;
+	
+private:
+	BufferGuard(const BufferGuard&) = delete;
+	BufferGuard& operator=(const BufferGuard&) = delete;
+};
+
 }
 
 #endif

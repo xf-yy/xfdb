@@ -17,12 +17,12 @@ limitations under the License.
 #include "db_types.h"
 #include "object_writer.h"
 #include "iterator_impl.h"
-#include "object_writer_list.h"
+#include "object_writer_snapshot.h"
 
 namespace xfdb 
 {
 
-ObjectWriterList::ObjectWriterList(ObjectWriterPtr& mem_table, ObjectWriterList* last_snapshot/* = nullptr*/)
+ObjectWriterSnapshot::ObjectWriterSnapshot(ObjectWriterPtr& mem_table, ObjectWriterSnapshot* last_snapshot/* = nullptr*/)
 {
 	if(last_snapshot != nullptr)
 	{
@@ -32,7 +32,7 @@ ObjectWriterList::ObjectWriterList(ObjectWriterPtr& mem_table, ObjectWriterList*
 	m_memwriters.push_back(mem_table);
 }
 
-void ObjectWriterList::Finish()
+void ObjectWriterSnapshot::Finish()
 {
 	assert(!m_memwriters.empty());
 	
@@ -41,7 +41,11 @@ void ObjectWriterList::Finish()
 	{
 		m_memwriters[i]->Finish();
 	}
+    GetMaxKey();
+}
 
+void ObjectWriterSnapshot::GetMaxKey()
+{
 	//找最大的key
 	m_max_key = m_memwriters[0]->MaxKey();
 	for(size_t i = 1; i < m_memwriters.size(); ++i)
@@ -53,9 +57,10 @@ void ObjectWriterList::Finish()
 		}
 	}
     assert(m_max_key.size != 0);
+
 }
 
-IteratorImplPtr ObjectWriterList::NewIterator(objectid_t max_objid)
+IteratorImplPtr ObjectWriterSnapshot::NewIterator(objectid_t max_objid)
 {
     assert(max_objid == MAX_OBJECT_ID);
     assert(!m_memwriters.empty());
@@ -71,10 +76,10 @@ IteratorImplPtr ObjectWriterList::NewIterator(objectid_t max_objid)
 	{
 		iters.push_back(m_memwriters[i]->NewIterator());
 	}
-	return NewIteratorList(iters);
+	return NewIteratorSet(iters);
 }
 
-Status ObjectWriterList::Get(const StrView& key, objectid_t obj_id, ObjectType& type, std::string& value) const
+Status ObjectWriterSnapshot::Get(const StrView& key, objectid_t obj_id, ObjectType& type, std::string& value) const
 {
 	for(ssize_t idx = (ssize_t)m_memwriters.size() - 1; idx >= 0; --idx)
 	{
@@ -87,7 +92,7 @@ Status ObjectWriterList::Get(const StrView& key, objectid_t obj_id, ObjectType& 
 }
 
 /**返回segment文件总大小*/
-uint64_t ObjectWriterList::Size() const
+uint64_t ObjectWriterSnapshot::Size() const
 {
 	uint64_t size = 0;
 	for(size_t i = 0; i < m_memwriters.size(); ++i)
@@ -98,12 +103,12 @@ uint64_t ObjectWriterList::Size() const
 }
 
 /**获取统计*/
-void ObjectWriterList::GetStat(BucketStat& stat) const
+void ObjectWriterSnapshot::GetBucketStat(BucketStat& stat) const
 {
 	for(size_t i = 0; i < m_memwriters.size(); ++i)
 	{
 		//FIXME: 识别memwriter类型？
-		m_memwriters[i]->GetStat(stat);
+		m_memwriters[i]->GetBucketStat(stat);
 	}
 }
 

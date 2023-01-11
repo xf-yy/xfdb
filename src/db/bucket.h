@@ -77,11 +77,12 @@ public:
 	virtual void GetStat(BucketStat& stat) const = 0;
 	
 public:	
-	Status Open(const char* bucket_meta_filename);	
+	Status Open(const char* bucket_meta_filename);
+    Status Backup(const std::string& db_dir);
 	
 protected:
-	void OpenSegment(const BucketMetaData& bmd, const ObjectReaderSnapshot* last_snapshot, std::map<fileid_t, ObjectReaderPtr>& readers);
-    void OpenSegment(const BucketMetaData& bmd, std::map<fileid_t, ObjectReaderPtr>& readers);
+	void OpenSegment(const BucketMeta& bm, const ObjectReaderSnapshot* last_snapshot, std::map<fileid_t, ObjectReaderPtr>& readers);
+    void OpenSegment(const BucketMeta& bm, std::map<fileid_t, ObjectReaderPtr>& readers);
 
 protected:
 	const DBImplWptr m_db;

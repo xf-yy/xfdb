@@ -36,15 +36,11 @@ public:
 	~IndexReader();
 	
 public:	
-	Status Open(const char* bucket_path, const SegmentIndexInfo& info);
+	Status Open(const char* bucket_path, const SegmentStat& info);
 	bool Read(const SegmentL1Index* L1Index, std::string& bf_data, std::string& index_data) const;
 
 	Status Search(const StrView& key, SegmentL0Index& idx) const;
-
-	inline const StrView& MaxKey() const
-	{
-		return m_max_key;
-	}
+ 
 	inline const SegmentMeta& GetMeta() const
 	{
 		return m_meta;
@@ -72,14 +68,13 @@ private:
 private:
 	BlockPool& m_large_pool;
 
-	BucketConfig m_conf;
 	File m_file;
 	std::string m_path;
 	
 	WriteBuffer m_buf;
 	std::vector<SegmentL1Index> m_L1indexs;
-	StrView m_max_key;
 	SegmentMeta m_meta;
+	BucketConfig m_conf;
 	
 private:
 	friend class SegmentReaderIterator;
@@ -97,8 +92,9 @@ public:
 	
 public:	
 	Status Create(const char* bucket_path, fileid_t fileid);
-	Status Write(const SegmentL0Index& L0_index, std::deque<uint32_t>& key_hashs);
-	Status Finish(std::deque<uint32_t>& key_hashs, const StrView& max_key, const SegmentMeta& meta);
+	Status Write(const SegmentL0Index& L0_index, std::deque<uint32_t>& key_hashcodes);
+	Status Finish(std::deque<uint32_t>& key_hashcodes, const SegmentMeta& meta);
+    
 	inline uint64_t FileSize()
 	{
 		return m_file.Size();
@@ -115,13 +111,13 @@ private:
 	Status WriteL2Group(uint32_t& L0_idx, LnGroupIndex& ci);
 	Status WriteL2GroupIndex(const LnGroupIndex* group_indexs, int index_cnt);
 	Status WriteBlock(uint32_t& index_size);
-	Status WriteBlock(std::deque<uint32_t>& key_hashs);
-	Status WriteL2Index(const StrView& max_key, uint32_t& L2index_size);
+	Status WriteBlock(std::deque<uint32_t>& key_hashcodes);
+	Status WriteL2Index(uint32_t& L2index_size);
 	Status WriteMeta(uint32_t L2index_size, const SegmentMeta& meta);
 	void WriteMeta(const SegmentMeta& meta);
 	void WriteObjectStat(ObjectType type, const ObjectTypeStat& stat);
 	
-	Status WriteL2IndexMeta(const StrView& max_key, const SegmentMeta& meta);
+	Status WriteL2IndexMeta(const SegmentMeta& meta);
 
 private:
 	const BucketConfig m_bucket_conf;

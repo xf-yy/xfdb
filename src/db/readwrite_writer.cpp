@@ -18,7 +18,7 @@ limitations under the License.
 #include <algorithm>
 #include "readwrite_writer.h"
 #include "writeonly_writer.h"
-#include "object_writer_list.h"
+#include "object_writer_snapshot.h"
 
 namespace xfdb
 {
@@ -146,6 +146,8 @@ Status ReadWriteWriter::Write(const Object* obj)
         node->NoBarrierSetNext(i, prev[i]->NoBarrierNext(i));
         prev[i]->SetNext(i, node);
     }
+
+    m_max_objid = obj->id;
     return OK;
 }
 
@@ -159,6 +161,7 @@ Status ReadWriteWriter::Write(objectid_t next_seqid, const WriteOnlyWriterPtr& m
 		objs[i]->id = next_seqid + i;
         Write(objs[i]);
 	}
+    m_max_objid = next_seqid + objs.size() - 1;
 	return OK;
 }
 
@@ -232,13 +235,16 @@ int ReadWriteWriter::RandomLevel()
 
 //////////////////////////////////////////////////////////////////////
 ReadWriteWriterIterator::ReadWriteWriterIterator(ReadWriteWriterPtr& table, objectid_t max_objid) 
-    : m_table(table), m_max_objid(max_objid)
+    : m_table(table)
 {
     m_nodes.reserve(16);
     m_value.reserve(4096);
 
     m_max_key = m_table->MaxKey();
     assert(m_max_key.size != 0);    
+
+    m_max_objid = max_objid;
+
     First();
 }
 

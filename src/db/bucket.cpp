@@ -20,6 +20,7 @@ limitations under the License.
 #include "path.h"
 #include "logger.h"
 #include "engine.h"
+#include "directory.h"
 
 namespace xfdb 
 {
@@ -49,8 +50,8 @@ Status Bucket::Open(const char* bucket_meta_filename)
 	{
 		return s;
 	}
-	BucketMetaData bmd;
-	s = bucket_meta_file->Read(bmd);
+	BucketMeta bm;
+	s = bucket_meta_file->Read(bm);
 	if(s != OK)
 	{
 		return s;
@@ -72,11 +73,11 @@ Status Bucket::Open(const char* bucket_meta_filename)
 	std::map<fileid_t, ObjectReaderPtr> new_readers;
     if(reader_snapshot)
     {
-	    OpenSegment(bmd, reader_snapshot.get(), new_readers);
+	    OpenSegment(bm, reader_snapshot.get(), new_readers);
     }
     else
     {
-	    OpenSegment(bmd, new_readers);
+	    OpenSegment(bm, new_readers);
     }
 	
 	ObjectReaderSnapshotPtr new_ss_ptr = NewObjectReaderSnapshot(bucket_meta_file, new_readers);
@@ -84,9 +85,9 @@ Status Bucket::Open(const char* bucket_meta_filename)
 	m_segment_rwlock.WriteLock();
 
 	m_next_bucket_meta_fileid = fileid+1;
-	m_next_segment_id = bmd.next_segment_id;
-	m_next_object_id = bmd.next_object_id;
-	m_max_level_num = bmd.max_level_num;
+	m_next_segment_id = bm.next_segment_id;
+	m_next_object_id = bm.next_object_id;
+	m_max_level_num = bm.max_level_num;
 	m_reader_snapshot.swap(new_ss_ptr);
 
 	m_segment_rwlock.WriteUnlock();
@@ -94,22 +95,22 @@ Status Bucket::Open(const char* bucket_meta_filename)
 	return OK;
 }
 
-void Bucket::OpenSegment(const BucketMetaData& bmd, std::map<fileid_t, ObjectReaderPtr>& readers)
+void Bucket::OpenSegment(const BucketMeta& bm, std::map<fileid_t, ObjectReaderPtr>& readers)
 {	
 	DBImplPtr db = m_db.lock();
 	assert(db);
 	
-	for(const auto& seginfo : bmd.alive_segment_infos)
+	for(const auto& seg_stat : bm.alive_segment_stats)
 	{		
         SegmentReaderPtr sr_ptr = NewSegmentReader();
-        if(sr_ptr->Open(m_bucket_path.c_str(), seginfo) == OK)
+        if(sr_ptr->Open(m_bucket_path.c_str(), seg_stat) == OK)
         {
-            readers[seginfo.segment_fileid] = sr_ptr;
+            readers[seg_stat.segment_fileid] = sr_ptr;
         }
 	}
 }
 
-void Bucket::OpenSegment(const BucketMetaData& bmd, const ObjectReaderSnapshot* last_snapshot, std::map<fileid_t, ObjectReaderPtr>& readers)
+void Bucket::OpenSegment(const BucketMeta& bm, const ObjectReaderSnapshot* last_snapshot, std::map<fileid_t, ObjectReaderPtr>& readers)
 {
     assert(last_snapshot != nullptr);
 	const std::map<fileid_t, ObjectReaderPtr>& last_readers = last_snapshot->Readers();
@@ -117,22 +118,62 @@ void Bucket::OpenSegment(const BucketMetaData& bmd, const ObjectReaderSnapshot* 
 	DBImplPtr db = m_db.lock();
 	assert(db);
 	
-	for(const auto& seginfo : bmd.alive_segment_infos)
+	for(const auto& seg_stat : bm.alive_segment_stats)
 	{		
-		auto it = last_readers.find(seginfo.segment_fileid);
+		auto it = last_readers.find(seg_stat.segment_fileid);
 		if(it != last_readers.end())
 		{
-			readers[seginfo.segment_fileid] = it->second;
+			readers[seg_stat.segment_fileid] = it->second;
 		}
 		else
 		{
 			SegmentReaderPtr sr_ptr = NewSegmentReader();
-			if(sr_ptr->Open(m_bucket_path.c_str(), seginfo) == OK)
+			if(sr_ptr->Open(m_bucket_path.c_str(), seg_stat) == OK)
 			{
-				readers[seginfo.segment_fileid] = sr_ptr;
+				readers[seg_stat.segment_fileid] = sr_ptr;
 			}
 		}
 	}
+}
+
+Status Bucket::Backup(const std::string& db_dir)
+{
+    char bucket_path[MAX_PATH_LEN];
+    MakeBucketPath(db_dir.c_str(), m_info.name.c_str(), m_info.id, bucket_path);
+    if(!xfutil::Directory::Create(bucket_path))
+    {
+        return ERR_PATH_CREATE;
+    }
+
+    char src_path[MAX_PATH_LEN];
+    char dst_path[MAX_PATH_LEN];
+
+	m_segment_rwlock.ReadLock();
+	ObjectReaderSnapshotPtr reader_snapshot = m_reader_snapshot;
+	m_segment_rwlock.ReadUnlock();
+
+    //先拷贝segment文件，再拷贝meta文件
+    if(reader_snapshot)
+    {
+        const std::map<fileid_t, ObjectReaderPtr>& readers = reader_snapshot->Readers();
+
+        for(auto it = readers.begin(); it != readers.end(); ++it)
+        {
+	        MakeDataFilePath(m_bucket_path.c_str(), it->first, src_path);
+	        MakeDataFilePath(bucket_path, it->first, dst_path);
+            File::Copy(src_path, dst_path);
+
+            MakeIndexFilePath(m_bucket_path.c_str(), it->first, src_path);
+            MakeIndexFilePath(bucket_path, it->first, dst_path);
+            File::Copy(src_path, dst_path);
+        }
+    }
+    fileid_t meta_fileid = reader_snapshot->MetaFile()->FileID();
+    MakeBucketMetaFilePath(m_bucket_path.c_str(), meta_fileid, src_path);
+    MakeBucketMetaFilePath(bucket_path, meta_fileid, dst_path);
+    File::Copy(src_path, dst_path);
+
+    return OK;
 }
 
 }  // namespace xfdb

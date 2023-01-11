@@ -34,6 +34,9 @@ enum
 {
 	MID_BLOOM_FILTER_BITNUM = MID_START,
 	//MID_COMPRESS_TYPE,
+
+    MID_MAX_KEY = 100,
+    MID_MAX_OBJECT_ID,
 };
 
 IndexReader::IndexReader() : m_large_pool(Engine::GetEngine()->GetLargePool()), m_buf(m_large_pool)
@@ -45,7 +48,7 @@ IndexReader::~IndexReader()
 {
 }
 
-Status IndexReader::Open(const char* bucket_path, const SegmentIndexInfo& info)
+Status IndexReader::Open(const char* bucket_path, const SegmentStat& info)
 {
 	char index_path[MAX_PATH_LEN];
 	MakeIndexFilePath(bucket_path, info.segment_fileid, index_path);
@@ -137,6 +140,16 @@ bool IndexReader::ParseOtherMeta(const byte_t* &data, const byte_t* data_end)
 		//case MID_COMPRESS_TYPE:
 		//	m_conf.compress_type = (CompressionType)(*data++);
 		//	break;
+        case MID_MAX_KEY:
+            {
+                StrView key = DecodeString(data, data_end);
+                m_meta.max_key = CloneKey(m_buf, key);
+                assert(m_meta.max_key.size != 0);
+            }
+            break;
+        case MID_MAX_OBJECT_ID:
+            m_meta.max_objid = DecodeV64(data, data_end);
+            break;
 		case MID_END:
 			return true;
 			break;
@@ -189,10 +202,6 @@ Status IndexReader::ParseL2Index(const byte_t* data, uint32_t L2index_size)
 	{
 		ParseKeyIndex(data, data_end, last_offset, m_L1indexs[i]);
 	}
-
-	StrView key = DecodeString(data, data_end);
-	m_max_key = CloneKey(m_buf, key);
-    assert(m_max_key.size != 0);
 
 	//FIXME:未校验crc
 	/*uint32_t crc = */Decode32(data);
@@ -305,7 +314,7 @@ static bool UpperCmp(const StrView& key, const SegmentL1Index& index)
 
 ssize_t IndexReader::Find(const StrView& key) const
 {
-	if(key.Compare(m_L1indexs[0].start_key) < 0 || key.Compare(m_max_key) > 0)
+	if(key.Compare(m_L1indexs[0].start_key) < 0 || key.Compare(m_meta.max_key) > 0)
 	{
 		return -1;
 	}
@@ -573,7 +582,7 @@ Status IndexWriter::WriteBlock(uint32_t& index_size)
 	return s;
 }
 
-Status IndexWriter::WriteBlock(std::deque<uint32_t>& key_hashs)
+Status IndexWriter::WriteBlock(std::deque<uint32_t>& key_hashcodes)
 {
 	m_block_ptr = m_block_start;
 
@@ -582,10 +591,10 @@ Status IndexWriter::WriteBlock(std::deque<uint32_t>& key_hashs)
 	L1_index.L1offset = m_offset;
 
 	std::string bloom_filter_data;
-	if(!key_hashs.empty())
+	if(!key_hashcodes.empty())
 	{
 		BloomFilter bf(m_bucket_conf.bloom_filter_bitnum);
-		bf.Create(key_hashs);
+		bf.Create(key_hashcodes);
 		bloom_filter_data = bf.Data();
 	}	
 
@@ -614,7 +623,7 @@ Status IndexWriter::WriteBlock(std::deque<uint32_t>& key_hashs)
 	return OK;
 }
 
-Status IndexWriter::Write(const SegmentL0Index& L0_index, std::deque<uint32_t>& key_hashs)
+Status IndexWriter::Write(const SegmentL0Index& L0_index, std::deque<uint32_t>& key_hashcodes)
 {
 	//TODO:构建最短key
 	m_L0indexs.push_back(L0_index);
@@ -626,7 +635,7 @@ Status IndexWriter::Write(const SegmentL0Index& L0_index, std::deque<uint32_t>& 
 	//FIXME:这里可以限制布隆值的数量，以减少内存占用
 	if(m_L0indexs.size() >= MAX_OBJECT_NUM_OF_BLOCK || m_writing_size >= MAX_UNCOMPRESS_BLOCK_SIZE)
 	{
-		WriteBlock(key_hashs);
+		WriteBlock(key_hashcodes);
 		
 		m_L0indexs.clear();
 		m_writing_size = 0;
@@ -635,7 +644,7 @@ Status IndexWriter::Write(const SegmentL0Index& L0_index, std::deque<uint32_t>& 
 	return OK;
 }
 
-Status IndexWriter::WriteL2Index(const StrView& max_key, uint32_t& L2index_size)
+Status IndexWriter::WriteL2Index(uint32_t& L2index_size)
 {
 	L2index_size = 0;
 
@@ -673,8 +682,6 @@ Status IndexWriter::WriteL2Index(const StrView& max_key, uint32_t& L2index_size)
 	}
 	m_L1indexs.clear();
 	
-    assert(max_key.size != 0);
-	m_block_ptr = EncodeString(m_block_ptr, max_key.data, max_key.size);
 	m_block_ptr = Encode32(m_block_ptr, 0);//FIXME:crc填0
 
 	uint32_t size = m_block_ptr - m_block_start;
@@ -713,6 +720,11 @@ void IndexWriter::WriteMeta(const SegmentMeta& meta)
 	{
 		m_block_ptr = EncodeV32(m_block_ptr, MID_BLOOM_FILTER_BITNUM, m_bucket_conf.bloom_filter_bitnum);
 	}
+
+    assert(meta.max_key.size != 0);
+	m_block_ptr = EncodeString(m_block_ptr, MID_MAX_KEY, meta.max_key.data, meta.max_key.size);
+	m_block_ptr = EncodeV32(m_block_ptr, MID_MAX_OBJECT_ID, meta.max_objid);
+
 	m_block_ptr = EncodeV32(m_block_ptr, MID_END);
 	
 	m_block_ptr = Encode32(m_block_ptr, 0);//FIXME:crc填0
@@ -739,12 +751,12 @@ Status IndexWriter::WriteMeta(uint32_t L2index_size, const SegmentMeta& meta)
 	return OK;
 }
 
-Status IndexWriter::WriteL2IndexMeta(const StrView& max_key, const SegmentMeta& meta)
+Status IndexWriter::WriteL2IndexMeta(const SegmentMeta& meta)
 {
 	m_L2offset_start = m_offset;
 
 	uint32_t L2index_size;
-	Status s = WriteL2Index(max_key, L2index_size);
+	Status s = WriteL2Index(L2index_size);
 	if(s != OK)
 	{
 		return s;
@@ -753,17 +765,17 @@ Status IndexWriter::WriteL2IndexMeta(const StrView& max_key, const SegmentMeta& 
 	return WriteMeta(L2index_size, meta);
 }
 
-Status IndexWriter::Finish(std::deque<uint32_t>& key_hashs, const StrView& max_key, const SegmentMeta& meta)
+Status IndexWriter::Finish(std::deque<uint32_t>& key_hashcodes, const SegmentMeta& meta)
 {
 	if(!m_L0indexs.empty())
 	{
-		Status s = WriteBlock(key_hashs);
+		Status s = WriteBlock(key_hashcodes);
 		if(s != OK)
 		{
 			return s;
 		}
 	}
-	Status s = WriteL2IndexMeta(max_key, meta);
+	Status s = WriteL2IndexMeta(meta);
 	if(s != OK)
 	{
 		return s;

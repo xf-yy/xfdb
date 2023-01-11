@@ -19,7 +19,7 @@ limitations under the License.
 
 #include "db_types.h"
 #include "readwrite_writer.h"
-#include "object_writer_list.h"
+#include "object_writer_snapshot.h"
 #include "object_reader_snapshot.h"
 #include "bucket.h"
 #include <deque>

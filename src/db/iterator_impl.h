@@ -27,7 +27,9 @@ class IteratorImpl
 {
 public:
 	IteratorImpl()
-    {}
+    {
+        m_max_objid = INVALID_OBJECT_ID;
+    }
 	virtual ~IteratorImpl()
     {}
 
@@ -55,10 +57,16 @@ public:
     {
         return m_max_key;
     }
-	
+    //最大object id
+	const objectid_t MaxObjectID() const
+    {
+        return m_max_objid;
+    }	
+
 protected:
     const Object* m_obj_ptr;
     StrView m_max_key;
+    objectid_t m_max_objid;
 
 private:
 	IteratorImpl(const IteratorImpl&) = delete;
@@ -66,11 +74,11 @@ private:
 };
 
 //处理多个Iterator
-class IteratorList : public IteratorImpl 
+class IteratorSet : public IteratorImpl 
 {
 public:
-	explicit IteratorList(const std::vector<IteratorImplPtr>& iters);
-	virtual ~IteratorList(){}
+	explicit IteratorSet(const std::vector<IteratorImplPtr>& iters);
+	virtual ~IteratorSet(){}
 
 public:
 	/**移到第1个元素处*/
@@ -86,9 +94,11 @@ public:
 	virtual bool Valid() const override;
 
 private:
-	bool GetMinKey();
-	void GetMaxKey();
     void GetObject();
+	bool GetMinKey();
+    
+	void GetMaxKey();
+    void GetMaxObjectID();
 
 private:
 	std::vector<IteratorImplPtr> m_iters;
@@ -98,8 +108,8 @@ private:
     std::string m_value;
 	
 private:
-	IteratorList(const IteratorList&) = delete;
-	IteratorList& operator=(const IteratorList&) = delete;
+	IteratorSet(const IteratorSet&) = delete;
+	IteratorSet& operator=(const IteratorSet&) = delete;
 };
 
 } 

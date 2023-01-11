@@ -24,7 +24,7 @@ limitations under the License.
 #include "xfdb/batch.h"
 #include "db_types.h"
 #include "rwlock.h"
-#include "db_infofile.h"
+#include "db_metafile.h"
 
 namespace xfdb 
 {
@@ -97,7 +97,9 @@ public:
 	{
 		return ERR_INVALID_MODE;
 	}
-
+    //全量备份
+    Status Backup(const std::string& backup_dir);
+    
 public:
 	inline const std::string& GetPath() const
 	{
@@ -110,16 +112,18 @@ public:
 
 protected:	
 	Status OpenBucket();
-	Status OpenBucket(const char* dbinfo_filename);
-	Status OpenBucket(const char* dbinfo_filename, const DBInfoData& bld);
+	Status OpenBucket(const char* dbmeta_filename);
+	Status OpenBucket(const char* dbmeta_filename, const DBMeta& dm);
 
-	void OpenBucket(const DBInfoData& bld, const BucketList* last_bucket_list, std::map<std::string, BucketPtr>& buckets);
-	void OpenBucket(const DBInfoData& bld, std::map<std::string, BucketPtr>& buckets);
+	void OpenBucket(const DBMeta& dm, const BucketSet* last_bucket_set, std::map<std::string, BucketPtr>& buckets);
+	void OpenBucket(const DBMeta& dm, std::map<std::string, BucketPtr>& buckets);
 
 	Status OpenBucket(const BucketInfo& bi, BucketPtr& bptr);
 	bool GetBucket(const std::string& bucket_name, BucketPtr& ptr) const;
 
 	virtual BucketPtr NewBucket(const BucketInfo& bucket_info) = 0;
+
+    Status BackupDBMeta(BucketSetPtr& bucket_set, const std::string& backup_db_dir);
 
 protected:
 	const DBConfig m_conf;
@@ -127,10 +131,10 @@ protected:
 	
 	std::mutex m_mutex;						//互斥锁
 	bucketid_t m_next_bucket_id;
-	fileid_t m_next_dbinfo_fileid;
+	fileid_t m_next_dbmeta_fileid;
 	
 	mutable ReadWriteLock m_bucket_rwlock;	//bucket读写锁
-	BucketListPtr m_bucket_list;	//bucket集
+	BucketSetPtr m_bucket_set;	//bucket集
 	
 private:
 	DBImpl(const DBImpl&) = delete;

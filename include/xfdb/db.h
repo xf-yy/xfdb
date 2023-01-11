@@ -54,6 +54,9 @@ public:
 	//列举所有的bucket
 	void ListBucket(std::vector<std::string>& bucket_names) const;
 
+    //全量备份
+    Status Backup(const std::string& backup_dir);
+
 public:
 	//获取指定bucket中的记录
 	Status Get(const std::string& bucket_name, const xfutil::StrView& key, std::string& value) const;

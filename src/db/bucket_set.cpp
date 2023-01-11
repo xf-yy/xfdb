@@ -17,20 +17,20 @@ limitations under the License.
 #include "db_impl.h"
 #include "db_types.h"
 #include "bucket.h"
-#include "db_infofile.h"
-#include "bucket_list.h"
+#include "db_metafile.h"
+#include "bucket_set.h"
 #include "logger.h"
 
 
 namespace xfdb 
 {
 
-BucketList::BucketList(std::map<std::string, BucketPtr>& buckets) 
+BucketSet::BucketSet(std::map<std::string, BucketPtr>& buckets) 
 	: m_buckets(buckets)
 {
 }
 
-void BucketList::TryFlush()
+void BucketSet::TryFlush()
 {
 	for(auto it = m_buckets.begin(); it != m_buckets.end(); ++it)
 	{
@@ -38,7 +38,7 @@ void BucketList::TryFlush()
 	}
 }
 
-void BucketList::Flush()
+void BucketSet::Flush()
 {
 	for(auto it = m_buckets.begin(); it != m_buckets.end(); ++it)
 	{
@@ -46,7 +46,7 @@ void BucketList::Flush()
 	}
 }
 
-void BucketList::Merge()
+void BucketSet::Merge()
 {
 	for(auto it = m_buckets.begin(); it != m_buckets.end(); ++it)
 	{
@@ -54,7 +54,7 @@ void BucketList::Merge()
 	}
 }
 
-void BucketList::Clean()
+void BucketSet::Clean()
 {
 	for(auto it = m_buckets.begin(); it != m_buckets.end(); ++it)
 	{
@@ -62,7 +62,7 @@ void BucketList::Clean()
 	}
 }
 
-void BucketList::ListBucket(std::vector<std::string>& bucket_names) const
+void BucketSet::List(std::vector<std::string>& bucket_names) const
 {
 	bucket_names.resize(m_buckets.size());
 	int i = 0;
@@ -73,7 +73,7 @@ void BucketList::ListBucket(std::vector<std::string>& bucket_names) const
 }
 
 #if 0
-void BucketList::List(std::vector<BucketPtr>& bucket_ptrs) const
+void BucketSet::List(std::vector<BucketPtr>& bucket_ptrs) const
 {
 	bucket_ptrs.resize(m_buckets.size());
 	int i = 0;

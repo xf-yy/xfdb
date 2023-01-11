@@ -19,8 +19,8 @@ limitations under the License.
 #include "writable_db.h"
 #include "writeonly_bucket.h"
 #include "bucket_metafile.h"
-#include "db_infofile.h"
-#include "bucket_list.h"
+#include "db_metafile.h"
+#include "bucket_set.h"
 #include "file.h"
 #include "directory.h"
 #include "object_reader_snapshot.h"
@@ -66,19 +66,19 @@ Status WritableDB::Remove(const std::string& db_path)
 		}
 		//获取bucket文件列表，依次删除bucket及数据
 		std::vector<FileName> file_names;
-		ListDBInfoFile(db_path.c_str(), file_names);
+		ListDBMetaFile(db_path.c_str(), file_names);
 		for(size_t i = 0; i < file_names.size(); ++i)
 		{
 			const FileName& fn = file_names[i];
 			
-			DBInfoData bd;
-			s = DBInfoFile::Read(db_path.c_str(), fn.str, bd);
+			DBMeta dm;
+			s = DBMetaFile::Read(db_path.c_str(), fn.str, dm);
 			if(s != OK)
 			{
 				return s;
 			}
 			char bucket_path[MAX_PATH_LEN];
-			for(const auto bi : bd.deleted_buckets)
+			for(const auto bi : dm.deleted_buckets)
 			{
 				MakeBucketPath(db_path.c_str(), bi.name.c_str(), bi.id, bucket_path);
 				s = WriteOnlyBucket::Remove(bucket_path);
@@ -90,7 +90,7 @@ Status WritableDB::Remove(const std::string& db_path)
 			//最后一个将存活的所有bucket删除掉
 			if(i == file_names.size()-1)
 			{
-				for(const auto bi : bd.alive_buckets)
+				for(const auto bi : dm.alive_buckets)
 				{
 					MakeBucketPath(db_path.c_str(), bi.name.c_str(), bi.id, bucket_path);
 					s = WriteOnlyBucket::Remove(bucket_path);
@@ -149,7 +149,7 @@ Status WritableDB::Open()
 	
 	//读取最新的bucket list
 	std::vector<FileName> file_infos;
-	s = ListDBInfoFile(m_path.c_str(), file_infos);
+	s = ListDBMetaFile(m_path.c_str(), file_infos);
 	if(s != OK) 
 	{
 		return s;
@@ -160,29 +160,29 @@ Status WritableDB::Open()
 	}
 	for(size_t i = 0; i < file_infos.size()-1; ++i)
 	{
-		m_tobe_delete_dbinfo_files.push_back(file_infos[i]);
+		m_tobe_delete_dbmeta_files.push_back(file_infos[i]);
 	}
 
-	DBInfoData bld;
-	s = DBInfoFile::Read(m_path.c_str(), file_infos.back().str, bld);
+	DBMeta dm;
+	s = DBMetaFile::Read(m_path.c_str(), file_infos.back().str, dm);
 	if(s != OK)
 	{
 		return s;
 	}
 	
-	return OpenBucket(file_infos.back().str, bld);
+	return OpenBucket(file_infos.back().str, dm);
 }
 
 ////////////////////////////////////////////////////////////////////////////
 
 Status WritableDB::Clean()
 {
-	Status s1 = CleanDBInfo();
+	Status s1 = CleanDBMeta();
 	Status s2 = CleanBucket();
 	return (s1 == ERR_NOMORE_DATA && s2 == ERR_NOMORE_DATA) ? ERR_NOMORE_DATA : OK;
 }
 
-Status WritableDB::CleanDBInfo()
+Status WritableDB::CleanDBMeta()
 {
 	//尝试清除bucket list，保证deleted的bucket已被清理
 	//保证一次只有一个线程在执行clean操作
@@ -191,23 +191,23 @@ Status WritableDB::CleanDBInfo()
 	{		
 		{
 			std::lock_guard<std::mutex> guard(m_mutex);
-			if(m_tobe_delete_dbinfo_files.empty()) 
+			if(m_tobe_delete_dbmeta_files.empty()) 
 			{
 				return ERR_NOMORE_DATA;
 			}
-			clean_filename = m_tobe_delete_dbinfo_files.front();
+			clean_filename = m_tobe_delete_dbmeta_files.front();
 		}
 		
-		Status s = DBInfoFile::Remove(m_path.c_str(), clean_filename.str);
+		Status s = DBMetaFile::Remove(m_path.c_str(), clean_filename.str);
 		if(s != OK)
 		{
 			return s;
 		}
 		{
 			std::lock_guard<std::mutex> guard(m_mutex);
-			if(!m_tobe_delete_dbinfo_files.empty()) 
+			if(!m_tobe_delete_dbmeta_files.empty()) 
 			{
-				m_tobe_delete_dbinfo_files.pop_front();
+				m_tobe_delete_dbmeta_files.pop_front();
 			}
 		}
 	}
@@ -219,7 +219,7 @@ Status WritableDB::CleanBucket()
 {
 	//FIXME: 这里尝试清除所有的bucket
 	m_bucket_rwlock.ReadLock();
-	BucketListPtr bs_ptr = m_bucket_list;
+	BucketSetPtr bs_ptr = m_bucket_set;
 	m_bucket_rwlock.ReadUnlock();
 
 	if(bs_ptr)
@@ -230,10 +230,10 @@ Status WritableDB::CleanBucket()
 	return OK;
 }
 
-Status WritableDB::WriteDBInfo()
+Status WritableDB::WriteDBMeta()
 {
-	DBInfoData bd;
-	fileid_t dbinfo_fileid;
+	DBMeta dm;
+	fileid_t dbmeta_fileid;
 
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
@@ -243,37 +243,37 @@ Status WritableDB::WriteDBInfo()
 		{
 			return ERR_NOMORE_DATA;	//没有可写的数据
 		}
-		assert(m_next_dbinfo_fileid < MAX_FILE_ID);
+		assert(m_next_dbmeta_fileid < MAX_FILE_ID);
 
 		m_bucket_changed_cnt = 0;
-		dbinfo_fileid = m_next_dbinfo_fileid++;
-		WriteDBInfoData(bd);
+		dbmeta_fileid = m_next_dbmeta_fileid++;
+		WriteDBMeta(dm);
 	}	
 	
 	//写bucket文件
-	char dbinfo_filename[MAX_FILENAME_LEN];
-	MakeDBInfoFileName(dbinfo_fileid, dbinfo_filename);
+	char dbmeta_filename[MAX_FILENAME_LEN];
+	MakeDBMetaFileName(dbmeta_fileid, dbmeta_filename);
 	
-	Status s = DBInfoFile::Write(m_path.c_str(), dbinfo_filename, bd);
+	Status s = DBMetaFile::Write(m_path.c_str(), dbmeta_filename, dm);
 	if(s != OK)
 	{
-        LogWarn("write dbinfo of %s failed, status: %u", m_path.c_str(), s)
+        LogWarn("write dbmeta of %s failed, status: %u", m_path.c_str(), s)
 		return s;
 	}
 	
-	NotifyData nd(NOTIFY_UPDATE_DB_META, m_path, dbinfo_fileid);
+	NotifyData nd(NOTIFY_UPDATE_DB_META, m_path, dbmeta_fileid);
 
 	EnginePtr engine = Engine::GetEngine();
 	((WritableEngine*)engine.get())->WriteNotifyFile(nd);
 
-	if(dbinfo_fileid != MIN_FILE_ID)
+	if(dbmeta_fileid != MIN_FILE_ID)
 	{
 		FileName name;
-		MakeDBInfoFileName(dbinfo_fileid-1, name.str);
+		MakeDBMetaFileName(dbmeta_fileid-1, name.str);
 
 		{
 		std::lock_guard<std::mutex> lock(m_mutex);
-		m_tobe_delete_dbinfo_files.push_back(name);
+		m_tobe_delete_dbmeta_files.push_back(name);
 		}
 		((WritableEngine*)engine.get())->NotifyClean(shared_from_this());
 	}
@@ -297,7 +297,7 @@ Status WritableDB::CreateBucket(const std::string& bucket_name, BucketPtr& bptr)
 		std::lock_guard<std::mutex> lock(m_mutex);
 		
 		m_bucket_rwlock.ReadLock();
-		BucketListPtr bs_ptr = m_bucket_list;
+		BucketSetPtr bs_ptr = m_bucket_set;
 		m_bucket_rwlock.ReadUnlock();
 
 		std::map<std::string, BucketPtr> new_buckets;
@@ -320,16 +320,16 @@ Status WritableDB::CreateBucket(const std::string& bucket_name, BucketPtr& bptr)
 		}
 		
 		new_buckets[bucket_name] = bptr;
-		BucketListPtr new_bucket_list = NewBucketList(new_buckets);
+		BucketSetPtr new_bucket_set = NewBucketSet(new_buckets);
 
 		m_bucket_rwlock.WriteLock();
-		m_bucket_list.swap(new_bucket_list);
+		m_bucket_set.swap(new_bucket_set);
 		m_bucket_rwlock.WriteUnlock();
 
 		++m_bucket_changed_cnt;
 	}
 	EnginePtr engine = Engine::GetEngine();
-	((WritableEngine*)engine.get())->NotifyWriteDBInfo(shared_from_this());
+	((WritableEngine*)engine.get())->NotifyWriteDBMeta(shared_from_this());
 	return OK;
 }
 
@@ -349,13 +349,13 @@ Status WritableDB::CreateBucketIfMissing(const std::string& bucket_name, BucketP
 
 Status WritableDB::DeleteBucket(const std::string& bucket_name)
 {
-	BucketListPtr new_bs_ptr;
+	BucketSetPtr new_bs_ptr;
 
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
 
 		m_bucket_rwlock.ReadLock();
-		BucketListPtr bs_ptr = m_bucket_list;
+		BucketSetPtr bs_ptr = m_bucket_set;
 		m_bucket_rwlock.ReadUnlock();
 
 		if(!bs_ptr)
@@ -373,10 +373,10 @@ Status WritableDB::DeleteBucket(const std::string& bucket_name)
 		bucket->Clear();
 		buckets.erase(it);
 		
-		new_bs_ptr = NewBucketList(buckets);
+		new_bs_ptr = NewBucketSet(buckets);
 
 		m_bucket_rwlock.WriteLock();
-		m_bucket_list.swap(new_bs_ptr);
+		m_bucket_set.swap(new_bs_ptr);
 		m_bucket_rwlock.WriteUnlock();
 		
 		m_deleting_buckets[bucket->GetInfo().id] = bucket_name;
@@ -384,7 +384,7 @@ Status WritableDB::DeleteBucket(const std::string& bucket_name)
 		++m_bucket_changed_cnt;
 	}
 	EnginePtr engine = Engine::GetEngine();
-	((WritableEngine*)engine.get())->NotifyWriteDBInfo(shared_from_this());
+	((WritableEngine*)engine.get())->NotifyWriteDBMeta(shared_from_this());
 	return OK;
 }
 
@@ -479,13 +479,13 @@ Status WritableDB::NewIterator(const std::string& bucket_name, IteratorImplPtr& 
 Status WritableDB::TryFlush()
 {
 	m_bucket_rwlock.ReadLock();
-	BucketListPtr bucket_list = m_bucket_list;
+	BucketSetPtr bucket_set = m_bucket_set;
 	m_bucket_rwlock.ReadUnlock();
 
-	if(bucket_list)
+	if(bucket_set)
 	{
 		//FIXME: 查找m_tobe_flush_buckets
-		bucket_list->TryFlush();
+		bucket_set->TryFlush();
 	}
 	return OK;
 }
@@ -504,13 +504,13 @@ Status WritableDB::TryFlush(const std::string& bucket_name)
 Status WritableDB::Flush()
 {
 	m_bucket_rwlock.ReadLock();
-	BucketListPtr bucket_list = m_bucket_list;
+	BucketSetPtr bucket_set = m_bucket_set;
 	m_bucket_rwlock.ReadUnlock();
 
-	if(bucket_list)
+	if(bucket_set)
 	{
 		//FIXME: 查找m_tobe_flush_buckets
-		bucket_list->Flush();
+		bucket_set->Flush();
 	}
 	return OK;
 }
@@ -529,12 +529,12 @@ Status WritableDB::Flush(const std::string& bucket_name)
 Status WritableDB::Merge()
 {
 	m_bucket_rwlock.ReadLock();
-	BucketListPtr bucket_list = m_bucket_list;
+	BucketSetPtr bucket_set = m_bucket_set;
 	m_bucket_rwlock.ReadUnlock();
 
-	if(bucket_list)
+	if(bucket_set)
 	{
-		bucket_list->Merge();
+		bucket_set->Merge();
 	}
 	return OK;
 }
@@ -549,32 +549,32 @@ Status WritableDB::Merge(const std::string& bucket_name)
 	return bptr->Merge();
 }
 
-void WritableDB::WriteDBInfoData(DBInfoData& bd)
+void WritableDB::WriteDBMeta(DBMeta& dm)
 {
 	//已经获取到锁
 	
 	m_bucket_rwlock.ReadLock();
-	BucketListPtr bs_ptr = m_bucket_list;
+	BucketSetPtr bs_ptr = m_bucket_set;
 	m_bucket_rwlock.ReadUnlock();
 
 	if(bs_ptr)
 	{
 		const auto& buckets = bs_ptr->Buckets();
 		
-		bd.alive_buckets.reserve(buckets.size());
+		dm.alive_buckets.reserve(buckets.size());
 		for(auto it = buckets.begin(); it != buckets.end(); ++it)
 		{
-			bd.alive_buckets.push_back(it->second->GetInfo());
+			dm.alive_buckets.push_back(it->second->GetInfo());
 		}
 	}
 	for(auto it = m_deleting_buckets.begin(); it != m_deleting_buckets.end(); ++it)
 	{
 		BucketInfo binfo(it->second, it->first);
-		bd.deleted_buckets.push_back(binfo);
+		dm.deleted_buckets.push_back(binfo);
 	}
 	m_deleting_buckets.clear();
 
-	bd.next_bucketid = m_next_bucket_id;
+	dm.next_bucketid = m_next_bucket_id;
 }
 
 

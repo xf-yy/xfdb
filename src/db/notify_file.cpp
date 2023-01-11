@@ -130,7 +130,7 @@ Status NotifyFile::Write(const char* file_dir, const NotifyData& nd, FileName& f
 	return WriteFile(file_dir, filename.str, str.Data(), str.Size());
 }
 	
-uint32_t constexpr NotifyFile::EstimateSize(const NotifyData& bd)
+uint32_t constexpr NotifyFile::EstimateSize(const NotifyData& dm)
 {
 	return FILE_HEAD_SIZE
 	      +	MAX_V32_SIZE+MAX_PATH_LEN+MAX_BUCKET_NAME_LEN+MAX_V64_SIZE

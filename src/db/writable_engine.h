@@ -44,7 +44,7 @@ public:
 	virtual Status RemoveDB(const std::string& db_path) override;
 
 public:	
-	inline void NotifyWriteDBInfo(DBImplPtr db)
+	inline void NotifyWriteDBMeta(DBImplPtr db)
 	{
 		NotifyMsg msg(NOTIFY_WRITE_DB_META, db);
 	

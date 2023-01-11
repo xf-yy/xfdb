@@ -37,7 +37,7 @@ public:
 		mode_t old_mask = umask(0);
 		int ret = mkdir(path, 0644);
 		umask(old_mask);
-		return (ret == 0);
+		return (ret == 0 || LastError == EEXIST);
 	}
 	//static bool CreateR(const char* path);
 	//递归移除目录

@@ -162,6 +162,11 @@ Status DB::Merge(const std::string& bucket_name)
 	return m_db->Merge(bucket_name);
 }
 
+Status DB::Backup(const std::string& backup_dir)
+{
+	assert(m_db);
+	return m_db->Backup(backup_dir);
+}
 
 }   
 

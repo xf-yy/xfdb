@@ -17,7 +17,7 @@ limitations under the License.
 #include "db_types.h"
 #include "readwrite_bucket.h"
 #include "readwrite_writer.h"
-#include "object_writer_list.h"
+#include "object_writer_snapshot.h"
 #include "bucket_metafile.h"
 #include "notify_file.h"
 #include "object_reader_snapshot.h"
@@ -47,7 +47,7 @@ Status ReadWriteBucket::Get(const StrView& key, std::string& value)
 
     objectid_t curr_obj_id = m_next_object_id;
     ObjectWriterPtr memwriter = m_memwriter;
-	ObjectWriterListPtr writer_snapshot = m_memwriter_snapshot;
+	ObjectWriterSnapshotPtr writer_snapshot = m_memwriter_snapshot;
 	ObjectReaderSnapshotPtr reader_snapshot = m_reader_snapshot;
 
 	m_segment_rwlock.ReadUnlock();
@@ -107,7 +107,7 @@ Status ReadWriteBucket::NewIterator(IteratorImplPtr& iter)
 
     objectid_t curr_obj_id = m_next_object_id;
     ObjectWriterPtr memwriter = m_memwriter;
-	ObjectWriterListPtr writer_snapshot = m_memwriter_snapshot;
+	ObjectWriterSnapshotPtr writer_snapshot = m_memwriter_snapshot;
 	ObjectReaderSnapshotPtr reader_snapshot = m_reader_snapshot;
 
 	m_segment_rwlock.ReadUnlock();
@@ -132,7 +132,7 @@ Status ReadWriteBucket::NewIterator(IteratorImplPtr& iter)
         iters.push_back(iter);
     }
 
-    iter = NewIteratorList(iters);
+    iter = NewIteratorSet(iters);
     return OK;
 }
 

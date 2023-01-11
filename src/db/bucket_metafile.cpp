@@ -74,7 +74,7 @@ Status BucketMetaFile::Open(const char* bucket_path, const char* filename, LockF
 	return OK;
 }
 
-static const bool ParseSegmentFileInfo(const byte_t*& data, const byte_t* data_end, SegmentIndexInfo& info)
+static const bool ParseSegmentFileInfo(const byte_t*& data, const byte_t* data_end, SegmentStat& info)
 {
 	for(;;)
 	{
@@ -104,7 +104,7 @@ static const bool ParseSegmentFileInfo(const byte_t*& data, const byte_t* data_e
 	return false;
 }
 
-static const bool ParseSegmentMeta(const byte_t*& data, const byte_t* data_end, BucketMetaData& bmd)
+static const bool ParseSegmentMeta(const byte_t*& data, const byte_t* data_end, BucketMeta& bm)
 {
 	for(;;)
 	{
@@ -112,13 +112,13 @@ static const bool ParseSegmentMeta(const byte_t*& data, const byte_t* data_end, 
 		switch(id)
 		{
 		case MID_NEXT_SEGMENT_ID:
-			bmd.next_segment_id = DecodeV64(data, data_end);
+			bm.next_segment_id = DecodeV64(data, data_end);
 			break;
 		case MID_NEXT_OBJECT_ID:
-			bmd.next_object_id = DecodeV64(data, data_end);
+			bm.next_object_id = DecodeV64(data, data_end);
 			break;
 		case MID_MAX_LEVEL_NUM_ID:
-			bmd.max_level_num = DecodeV32(data, data_end);
+			bm.max_level_num = DecodeV32(data, data_end);
 			break;
 		case MID_END:
 			return true;
@@ -131,32 +131,32 @@ static const bool ParseSegmentMeta(const byte_t*& data, const byte_t* data_end, 
 	return false;
 }
 
-static const bool ParseBucketMetaData(const byte_t*& data, const byte_t* data_end, BucketMetaData& md)
+static const bool ParseBucketMetaData(const byte_t*& data, const byte_t* data_end, BucketMeta& bm)
 {	
 	uint32_t cnt = DecodeV32(data, data_end);
-	md.alive_segment_infos.resize(cnt);
+	bm.alive_segment_stats.resize(cnt);
 	for(uint32_t i = 0; i < cnt; ++i)
 	{
-		ParseSegmentFileInfo(data, data_end, md.alive_segment_infos[i]);
+		ParseSegmentFileInfo(data, data_end, bm.alive_segment_stats[i]);
 	}
 
 	cnt = DecodeV32(data, data_end);
-	md.deleted_segment_fileids.resize(cnt);
+	bm.deleted_segment_fileids.resize(cnt);
 	for(uint32_t i = 0; i < cnt; ++i)
 	{
-		md.deleted_segment_fileids[i] = DecodeV64(data, data_end);
+		bm.deleted_segment_fileids[i] = DecodeV64(data, data_end);
 	}
 
 	cnt = DecodeV32(data, data_end);
 	for(uint32_t i = 0; i < cnt; ++i)
 	{
-		md.max_level_segment_fileids.insert(DecodeV64(data, data_end));
+		bm.max_level_segment_fileids.insert(DecodeV64(data, data_end));
 	}
 
-	return ParseSegmentMeta(data, data_end, md);
+	return ParseSegmentMeta(data, data_end, bm);
 }
 
-Status BucketMetaFile::Parse(const byte_t* data, uint32_t size, BucketMetaData& md)
+Status BucketMetaFile::Parse(const byte_t* data, uint32_t size, BucketMeta& bm)
 {
 	const byte_t* data_end = data + size;
 	
@@ -165,10 +165,10 @@ Status BucketMetaFile::Parse(const byte_t* data, uint32_t size, BucketMetaData& 
 	{
 		return ERR_FILE_FORMAT;
 	}
-	return ParseBucketMetaData(data, data_end, md) ? OK : ERR_FILE_FORMAT;
+	return ParseBucketMetaData(data, data_end, bm) ? OK : ERR_FILE_FORMAT;
 }
 
-Status BucketMetaFile::Read(BucketMetaData& md)
+Status BucketMetaFile::Read(BucketMeta& bm)
 {
 	String str;
 	Status s = ReadFile(m_file, str);
@@ -177,13 +177,13 @@ Status BucketMetaFile::Read(BucketMetaData& md)
 		return s;
 	}
 	
-	return Parse((byte_t*)str.Data(), str.Size(), md);
+	return Parse((byte_t*)str.Data(), str.Size(), bm);
 }
 
-Status BucketMetaFile::Write(const char* bucket_path, fileid_t fileid, BucketMetaData& md)
+Status BucketMetaFile::Write(const char* bucket_path, fileid_t fileid, BucketMeta& bm)
 {
 	String str;
-	Status s = Serialize(md, str);
+	Status s = Serialize(bm, str);
 	if(s != OK)
 	{
 		return s;
@@ -195,9 +195,9 @@ Status BucketMetaFile::Write(const char* bucket_path, fileid_t fileid, BucketMet
 	return WriteFile(bucket_path, name, str.Data(), str.Size());
 }
 
-Status BucketMetaFile::Serialize(const BucketMetaData& md, String& str)
+Status BucketMetaFile::Serialize(const BucketMeta& bm, String& str)
 {
-	uint32_t esize = EstimateSize(md);
+	uint32_t esize = EstimateSize(bm);
 	if(!str.Reserve(esize))
 	{
 		return ERR_MEMORY_NOT_ENOUGH;
@@ -205,12 +205,12 @@ Status BucketMetaFile::Serialize(const BucketMetaData& md, String& str)
 	
 	byte_t* ptr = WriteBucketMetaFileHeader((byte_t*)str.Data());
 	
-	assert(md.alive_segment_infos.size() < 0xFFFFFFFF);
-	uint32_t cnt = (uint32_t)md.alive_segment_infos.size();
+	assert(bm.alive_segment_stats.size() < 0xFFFFFFFF);
+	uint32_t cnt = (uint32_t)bm.alive_segment_stats.size();
 	ptr = EncodeV32(ptr, cnt);
 	for(uint32_t i = 0; i < cnt; ++i)
 	{
-		const SegmentIndexInfo& sinfo = md.alive_segment_infos[i];
+		const SegmentStat& sinfo = bm.alive_segment_stats[i];
 		ptr = EncodeV64(ptr, MID_SEGMENT_ID, sinfo.segment_fileid);
 		ptr = EncodeV32(ptr, MID_L2INDEX_META_SIZE, sinfo.L2index_meta_size);
 		ptr = EncodeV64(ptr, MID_INDEX_FILESIZE, sinfo.index_filesize);
@@ -218,24 +218,24 @@ Status BucketMetaFile::Serialize(const BucketMetaData& md, String& str)
 		ptr = EncodeV32(ptr, MID_END);
 	}
 
-	assert(md.deleted_segment_fileids.size() < 0xFFFFFFFF);
-	cnt = md.deleted_segment_fileids.size();
+	assert(bm.deleted_segment_fileids.size() < 0xFFFFFFFF);
+	cnt = bm.deleted_segment_fileids.size();
 	ptr = EncodeV32(ptr, cnt);
 	for(uint32_t i = 0; i < cnt; ++i)
 	{
-		ptr = EncodeV64(ptr, md.deleted_segment_fileids[i]);
+		ptr = EncodeV64(ptr, bm.deleted_segment_fileids[i]);
 	}
 	
-	cnt = md.max_level_segment_fileids.size();
+	cnt = bm.max_level_segment_fileids.size();
 	ptr = EncodeV32(ptr, cnt);
-	for(auto it = md.max_level_segment_fileids.begin(); it != md.max_level_segment_fileids.end(); ++it)
+	for(auto it = bm.max_level_segment_fileids.begin(); it != bm.max_level_segment_fileids.end(); ++it)
 	{
 		ptr = EncodeV64(ptr, *it);
 	}
 
-	ptr = EncodeV64(ptr, MID_NEXT_SEGMENT_ID, md.next_segment_id);
-	ptr = EncodeV64(ptr, MID_NEXT_OBJECT_ID, md.next_object_id);
-	ptr = EncodeV32(ptr, MID_MAX_LEVEL_NUM_ID, md.max_level_num);
+	ptr = EncodeV64(ptr, MID_NEXT_SEGMENT_ID, bm.next_segment_id);
+	ptr = EncodeV64(ptr, MID_NEXT_OBJECT_ID, bm.next_object_id);
+	ptr = EncodeV32(ptr, MID_MAX_LEVEL_NUM_ID, bm.max_level_num);
 	ptr = EncodeV32(ptr, MID_END);
 
 	ptr = Encode32(ptr, 0);	//FIXME:crc填0
@@ -254,11 +254,11 @@ static constexpr uint32_t EstimateSegmentMetaSize()
 	return (MAX_V32_SIZE + MAX_V64_SIZE)*2 /*2个属性*/;
 }	
 
-uint32_t BucketMetaFile::EstimateSize(const BucketMetaData& md)
+uint32_t BucketMetaFile::EstimateSize(const BucketMeta& bm)
 {
 	uint32_t size = FILE_HEAD_SIZE;
-	size += MAX_V32_SIZE + md.alive_segment_infos.size() * EstimateSegmentFileInfoSize();
-	size += MAX_V32_SIZE + md.deleted_segment_fileids.size() * MAX_V64_SIZE;
+	size += MAX_V32_SIZE + bm.alive_segment_stats.size() * EstimateSegmentFileInfoSize();
+	size += MAX_V32_SIZE + bm.deleted_segment_fileids.size() * MAX_V64_SIZE;
 	size += EstimateSegmentMetaSize();
 	size += sizeof(uint32_t)/*crc*/;
 	return size;
@@ -291,13 +291,13 @@ Status BucketMetaFile::Clean(const char* bucket_path, const char* file_name, Loc
 	{
 		return s;
 	}
-	BucketMetaData md;
-	s = mfile.Read(md);
+	BucketMeta bm;
+	s = mfile.Read(bm);
 	if(s != OK)
 	{
 		return s;
 	}
-	for(auto id : md.deleted_segment_fileids)
+	for(auto id : bm.deleted_segment_fileids)
 	{
 		s = SegmentWriter::Remove(bucket_path, id);
 		if(s != OK)

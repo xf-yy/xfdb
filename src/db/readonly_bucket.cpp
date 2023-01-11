@@ -87,7 +87,7 @@ void ReadOnlyBucket::GetStat(BucketStat& stat) const
 
 	if(reader_snapshot)
 	{
-		reader_snapshot->GetStat(stat);
+		reader_snapshot->GetBucketStat(stat);
 	}
 }
 

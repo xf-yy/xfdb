@@ -36,7 +36,7 @@ public:
 	virtual ~SegmentReader();
 
 public:
-	Status Open(const char* bucket_path, const SegmentIndexInfo& info);
+	Status Open(const char* bucket_path, const SegmentStat& info);
 	
 	Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, std::string& value) const override;
 	
@@ -45,15 +45,15 @@ public:
 	/**返回segment文件总大小*/
 	uint64_t Size() const override;
 	
-	void GetStat(BucketStat& stat) const override;	
+	void GetBucketStat(BucketStat& stat) const override;	
 	
-	inline const SegmentIndexInfo& IndexInfo() const
+	inline const SegmentStat& Stat() const
 	{
-		return m_index_info;
+		return m_segment_stat;
 	}
 	
 private:
-	SegmentIndexInfo m_index_info;
+	SegmentStat m_segment_stat;
 	IndexReader m_index_reader;
 	DataReader m_data_reader;
 	
@@ -115,13 +115,13 @@ public:
 public:	
 	Status Create(const char* bucket_path, fileid_t fileid);
 	
-	Status Write(const ObjectWriterListPtr& object_writer_list, SegmentIndexInfo& seginfo);
-	Status Write(const MergingSegmentInfo& msinfo, SegmentIndexInfo& seginfo);
+	Status Write(const ObjectWriterSnapshotPtr& object_writer_snapshot, SegmentStat& seg_stat);
+	Status Write(const MergingSegmentInfo& msinfo, SegmentStat& seg_stat);
 
 	static Status Remove(const char* bucket_path, fileid_t fileid);
 
 private:
-	Status Write(IteratorImplPtr& iter, const BucketStat& stat, SegmentIndexInfo& seginfo);
+	Status Write(IteratorImplPtr& iter, const BucketStat& stat, SegmentStat& seg_stat);
 
 private:
 	IndexWriter m_index_writer;

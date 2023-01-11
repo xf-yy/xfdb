@@ -32,9 +32,9 @@ namespace xfdb
 
 //库版本号
 #define XFDB_MAJOR_VERSION		0
-#define XFDB_MINOR_VERSION		3
+#define XFDB_MINOR_VERSION		4
 #define XFDB_PATCH_VERSION		0
-#define XFDB_VERSION_DESC		"0.3.0"
+#define XFDB_VERSION_DESC		"0.4.0"
 
 typedef uint32_t bucketid_t;
 typedef uint64_t fileid_t;
@@ -243,9 +243,11 @@ struct SegmentMeta
 {
 	std::vector<fileid_t> deleted_segment_fileids;
 	ObjectStat object_stat;
+    StrView max_key;
+    objectid_t max_objid;
 };
 
-struct SegmentIndexInfo
+struct SegmentStat
 {
 	fileid_t segment_fileid;	//segment fileid
 	uint64_t data_filesize;		//data文件大小
@@ -304,9 +306,9 @@ typedef std::shared_ptr<ReadOnlyDB> ReadOnlyDBPtr;
 class Bucket;
 typedef std::shared_ptr<Bucket> BucketPtr;
 
-class BucketList;
-typedef std::shared_ptr<BucketList> BucketListPtr;
-#define NewBucketList 	std::make_shared<BucketList>
+class BucketSet;
+typedef std::shared_ptr<BucketSet> BucketSetPtr;
+#define NewBucketSet 	std::make_shared<BucketSet>
 
 class WriteOnlyBucket;
 typedef std::shared_ptr<WriteOnlyBucket> WriteOnlyBucketPtr;
@@ -345,11 +347,11 @@ typedef std::shared_ptr<ReadWriteWriter> ReadWriteWriterPtr;
 #define NewWriteOnlyWriter 	std::make_shared<WriteOnlyWriter>
 
 class IteratorImpl;
-typedef std::shared_ptr<IteratorImpl> BaseIteratorPtr;
+typedef std::shared_ptr<IteratorImpl> IteratorImplPtr;
 
-class ObjectWriterList;
-typedef std::shared_ptr<ObjectWriterList> ObjectWriterListPtr;
-#define NewObjectWriterList 	std::make_shared<ObjectWriterList>
+class ObjectWriterSnapshot;
+typedef std::shared_ptr<ObjectWriterSnapshot> ObjectWriterSnapshotPtr;
+#define NewObjectWriterSnapshot 	std::make_shared<ObjectWriterSnapshot>
 
 class IndexWriter;
 typedef std::shared_ptr<IndexWriter> IndexWriterPtr;
@@ -379,9 +381,9 @@ class SegmentWriter;
 typedef std::shared_ptr<SegmentWriter> SegmentWriterPtr;
 #define NewSegmentWriter 	std::make_shared<SegmentWriter>
 
-class IteratorList;
-typedef std::shared_ptr<IteratorList> IteratorListPtr;
-#define NewIteratorList 	std::make_shared<IteratorList>
+class IteratorSet;
+typedef std::shared_ptr<IteratorSet> IteratorSetPtr;
+#define NewIteratorSet 	std::make_shared<IteratorSet>
 
 class WriteOnlyWriterIterator;
 typedef std::shared_ptr<WriteOnlyWriterIterator> WriteOnlyWriterIteratorPtr;
