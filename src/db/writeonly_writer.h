@@ -36,7 +36,7 @@ public:
 	virtual Status Write(objectid_t next_seqid, const WriteOnlyWriterPtr& memtable) override;
 	virtual void Finish() override;
 	
-	virtual IteratorImplPtr NewIterator(objectid_t max_objid = MAX_OBJECT_ID) override;
+	virtual IteratorImplPtr NewIterator(objectid_t max_object_id = MAX_OBJECT_ID) override;
 
 protected:
 	std::vector<Object*> m_objects;

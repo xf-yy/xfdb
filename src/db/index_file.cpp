@@ -37,11 +37,11 @@ enum
 
     MID_MAX_KEY = 100,
     MID_MAX_OBJECT_ID,
+    MID_MAX_MERGE_SEGMENT_ID,
 };
 
 IndexReader::IndexReader() : m_large_pool(Engine::GetEngine()->GetLargePool()), m_buf(m_large_pool)
 {
-	m_conf.bloom_filter_bitnum = 0;
 }
 
 IndexReader::~IndexReader()
@@ -89,7 +89,7 @@ bool IndexReader::ParseObjectStat(const byte_t* &data, const byte_t* data_end)
 {
 	uint32_t cnt = DecodeV32(data, data_end);
 	
-    ObjectTypeStat* object_stat;
+    TypeObjectStat* object_stat;
 	for(uint32_t i = 0; i < cnt; ++i)
 	{
 		byte_t type = *data++;
@@ -114,53 +114,6 @@ bool IndexReader::ParseObjectStat(const byte_t* &data, const byte_t* data_end)
 	return true;
 }
 
-bool IndexReader::ParseDeletedSegment(const byte_t* &data, const byte_t* data_end)
-{
-	uint32_t cnt = DecodeV32(data, data_end);
-	
-	m_meta.deleted_segment_fileids.resize(cnt);
-	for(uint32_t i = 0; i < cnt; ++i)
-	{
-		m_meta.deleted_segment_fileids[i] = DecodeV64(data, data_end);
-	}
-	return true;
-}
-
-bool IndexReader::ParseOtherMeta(const byte_t* &data, const byte_t* data_end)
-{	
-	//其他属性
-	for(;;)
-	{
-		uint32_t id = DecodeV32(data, data_end);
-		switch(id)
-		{
-		case MID_BLOOM_FILTER_BITNUM:
-			m_conf.bloom_filter_bitnum = *data++;
-			break;
-		//case MID_COMPRESS_TYPE:
-		//	m_conf.compress_type = (CompressionType)(*data++);
-		//	break;
-        case MID_MAX_KEY:
-            {
-                StrView key = DecodeString(data, data_end);
-                m_meta.max_key = CloneKey(m_buf, key);
-                assert(m_meta.max_key.size != 0);
-            }
-            break;
-        case MID_MAX_OBJECT_ID:
-            m_meta.max_objid = DecodeV64(data, data_end);
-            break;
-		case MID_END:
-			return true;
-			break;
-		default:
-			return false;
-			break;
-		}
-	}
-	return true;
-}
-
 bool IndexReader::ParseKeyIndex(const byte_t* &data, const byte_t* data_end, uint64_t& last_offset, SegmentL1Index& L1Index)
 {
 	StrView key = DecodeString(data, data_end);
@@ -168,7 +121,7 @@ bool IndexReader::ParseKeyIndex(const byte_t* &data, const byte_t* data_end, uin
 
 	L1Index.L1offset = last_offset;
 	
-	if(m_conf.bloom_filter_bitnum != 0)
+	if(m_meta.bloom_filter_bitnum != 0)
 	{
 		L1Index.bloom_filter_size = DecodeV32(data, data_end);
 	}
@@ -213,18 +166,45 @@ Status IndexReader::ParseMeta(const byte_t* data, uint32_t meta_size)
 {
 	const byte_t* data_end = data + meta_size;
 	
-	if(!ParseDeletedSegment(data, data_end))
-	{
-		return ERR_FILE_FORMAT;
-	}
 	if(!ParseObjectStat(data, data_end))
 	{
 		return ERR_FILE_FORMAT;
 	}
-	if(!ParseOtherMeta(data, data_end))
+
+	//其他属性
+    uint32_t id;
+	do
 	{
-		return ERR_FILE_FORMAT;
-	}
+		id = DecodeV32(data, data_end);
+		switch(id)
+		{
+		case MID_BLOOM_FILTER_BITNUM:
+			m_meta.bloom_filter_bitnum = *data++;
+			break;
+		//case MID_COMPRESS_TYPE:
+		//	m_meta.compress_type = (CompressionType)(*data++);
+		//	break;
+        case MID_MAX_KEY:
+            {
+                StrView key = DecodeString(data, data_end);
+                m_meta.max_key = CloneKey(m_buf, key);
+                assert(m_meta.max_key.size != 0);
+            }
+            break;
+        case MID_MAX_OBJECT_ID:
+            m_meta.max_object_id = DecodeV64(data, data_end);
+            break;
+        case MID_MAX_MERGE_SEGMENT_ID:
+            m_meta.max_merge_segment_id = DecodeV64(data, data_end);
+            break;
+		case MID_END:
+			break;
+		default:
+			return ERR_FILE_FORMAT;
+			break;
+		}
+	}while (id != MID_END);    
+
 	//FIXME:未校验crc
 	/*uint32_t crc = */Decode32(data);
 	
@@ -300,7 +280,7 @@ bool IndexReader::CheckBloomFilter(const SegmentL1Index* L1Index, const StrView&
 		Read(L1Index, bf_data, index_data);
 	}
 	//判断是否有bloom，有则判断bloom是否命中
-	BloomFilter bf(m_conf.bloom_filter_bitnum);
+	BloomFilter bf(m_meta.bloom_filter_bitnum);
 	bf.Attach(bf_data);
 	
 	uint32_t hc = Hash32((byte_t*)key.data, key.size);
@@ -695,7 +675,7 @@ Status IndexWriter::WriteL2Index(uint32_t& L2index_size)
 	return OK;
 }
 
-void IndexWriter::WriteObjectStat(ObjectType type, const ObjectTypeStat& stat)
+void IndexWriter::WriteObjectStat(ObjectType type, const TypeObjectStat& stat)
 {
 	*m_block_ptr++ = (byte_t)type;
 	m_block_ptr = EncodeV64(m_block_ptr, stat.count);
@@ -704,13 +684,7 @@ void IndexWriter::WriteObjectStat(ObjectType type, const ObjectTypeStat& stat)
 }
 
 void IndexWriter::WriteMeta(const SegmentMeta& meta)
-{
-	m_block_ptr = EncodeV32(m_block_ptr, meta.deleted_segment_fileids.size());
-	for(auto id : meta.deleted_segment_fileids)
-	{
-		m_block_ptr = EncodeV64(m_block_ptr, id);
-	}
-	
+{	
 	m_block_ptr = EncodeV32(m_block_ptr, MaxObjectType);
 	WriteObjectStat(SetType, meta.object_stat.set_stat);
 	WriteObjectStat(DeleteType, meta.object_stat.delete_stat);
@@ -723,7 +697,8 @@ void IndexWriter::WriteMeta(const SegmentMeta& meta)
 
     assert(meta.max_key.size != 0);
 	m_block_ptr = EncodeString(m_block_ptr, MID_MAX_KEY, meta.max_key.data, meta.max_key.size);
-	m_block_ptr = EncodeV32(m_block_ptr, MID_MAX_OBJECT_ID, meta.max_objid);
+	m_block_ptr = EncodeV64(m_block_ptr, MID_MAX_OBJECT_ID, meta.max_object_id);
+	m_block_ptr = EncodeV64(m_block_ptr, MID_MAX_MERGE_SEGMENT_ID, meta.max_merge_segment_id);
 
 	m_block_ptr = EncodeV32(m_block_ptr, MID_END);
 	
@@ -780,10 +755,13 @@ Status IndexWriter::Finish(std::deque<uint32_t>& key_hashcodes, const SegmentMet
 	{
 		return s;
 	}
-	if(!m_file.Sync())
-	{
-		return ERR_FILE_WRITE;
-	}
+    if(m_bucket_conf.sync_data)
+    {
+        if(!m_file.Sync())
+        {
+            return ERR_FILE_WRITE;
+        }
+    }
 	return OK;
 }
 	

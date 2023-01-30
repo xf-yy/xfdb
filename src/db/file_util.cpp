@@ -107,7 +107,7 @@ Status ReadFile(const File& file, uint64_t offset, int64_t size, String& str)
 	return (read_size == size) ? OK : ERR_FILE_READ;
 }
 
-Status WriteFile(const char* file_path, void* data, int64_t size)
+Status WriteFile(const char* file_path, void* data, int64_t size, bool sync)
 {
 	File file;
 	if(!file.Open(file_path, OF_WRITEONLY|OF_CREATE))
@@ -129,7 +129,7 @@ Status WriteFile(const char* dir_path, const char* filename, void* data, int64_t
 	
 	char tmp_path[MAX_PATH_LEN];
 	Path::Combine(tmp_path, sizeof(tmp_path), dir_path, tmp_filename);
-	Status s = WriteFile(tmp_path, data, size);
+	Status s = WriteFile(tmp_path, data, size, true);
 	if(s != OK)
 	{
 		return s;

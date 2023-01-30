@@ -40,25 +40,23 @@ typedef uint32_t bucketid_t;
 typedef uint64_t fileid_t;
 typedef uint64_t objectid_t;
 
-//segment fileid: 高60bit是segmentid，低4bit是level
-#define MAX_LEVEL_ID				7
-#define LEVEL_BITNUM				4
-#define LEVEL_MASK					((1<<LEVEL_BITNUM) - 1)
-#define LEVEL_ID(id)				((id) & LEVEL_MASK)
-static_assert(MAX_LEVEL_ID > 2 && MAX_LEVEL_ID < 16, "invalid MAX_LEVEL_ID");
-static_assert(LEVEL_MASK == 15, "invalid LEVEL_MASK");
+//segment fileid: 高56bit是segmentid，低8bit是merge计数
+#define MERGE_COUNT_BITNUM          8
+#define MERGE_COUNT_MASK            ((1<<MERGE_COUNT_BITNUM) - 1)
+#define MERGE_COUNT(fileid)			((fileid) & MERGE_COUNT_MASK)
 
-#define MAX_FULLMERGE_NUM			15						//LEVEL达最大值时才开始计数，非严格意义上的合并最大数
-#define FULLMERGE_BITNUM			4
-#define FULLMERGE_MASK				((1<<FULLMERGE_BITNUM) - 1)
-#define FULLMERGE_COUNT(id)			(((id) >> LEVEL_BITNUM) & FULLMERGE_MASK)
-static_assert(FULLMERGE_MASK == 15, "invalid FULLMERGE_MASK");
+#define MAX_LEVEL_ID				15                  //part合并限制的最大level
+#define MAX_MERGE_COUNT             MERGE_COUNT_MASK    //full合并限制的最大次数
 
-#define SEGMENT_ID_SHIFT			(FULLMERGE_BITNUM + LEVEL_BITNUM)
-#define SEGMENT_ID(id)				((id) >> SEGMENT_ID_SHIFT)
+static inline uint8_t GetLevelID(uint16_t merge_count)
+{
+    return (merge_count >= MAX_LEVEL_ID) ? MAX_LEVEL_ID : merge_count;
+}
+
+#define SEGMENT_ID_SHIFT			(MERGE_COUNT_BITNUM)
+#define SEGMENT_ID(fileid)			((fileid) >> SEGMENT_ID_SHIFT)
 #define MAX_SEGMENT_ID				((0x1ULL << (64-SEGMENT_ID_SHIFT)) - 1)
-#define SEGMENT_FILEID(id, level)			(((id) << SEGMENT_ID_SHIFT) | level)
-#define SEGMENT_FILEID2(id, cnt, level)		(((id) << SEGMENT_ID_SHIFT) | (cnt<<FULLMERGE_BITNUM) | level)
+#define SEGMENT_FILEID(id, count)	(((id) << SEGMENT_ID_SHIFT) | count)
 
 #define INVALID_FILE_ID				0
 #define MIN_FILE_ID					(INVALID_FILE_ID + 1)
@@ -241,10 +239,17 @@ struct SegmentL1Index
 
 struct SegmentMeta
 {
-	std::vector<fileid_t> deleted_segment_fileids;
 	ObjectStat object_stat;
     StrView max_key;
-    objectid_t max_objid;
+    objectid_t max_object_id;
+    fileid_t max_merge_segment_id;
+
+    uint8_t bloom_filter_bitnum;				//参考bucket_conf
+
+    SegmentMeta()
+    {
+        bloom_filter_bitnum = 0;
+    }
 };
 
 struct SegmentStat
@@ -403,7 +408,7 @@ struct MergingSegmentInfo
 public:
 	MergingSegmentInfo()
 	{
-		new_segment_fileid = INVALID_FILE_ID;
+		new_segment_fileid = MIN_FILE_ID;
 	}
 	void GetMergingReaders(std::map<fileid_t, ObjectReaderPtr>& segment_readers) const;
 	uint64_t GetMergingSize() const;

@@ -90,11 +90,10 @@ protected:
 	std::string m_bucket_path;
 
 	std::mutex m_mutex;
+    BucketConfig m_conf;
 	
 	mutable ReadWriteLock m_segment_rwlock;
 	objectid_t m_next_object_id;
-
-	uint16_t m_max_level_num;
 	fileid_t m_next_bucket_meta_fileid;
 	fileid_t m_next_segment_id;
 

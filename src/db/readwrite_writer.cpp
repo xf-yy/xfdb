@@ -25,7 +25,7 @@ namespace xfdb
 
 #define LEVEL_BRANCH 4
 
-static const SkipListNode* FindSameKey(objectid_t max_objid, const SkipListNode* node, std::vector<const SkipListNode*>& nodes)
+static const SkipListNode* FindSameKey(objectid_t max_object_id, const SkipListNode* node, std::vector<const SkipListNode*>& nodes)
 {
     assert(node != nullptr);
     nodes.push_back(node);
@@ -37,7 +37,7 @@ static const SkipListNode* FindSameKey(objectid_t max_objid, const SkipListNode*
 	while(node != nullptr)
 	{
         assert(node->object->key.Compare(prev_node->object->key) >= 0);
-        if(node->object->id > max_objid)
+        if(node->object->id > max_object_id)
         {
             node = node->Next(0);
         }
@@ -147,7 +147,7 @@ Status ReadWriteWriter::Write(const Object* obj)
         prev[i]->SetNext(i, node);
     }
 
-    m_max_objid = obj->id;
+    m_max_object_id = obj->id;
     return OK;
 }
 
@@ -161,11 +161,11 @@ Status ReadWriteWriter::Write(objectid_t next_seqid, const WriteOnlyWriterPtr& m
 		objs[i]->id = next_seqid + i;
         Write(objs[i]);
 	}
-    m_max_objid = next_seqid + objs.size() - 1;
+    m_max_object_id = next_seqid + objs.size() - 1;
 	return OK;
 }
 
-IteratorImplPtr ReadWriteWriter::NewIterator(objectid_t max_objid)
+IteratorImplPtr ReadWriteWriter::NewIterator(objectid_t max_object_id)
 {
     //NOTE: 可能Writer未Finish
     if(m_max_key.Empty())
@@ -173,7 +173,7 @@ IteratorImplPtr ReadWriteWriter::NewIterator(objectid_t max_objid)
         Finish();
     }
     ReadWriteWriterPtr ptr = std::dynamic_pointer_cast<ReadWriteWriter>(shared_from_this());
-    return NewReadWriteWriterIterator(ptr, max_objid);
+    return NewReadWriteWriterIterator(ptr, max_object_id);
 }
 
 //大于最大key的key
@@ -234,7 +234,7 @@ int ReadWriteWriter::RandomLevel()
 }
 
 //////////////////////////////////////////////////////////////////////
-ReadWriteWriterIterator::ReadWriteWriterIterator(ReadWriteWriterPtr& table, objectid_t max_objid) 
+ReadWriteWriterIterator::ReadWriteWriterIterator(ReadWriteWriterPtr& table, objectid_t max_object_id) 
     : m_table(table)
 {
     m_nodes.reserve(16);
@@ -243,7 +243,7 @@ ReadWriteWriterIterator::ReadWriteWriterIterator(ReadWriteWriterPtr& table, obje
     m_max_key = m_table->MaxKey();
     assert(m_max_key.size != 0);    
 
-    m_max_objid = max_objid;
+    m_max_object_id = max_object_id;
 
     First();
 }
@@ -258,7 +258,7 @@ void ReadWriteWriterIterator::First()
 
 void ReadWriteWriterIterator::Seek(const StrView& key)
 {
-    Object dst_obj(MaxObjectType, m_max_objid, key);
+    Object dst_obj(MaxObjectType, m_max_object_id, key);
     m_next_node = m_table->LowerBound(dst_obj);
 
     GetObject();
@@ -322,7 +322,7 @@ bool ReadWriteWriterIterator::FindSameKey()
     {
         return false;
     }
-    m_next_node = xfdb::FindSameKey(m_max_objid, m_next_node, m_nodes);
+    m_next_node = xfdb::FindSameKey(m_max_object_id, m_next_node, m_nodes);
     return true;
 }
 

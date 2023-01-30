@@ -48,7 +48,7 @@ Status SegmentReader::Open(const char* bucket_path, const SegmentStat& info)
 
     const SegmentMeta& meta = m_index_reader.GetMeta();
     m_max_key = meta.max_key;
-    m_max_objid = meta.max_objid;
+    m_max_object_id = meta.max_object_id;
     
     return s;
 }
@@ -65,7 +65,7 @@ Status SegmentReader::Get(const StrView& key, objectid_t obj_id, ObjectType& typ
 	return m_data_reader.Search(L0index, key, type, value);
 }
 
-IteratorImplPtr SegmentReader::NewIterator(objectid_t max_objid)
+IteratorImplPtr SegmentReader::NewIterator(objectid_t max_object_id)
 {
 	SegmentReaderPtr ptr = std::dynamic_pointer_cast<SegmentReader>(shared_from_this());
 
@@ -93,7 +93,7 @@ SegmentReaderIterator::SegmentReaderIterator(SegmentReaderPtr& segment_reader)
     m_max_key = m_segment_reader->MaxKey();
     assert(m_max_key.size != 0);    
     
-    m_max_objid = m_segment_reader->MaxObjectID();
+    m_max_object_id = m_segment_reader->MaxObjectID();
 
 	First();
 }
@@ -230,6 +230,7 @@ bool SegmentReaderIterator::Valid() const
 SegmentWriter::SegmentWriter(const BucketConfig& bucket_conf, BlockPool& pool)
 	: m_index_writer(bucket_conf, pool), m_data_writer(bucket_conf, pool, m_index_writer)
 {
+    m_max_merge_segment_id = MIN_FILE_ID;
 }
 
 SegmentWriter::~SegmentWriter()
@@ -238,6 +239,8 @@ SegmentWriter::~SegmentWriter()
 
 Status SegmentWriter::Create(const char* bucket_path, fileid_t fileid)
 {
+    m_max_merge_segment_id = SEGMENT_ID(fileid);
+    
 	Status s = m_index_writer.Create(bucket_path, fileid);
 	if(s != OK)
 	{
@@ -262,7 +265,8 @@ Status SegmentWriter::Write(IteratorImplPtr& iter, const BucketStat& stat, Segme
 	SegmentMeta meta;
 	meta.object_stat = stat.object_stat;
     meta.max_key = iter->MaxKey();
-    meta.max_objid = iter->MaxObjectID();
+    meta.max_object_id = iter->MaxObjectID();
+    meta.max_merge_segment_id = m_max_merge_segment_id;
 
 	s = m_index_writer.Finish(m_data_writer.m_key_hashs, meta);
 	if(s != OK)
@@ -290,6 +294,7 @@ Status SegmentWriter::Write(const MergingSegmentInfo& msinfo, SegmentStat& seg_s
 {
 	std::map<fileid_t, ObjectReaderPtr> segment_readers;
 	msinfo.GetMergingReaders(segment_readers);
+    m_max_merge_segment_id = SEGMENT_ID(segment_readers.rbegin()->first);
 
     BucketMetaFilePtr meta_file;
 	ObjectReaderSnapshot tmp_reader_snapshot(meta_file, segment_readers);
@@ -297,7 +302,7 @@ Status SegmentWriter::Write(const MergingSegmentInfo& msinfo, SegmentStat& seg_s
 
 	BucketStat stat = {0};
 	tmp_reader_snapshot.GetBucketStat(stat);
-
+    
 	return Write(iter, stat, seg_stat);
 }
 		
@@ -314,29 +319,16 @@ Status SegmentWriter::Remove(const char* bucket_path, fileid_t fileid)
 
 fileid_t MergingSegmentInfo::NewSegmentFileID() const
 {
-	//算法：选用最小的seqid，将其level+1，如果level+1已是最大level，则从begin~end中选个未用的seqid
-	//     如果都用了，则选用未使用的最小segment id
-    //FIXME: 算法待优化
+	//算法：选用最小的seqid，将其merge count+1
 	assert(merging_segment_fileids.size() > 1);
 	fileid_t fileid = *merging_segment_fileids.begin();
 	
-	if(LEVEL_ID(fileid) < MAX_LEVEL_ID)
-	{
-		fileid_t segment_id = SEGMENT_ID(fileid);
-		uint32_t new_level = LEVEL_ID(fileid) + 1;
+    uint16_t new_merge_count = MERGE_COUNT(fileid) + 1;
+    assert(new_merge_count <= MAX_MERGE_COUNT);
 
-		return SEGMENT_FILEID(segment_id, new_level);
-	}
-	else if(FULLMERGE_COUNT(fileid) < MAX_FULLMERGE_NUM)
-	{
-		fileid_t segment_id = SEGMENT_ID(fileid);
-		uint32_t fullmerge_cnt = FULLMERGE_COUNT(fileid) + 1;
-		uint32_t level = LEVEL_ID(fileid);
+	fileid_t segment_id = SEGMENT_ID(fileid);
 
-		return SEGMENT_FILEID2(segment_id, fullmerge_cnt, level);
-	}
-	assert(false);
-	return INVALID_FILE_ID;
+    return SEGMENT_FILEID(segment_id, new_merge_count);
 }
 
 void MergingSegmentInfo::GetMergingReaders(std::map<fileid_t, ObjectReaderPtr>& segment_readers) const

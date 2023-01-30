@@ -27,6 +27,51 @@ limitations under the License.
 namespace xfdb
 {
 
+bool GlobalConfig::Check() const
+{
+    switch(mode)
+    {
+    case MODE_READONLY:
+        if(auto_reload_db)
+        {
+            if(notify_dir.empty())
+            {
+                return false;
+            }
+        }
+        break;
+    case MODE_WRITEONLY:
+    case MODE_READWRITE:
+        break;
+    default: return false; 
+        break;
+    }
+
+    //if(!log_file_path.empty() && log_file_path.back() == '/')
+    //{
+    //	return false;
+    //}
+    if(!notify_dir.empty() && notify_dir.back() == '/')
+    {
+        return false;
+    }
+    return true;
+}
+
+bool BucketConfig::Check() const
+{
+    if(max_level_num > MAX_LEVEL_ID)
+    {
+        return false;
+    }
+    return true;
+}
+
+bool DBConfig::Check() const
+{
+    return true;
+}
+
 DB::DB(DBImplPtr& db) : m_db(db)
 {
 	assert(db);

@@ -32,9 +32,10 @@ namespace xfdb
 WriteOnlyBucket::WriteOnlyBucket(WritableEngine* engine, DBImplPtr db, const BucketInfo& info) 
 	: Bucket(db, info), m_engine(engine), 
 	  m_max_memtable_size(engine->GetConfig().max_memtable_size), 
-	  m_max_memtable_objects(engine->GetConfig().max_memtable_objects)
+	  m_max_memtable_objects(engine->GetConfig().max_memtable_objects),
+      m_merged_reserve_size(engine->GetConfig().merge_factor * engine->GetConfig().part_merge_thread_num)
 {	
-	m_merged_segment_fileids.reserve(engine->GetConfig().merge_factor * engine->GetConfig().part_merge_thread_num);
+	m_merged_segment_fileids.reserve(m_merged_reserve_size);
 	m_writed_segment_cnt = 0;
 	m_tobe_clean_bucket_meta_fileid = INVALID_FILE_ID;
 }
@@ -66,7 +67,7 @@ Status WriteOnlyBucket::Create()
 
 		bm.next_segment_id = m_next_segment_id;
 		bm.next_object_id = m_next_object_id;
-		bm.max_level_num = m_max_level_num;
+		bm.max_level_num = m_conf.max_level_num;
 		bucket_meta_fileid = m_next_bucket_meta_fileid;
 	}
 	return BucketMetaFile::Write(m_bucket_path.c_str(), bucket_meta_fileid, bm);
@@ -119,8 +120,8 @@ Status WriteOnlyBucket::Open()
 	const auto& readers = reader_snapshot->Readers();
 	for(auto it = readers.begin(); it != readers.end(); ++it)
 	{
-		int level = LEVEL_ID(it->first);
-		assert(level <= MAX_LEVEL_ID);
+		uint8_t level = GetLevelID(MERGE_COUNT(it->first));
+		assert(level <= m_conf.max_level_num);
 		m_tobe_merge_segments[level][it->first] = it->second->Size();
 	}
 	return OK;
@@ -390,9 +391,11 @@ Status WriteOnlyBucket::WriteSegment()
 				break;
 			}
 			m_tobe_merge_segments[0][it->first] = it->second;
-			m_writing_segments.erase(it++);
+            m_new_segment_fileid.push_back(it->first);
 			++m_writed_segment_cnt;
 			++writed_segment_inc;
+
+			m_writing_segments.erase(it++);
 		}
 		
 		WriteLockGuard lock_guard(m_segment_rwlock);
@@ -439,14 +442,14 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 	SegmentStat seg_stat;
 	seg_stat.segment_fileid = msinfo.new_segment_fileid;
 	{
-		BucketConfig bucket_conf = db->GetConfig().GetBucketConfig(m_info.name);
+		BucketConfig tmp_bucket_conf = m_conf;
 		//超过一定大小的段不用布隆
 		if(msinfo.GetMergingSize() >= m_engine->GetConfig().max_merge_size)
 		{
-			bucket_conf.bloom_filter_bitnum = 0;
+			tmp_bucket_conf.bloom_filter_bitnum = 0;
 		}
 
-		SegmentWriter segment_writer(bucket_conf, m_engine->GetLargePool());
+		SegmentWriter segment_writer(tmp_bucket_conf, m_engine->GetLargePool());
 		Status s = segment_writer.Create(m_bucket_path.c_str(), msinfo.new_segment_fileid);
 		if(s != OK)
 		{
@@ -477,8 +480,8 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 		{
 			m_merged_segment_fileids.push_back(*it);
 		}
-		int level = LEVEL_ID(msinfo.new_segment_fileid);
-		assert(level <= MAX_LEVEL_ID);
+		uint8_t level = GetLevelID(MERGE_COUNT(msinfo.new_segment_fileid));
+		assert(level <= m_conf.max_level_num);
 
 		m_merging_segment_fileids[level][msinfo.new_segment_fileid] = msinfo.new_segment_reader->Size();
 		for(auto it = m_merging_segment_fileids[level].begin(); it != m_merging_segment_fileids[level].end();)
@@ -530,8 +533,8 @@ bool WriteOnlyBucket::AddMerging(MergingSegmentInfo& msinfo)
 
 	msinfo.new_segment_fileid = msinfo.NewSegmentFileID();
 	
-	int new_level = LEVEL_ID(msinfo.new_segment_fileid);
-	assert(new_level <= MAX_LEVEL_ID);
+	uint8_t new_level = GetLevelID(MERGE_COUNT(msinfo.new_segment_fileid));
+	assert(new_level <= m_conf.max_level_num);
 	assert(m_merging_segment_fileids[new_level].find(msinfo.new_segment_fileid) == m_merging_segment_fileids[new_level].end());
 	m_merging_segment_fileids[new_level][msinfo.new_segment_fileid] = 0;
 	return true;
@@ -545,7 +548,7 @@ Status WriteOnlyBucket::FullMerge()
 		std::lock_guard<std::mutex> lock(m_mutex);
 
 		//注：如果当前有合并操作则返回错误
-		for(int level = 0; level <= MAX_LEVEL_ID; ++level)
+		for(uint8_t level = 0; level <= m_conf.max_level_num; ++level)
 		{
 			if(!m_merging_segment_fileids[level].empty())
 			{
@@ -555,7 +558,7 @@ Status WriteOnlyBucket::FullMerge()
 
 		//搜集所有的m_tobe_merge_segments
 		std::map<fileid_t, uint64_t> total_tobe_merge_segments;
-		for(int level = 0; level <= MAX_LEVEL_ID; ++level)
+		for(uint8_t level = 0; level <= m_conf.max_level_num; ++level)
 		{
 			total_tobe_merge_segments.insert(m_tobe_merge_segments[level].begin(), m_tobe_merge_segments[level].end());
 		}
@@ -563,12 +566,12 @@ Status WriteOnlyBucket::FullMerge()
 		MergingSegmentInfo msinfo;	
 		for(auto it = total_tobe_merge_segments.begin(); it != total_tobe_merge_segments.end(); ++it)
 		{
-			if(it->second < m_engine->GetConfig().max_merge_size && FULLMERGE_COUNT(it->first) < MAX_FULLMERGE_NUM)
+			if(it->second < m_engine->GetConfig().max_merge_size && MERGE_COUNT(it->first) < MAX_MERGE_COUNT)
 			{
 				msinfo.merging_segment_fileids.insert(it->first);
 
-				int level = LEVEL_ID(it->first);
-				assert(level <= MAX_LEVEL_ID);
+				uint8_t level = GetLevelID(MERGE_COUNT(it->first));
+				assert(level <= m_conf.max_level_num);
 				m_tobe_merge_segments[level].erase(it->first);
 			}
 			else
@@ -604,7 +607,7 @@ Status WriteOnlyBucket::PartMerge()
 	const uint32_t merge_factor = m_engine->GetConfig().merge_factor;
 
 	//每层都尝试合并一下
-	for(int level = 0; level <= MAX_LEVEL_ID; ++level)
+	for(uint8_t level = 0; level <= m_conf.max_level_num; ++level)
 	{
 		for(;;)
 		{
@@ -619,8 +622,8 @@ Status WriteOnlyBucket::PartMerge()
 				auto it = m_tobe_merge_segments[level].begin();
 				for(uint32_t m = 0; m < merge_factor; ++m)
 				{
-					//如果segment大小超过阈值或level已达最大值，则截断
-					if(it->second >= m_engine->GetConfig().max_merge_size || LEVEL_ID(it->first) >= MAX_LEVEL_ID)
+					//如果segment大小超过阈值或level已达最大值，则不参与合并
+					if(it->second >= m_engine->GetConfig().max_merge_size || GetLevelID(MERGE_COUNT(it->first)) >= m_conf.max_level_num)
 					{
 						break;
 					}
@@ -640,9 +643,9 @@ Status WriteOnlyBucket::PartMerge()
 	return OK;
 }
 
-void WriteOnlyBucket::WriteAliveSegmentStat(ObjectReaderSnapshotPtr& trs_ptr, BucketMeta& bm)
+void WriteOnlyBucket::GetAliveSegmentStat(ObjectReaderSnapshotPtr& ors_ptr, BucketMeta& bm)
 {
-	const std::map<fileid_t, ObjectReaderPtr>& readers = trs_ptr->Readers();
+	const std::map<fileid_t, ObjectReaderPtr>& readers = ors_ptr->Readers();
 	assert(!readers.empty());
 
 	bm.alive_segment_stats.reserve(readers.size());
@@ -677,19 +680,23 @@ Status WriteOnlyBucket::WriteBucketMeta()
 		m_writed_segment_cnt = 0;
 		if(!m_merged_segment_fileids.empty())
 		{
-			bm.deleted_segment_fileids.swap(m_merged_segment_fileids);
-			m_merged_segment_fileids.reserve(m_engine->GetConfig().merge_factor * m_engine->GetConfig().part_merge_thread_num);
+			bm.merged_segment_fileids.swap(m_merged_segment_fileids);
+			m_merged_segment_fileids.reserve(m_merged_reserve_size);
 		}
+        if(!m_new_segment_fileid.empty())
+        {
+            bm.new_segment_fileids.swap(m_new_segment_fileid);
+        }
 
 		bm.next_segment_id = m_next_segment_id;
 		bm.next_object_id = m_next_object_id;
-		bm.max_level_num = m_max_level_num;
+		bm.max_level_num = m_conf.max_level_num;
 		
 		ReadLockGuard lock_guard(m_segment_rwlock);
 		reader_snapshot = m_reader_snapshot;
 	}
 	
-	WriteAliveSegmentStat(reader_snapshot, bm);
+	GetAliveSegmentStat(reader_snapshot, bm);
 	Status s = BucketMetaFile::Write(m_bucket_path.c_str(), bucket_meta_fileid, bm);
 	if(s != OK)
 	{

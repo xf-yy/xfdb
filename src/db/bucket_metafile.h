@@ -28,9 +28,9 @@ namespace xfdb
 struct BucketMeta
 {		
 	std::vector<SegmentStat> alive_segment_stats;
-	std::vector<fileid_t> deleted_segment_fileids;
-	std::set<fileid_t> max_level_segment_fileids;
-	uint16_t max_level_num;							//记录最大level数，创建后固定
+	std::vector<fileid_t> merged_segment_fileids;
+    std::vector<fileid_t> new_segment_fileids;      //新增的segment fileid
+	uint8_t max_level_num;							//记录最大level数，创建后固定
 	fileid_t next_segment_id;
 	objectid_t next_object_id;
 

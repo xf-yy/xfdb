@@ -58,8 +58,6 @@ private:
 	Status ParseMeta(const byte_t* data, uint32_t metasize);
 	
 	bool ParseObjectStat(const byte_t* &data, const byte_t* data_end);
-	bool ParseDeletedSegment(const byte_t* &data, const byte_t* data_end);
-	bool ParseOtherMeta(const byte_t* &data, const byte_t* data_end);
 	bool ParseKeyIndex(const byte_t* &data, const byte_t* data_end);
 	bool ParseKeyIndex(const byte_t* &data, const byte_t* data_end, uint64_t& last_offset, SegmentL1Index& L1Index);
 
@@ -74,7 +72,6 @@ private:
 	WriteBuffer m_buf;
 	std::vector<SegmentL1Index> m_L1indexs;
 	SegmentMeta m_meta;
-	BucketConfig m_conf;
 	
 private:
 	friend class SegmentReaderIterator;
@@ -115,12 +112,12 @@ private:
 	Status WriteL2Index(uint32_t& L2index_size);
 	Status WriteMeta(uint32_t L2index_size, const SegmentMeta& meta);
 	void WriteMeta(const SegmentMeta& meta);
-	void WriteObjectStat(ObjectType type, const ObjectTypeStat& stat);
+	void WriteObjectStat(ObjectType type, const TypeObjectStat& stat);
 	
 	Status WriteL2IndexMeta(const SegmentMeta& meta);
 
 private:
-	const BucketConfig m_bucket_conf;
+	const BucketConfig& m_bucket_conf;
 
 	BlockPool& m_large_pool;
 

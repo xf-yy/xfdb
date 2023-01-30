@@ -44,7 +44,7 @@ Status WriteOnlyWriter::Write(objectid_t next_seqid, const Object* object)
 	Object* obj = CloneObject(next_seqid, object);
 	m_objects.push_back(obj);
 
-    m_max_objid = object->id;
+    m_max_object_id = object->id;
 	return OK;
 }
 
@@ -61,7 +61,7 @@ Status WriteOnlyWriter::Write(objectid_t next_seqid, const WriteOnlyWriterPtr& m
 		m_objects.push_back(objs[i]);
 	}
 
-    m_max_objid = next_seqid + objs.size() - 1;
+    m_max_object_id = next_seqid + objs.size() - 1;
 	return OK;
 }
 
@@ -74,7 +74,7 @@ void WriteOnlyWriter::Finish()
 	}
 }
 
-IteratorImplPtr WriteOnlyWriter::NewIterator(objectid_t max_objid)
+IteratorImplPtr WriteOnlyWriter::NewIterator(objectid_t max_object_id)
 {
 	WriteOnlyWriterPtr ptr = std::dynamic_pointer_cast<WriteOnlyWriter>(shared_from_this());
 
@@ -89,7 +89,7 @@ WriteOnlyWriterIterator::WriteOnlyWriterIterator(WriteOnlyWriterPtr& table)
     m_max_key = m_table->MaxKey();
     assert(m_max_key.size != 0);
 
-    m_max_objid = m_table->MaxObjectID();
+    m_max_object_id = m_table->MaxObjectID();
     
 	First();
 }

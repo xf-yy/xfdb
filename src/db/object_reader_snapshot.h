@@ -36,7 +36,7 @@ public:
 public:	
 	Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, std::string& value) const override;
 	
-	IteratorImplPtr NewIterator(objectid_t max_objid = MAX_OBJECT_ID) override;
+	IteratorImplPtr NewIterator(objectid_t max_object_id = MAX_OBJECT_ID) override;
 		
 	void GetBucketStat(BucketStat& stat) const override;
 

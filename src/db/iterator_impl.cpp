@@ -167,16 +167,16 @@ void IteratorSet::GetMaxKey()
 void IteratorSet::GetMaxObjectID()
 {
 	assert(!m_iters.empty());
-	m_max_objid = m_iters[0]->MaxObjectID();
+	m_max_object_id = m_iters[0]->MaxObjectID();
 	for(size_t i = 1; i < m_iters.size(); ++i) 
 	{
-		objectid_t max_objid = m_iters[i]->MaxObjectID();
-		if(m_max_objid < max_objid)
+		objectid_t max_object_id = m_iters[i]->MaxObjectID();
+		if(m_max_object_id < max_object_id)
 		{
-			m_max_objid = max_objid;
+			m_max_object_id = max_object_id;
 		}
 	}
-    assert(m_max_objid != INVALID_OBJECT_ID);
+    assert(m_max_object_id != INVALID_OBJECT_ID);
 }
 
 } 

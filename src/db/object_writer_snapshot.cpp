@@ -60,9 +60,9 @@ void ObjectWriterSnapshot::GetMaxKey()
 
 }
 
-IteratorImplPtr ObjectWriterSnapshot::NewIterator(objectid_t max_objid)
+IteratorImplPtr ObjectWriterSnapshot::NewIterator(objectid_t max_object_id)
 {
-    assert(max_objid == MAX_OBJECT_ID);
+    assert(max_object_id == MAX_OBJECT_ID);
     assert(!m_memwriters.empty());
     
 	if(m_memwriters.size() == 1)

@@ -78,7 +78,7 @@ private:
 	StrView ClonePrevKey(const StrView& str);
 
 private:
-	const BucketConfig m_bucket_conf;
+	const BucketConfig& m_bucket_conf;
 	IndexWriter& m_index_writer;
 	BlockPool& m_large_pool;
 

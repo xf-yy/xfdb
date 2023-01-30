@@ -190,7 +190,7 @@ Status ReadFile(const char* file_path, String& str);
 Status ReadFile(const File& file, String& str);
 Status ReadFile(const File& file, uint64_t offset, int64_t size, String& str);
 
-Status WriteFile(const char* file_path, void* data, int64_t size);
+Status WriteFile(const char* file_path, void* data, int64_t size, bool sync);
 //先写临时文件，再重命名为正式文件
 Status WriteFile(const char* dir_path, const char* filename, void* data, int64_t size);
 

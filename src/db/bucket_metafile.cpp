@@ -36,6 +36,7 @@ enum
 	MID_NEXT_SEGMENT_ID = 20,
 	MID_NEXT_OBJECT_ID,
 	MID_MAX_LEVEL_NUM_ID,
+    MID_MAX_MERGE_SEGMENT_ID,
 };
 
 BucketMetaFile::BucketMetaFile()
@@ -141,16 +142,17 @@ static const bool ParseBucketMetaData(const byte_t*& data, const byte_t* data_en
 	}
 
 	cnt = DecodeV32(data, data_end);
-	bm.deleted_segment_fileids.resize(cnt);
+	bm.merged_segment_fileids.resize(cnt);
 	for(uint32_t i = 0; i < cnt; ++i)
 	{
-		bm.deleted_segment_fileids[i] = DecodeV64(data, data_end);
+		bm.merged_segment_fileids[i] = DecodeV64(data, data_end);
 	}
 
 	cnt = DecodeV32(data, data_end);
+	bm.new_segment_fileids.resize(cnt);
 	for(uint32_t i = 0; i < cnt; ++i)
 	{
-		bm.max_level_segment_fileids.insert(DecodeV64(data, data_end));
+		bm.new_segment_fileids[i] = DecodeV64(data, data_end);
 	}
 
 	return ParseSegmentMeta(data, data_end, bm);
@@ -218,19 +220,20 @@ Status BucketMetaFile::Serialize(const BucketMeta& bm, String& str)
 		ptr = EncodeV32(ptr, MID_END);
 	}
 
-	assert(bm.deleted_segment_fileids.size() < 0xFFFFFFFF);
-	cnt = bm.deleted_segment_fileids.size();
+	assert(bm.merged_segment_fileids.size() < 0xFFFFFFFF);
+	cnt = bm.merged_segment_fileids.size();
 	ptr = EncodeV32(ptr, cnt);
 	for(uint32_t i = 0; i < cnt; ++i)
 	{
-		ptr = EncodeV64(ptr, bm.deleted_segment_fileids[i]);
+		ptr = EncodeV64(ptr, bm.merged_segment_fileids[i]);
 	}
-	
-	cnt = bm.max_level_segment_fileids.size();
+
+	assert(bm.new_segment_fileids.size() < 0xFFFFFFFF);
+	cnt = bm.new_segment_fileids.size();
 	ptr = EncodeV32(ptr, cnt);
-	for(auto it = bm.max_level_segment_fileids.begin(); it != bm.max_level_segment_fileids.end(); ++it)
+	for(uint32_t i = 0; i < cnt; ++i)
 	{
-		ptr = EncodeV64(ptr, *it);
+		ptr = EncodeV64(ptr, bm.new_segment_fileids[i]);
 	}
 
 	ptr = EncodeV64(ptr, MID_NEXT_SEGMENT_ID, bm.next_segment_id);
@@ -258,7 +261,8 @@ uint32_t BucketMetaFile::EstimateSize(const BucketMeta& bm)
 {
 	uint32_t size = FILE_HEAD_SIZE;
 	size += MAX_V32_SIZE + bm.alive_segment_stats.size() * EstimateSegmentFileInfoSize();
-	size += MAX_V32_SIZE + bm.deleted_segment_fileids.size() * MAX_V64_SIZE;
+	size += MAX_V32_SIZE + bm.merged_segment_fileids.size() * MAX_V64_SIZE;
+	size += MAX_V32_SIZE + bm.new_segment_fileids.size() * MAX_V64_SIZE;
 	size += EstimateSegmentMetaSize();
 	size += sizeof(uint32_t)/*crc*/;
 	return size;
@@ -297,7 +301,7 @@ Status BucketMetaFile::Clean(const char* bucket_path, const char* file_name, Loc
 	{
 		return s;
 	}
-	for(auto id : bm.deleted_segment_fileids)
+	for(auto id : bm.merged_segment_fileids)
 	{
 		s = SegmentWriter::Remove(bucket_path, id);
 		if(s != OK)

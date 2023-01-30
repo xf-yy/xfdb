@@ -67,7 +67,7 @@ Status ObjectReaderSnapshot::Get(const StrView& key, objectid_t obj_id, ObjectTy
 	return (type == DeleteType) ? OK : ERR_OBJECT_NOT_EXIST;
 }
 
-IteratorImplPtr ObjectReaderSnapshot::NewIterator(objectid_t max_objid)
+IteratorImplPtr ObjectReaderSnapshot::NewIterator(objectid_t max_object_id)
 {
 	if(m_readers.size() == 1)
 	{
@@ -133,14 +133,14 @@ void ObjectReaderSnapshot::GetMaxObjectID()
 	}
 	
 	auto it = m_readers.begin();
-	m_max_objid = it->second->MaxObjectID();
+	m_max_object_id = it->second->MaxObjectID();
 
 	for(++it; it != m_readers.end(); ++it)
 	{
-        objectid_t max_objid = it->second->MaxObjectID();
-		if(m_max_objid < max_objid)
+        objectid_t max_object_id = it->second->MaxObjectID();
+		if(m_max_object_id < max_object_id)
 		{
-			m_max_objid = max_objid;
+			m_max_object_id = max_object_id;
 		}
 	}
 }

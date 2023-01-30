@@ -127,49 +127,22 @@ struct GlobalConfig
 	uint16_t clean_interval_s = 30;				//检测clean时间间隔，单位秒
 	
 public:
-	bool Check() const
-	{
-		switch(mode)
-		{
-		case MODE_READONLY:
-			if(auto_reload_db)
-			{
-				if(notify_dir.empty())
-				{
-					return false;
-				}
-			}
-			break;
-		case MODE_WRITEONLY:
-		case MODE_READWRITE:
-			break;
-		default: return false; 
-			break;
-		}
+	bool Check() const;
 
-		//if(!log_file_path.empty() && log_file_path.back() == '/')
-		//{
-		//	return false;
-		//}
-		if(!notify_dir.empty() && notify_dir.back() == '/')
-		{
-			return false;
-		}
-		return true;
-	}
 };
 
 //bucket配置
 struct BucketConfig
 {
-	uint8_t bloom_filter_bitnum = 10;				//布隆bit数每key, 0关闭
+    uint8_t max_level_num = 7;                     //最大level，不得超过15，bucket级
+
+	uint8_t bloom_filter_bitnum = 10;			   //布隆bit数每key, 0关闭，segment级
+    bool sync_data = false;                         //写data后是否立即刷盘
 	//CompressionType compress_type = COMPRESSION_NONE;//只用在超过filter_size的块中;//暂不支持
 
 public:
-	bool Check() const
-	{
-		return true;
-	}
+	bool Check() const;
+
 };
 
 //db配置
@@ -179,10 +152,8 @@ struct DBConfig
 	bool create_bucket_if_missing = true;
 
 public:
-	bool Check() const
-	{
-		return true;
-	}
+	bool Check() const;
+
 	void SetBucketConfig(const std::string& bucket_name, const BucketConfig& bucket_conf)
 	{
 		bucket_confs[bucket_name] = bucket_conf;
@@ -203,13 +174,13 @@ private:
 };
 
 
-struct ObjectTypeStat
+struct TypeObjectStat
 {
 	uint64_t count;
 	uint64_t key_size;
 	uint64_t value_size;
 
-	inline void Add(const ObjectTypeStat& stat)
+	inline void Add(const TypeObjectStat& stat)
 	{
 		count += stat.count;
 		key_size += stat.key_size;
@@ -225,9 +196,9 @@ struct ObjectTypeStat
 
 struct ObjectStat
 {
-	ObjectTypeStat set_stat;		//set的统计
-	ObjectTypeStat delete_stat; 	//删除的次数
-    ObjectTypeStat append_stat;
+	TypeObjectStat set_stat;		//set的统计
+	TypeObjectStat delete_stat; 	//删除的次数
+    TypeObjectStat append_stat;
 
 	inline uint64_t Count() const
 	{
@@ -241,7 +212,7 @@ struct ObjectStat
 	}
 };
 
-struct TableStat
+struct ReaderStat
 {
 	uint64_t count;			//内存文件大小
 	uint64_t size;
@@ -252,7 +223,7 @@ struct TableStat
 		size += size_;
 	}
 
-	inline void Add(const TableStat& stat)
+	inline void Add(const ReaderStat& stat)
 	{
 		count += stat.count;
 		size += stat.size;
@@ -262,8 +233,8 @@ struct TableStat
 struct BucketStat
 {
 	ObjectStat object_stat;
-	TableStat memwriter_stat;		//内存文件大小
-	TableStat segment_stat;			//segment文件大小
+	ReaderStat memwriter_stat;		//内存文件大小
+	ReaderStat segment_stat;		//segment文件大小
 };
 
 #ifdef DEBUG

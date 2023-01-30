@@ -54,15 +54,9 @@ public:
 	//列举所有的bucket
 	void ListBucket(std::vector<std::string>& bucket_names) const;
 
-    //全量备份
-    Status Backup(const std::string& backup_dir);
-
 public:
 	//获取指定bucket中的记录
 	Status Get(const std::string& bucket_name, const xfutil::StrView& key, std::string& value) const;
-
-    //获取迭代器
-    Status NewIterator(const std::string& bucket_name, IteratorPtr& iter);
 
 	//设置指定bucket中的记录
 	Status Set(const std::string& bucket_name, const xfutil::StrView& key, const xfutil::StrView& value);
@@ -81,6 +75,12 @@ public:
 	//将所有的segment表合并成最大segment(异步操作)
 	Status Merge(const std::string& bucket_name);
 	Status Merge();						
+
+    //获取迭代器
+    Status NewIterator(const std::string& bucket_name, IteratorPtr& iter);
+
+    //全量备份
+    Status Backup(const std::string& backup_dir);
 
 private:
 	explicit DB(DBImplPtr& db);

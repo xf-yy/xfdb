@@ -37,7 +37,7 @@ public:
 	virtual Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, std::string& value) const = 0;
 
 	/**迭代器*/
-	virtual IteratorImplPtr NewIterator(objectid_t max_objid = MAX_OBJECT_ID) = 0;
+	virtual IteratorImplPtr NewIterator(objectid_t max_object_id = MAX_OBJECT_ID) = 0;
 	
 	/**返回segment文件总大小*/
 	virtual uint64_t Size() const = 0;
@@ -53,12 +53,12 @@ public:
 	/**最大key*/
 	objectid_t MaxObjectID() const
     {
-        return m_max_objid;
+        return m_max_object_id;
     }	
 
 protected:
 	StrView m_max_key;
-    objectid_t m_max_objid;
+    objectid_t m_max_object_id;
 
 private:
 	ObjectReader(const ObjectReader&) = delete;

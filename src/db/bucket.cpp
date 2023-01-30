@@ -26,7 +26,7 @@ namespace xfdb
 {
 
 Bucket::Bucket(DBImplPtr& db, const BucketInfo& info) 
-	: m_db(db), m_info(info)
+	: m_db(db), m_info(info), m_conf(db->GetConfig().GetBucketConfig(info.name))
 {
 	char bucket_path[MAX_PATH_LEN];
 	MakeBucketPath(db->GetPath().c_str(), info.name.c_str(), info.id, bucket_path);
@@ -36,7 +36,6 @@ Bucket::Bucket(DBImplPtr& db, const BucketInfo& info)
 
 	m_next_segment_id = MIN_FILE_ID;
 	m_next_bucket_meta_fileid = MIN_FILE_ID;
-	m_max_level_num = MAX_LEVEL_ID;
 }
 
 Status Bucket::Open(const char* bucket_meta_filename)
@@ -84,10 +83,10 @@ Status Bucket::Open(const char* bucket_meta_filename)
 	
 	m_segment_rwlock.WriteLock();
 
+	m_conf.max_level_num = bm.max_level_num;
 	m_next_bucket_meta_fileid = fileid+1;
 	m_next_segment_id = bm.next_segment_id;
 	m_next_object_id = bm.next_object_id;
-	m_max_level_num = bm.max_level_num;
 	m_reader_snapshot.swap(new_ss_ptr);
 
 	m_segment_rwlock.WriteUnlock();

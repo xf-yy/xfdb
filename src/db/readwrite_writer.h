@@ -65,7 +65,7 @@ public:
 	virtual Status Write(objectid_t next_seqid, const WriteOnlyWriterPtr& memtable) override;
 	virtual void Finish() override;
 
-	virtual IteratorImplPtr NewIterator(objectid_t max_objid = MAX_OBJECT_ID) override;
+	virtual IteratorImplPtr NewIterator(objectid_t max_object_id = MAX_OBJECT_ID) override;
 
 private:
     inline int GetMaxLevel() const 
@@ -108,7 +108,7 @@ private:
 class ReadWriteWriterIterator : public IteratorImpl 
 {
 public:
-	ReadWriteWriterIterator(ReadWriteWriterPtr& table, objectid_t max_objid);
+	ReadWriteWriterIterator(ReadWriteWriterPtr& table, objectid_t max_object_id);
 
 	virtual ~ReadWriteWriterIterator()
     {}

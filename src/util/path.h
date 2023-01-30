@@ -19,6 +19,7 @@ limitations under the License.
 
 #include <stdio.h>
 #include "xfdb/strutil.h"
+#include <unistd.h>
 
 namespace xfutil 
 {
@@ -61,7 +62,17 @@ public:
 		assert(path2 != nullptr && path2[0] != '/');
 		snprintf(path, path_size, "%s/%s", path1, path2);
 	}
-	
+    //创建硬链接
+	static bool HardLink(const char* exist_path, const char* new_path)
+    {
+        return (link(exist_path, new_path) == 0);
+    }
+    //创建软链接
+    static bool SymLink(const char* exist_path, const char* new_path)
+    {
+        return (symlink(exist_path, new_path) == 0);
+    }
+
 	#if 0
 	static AddBackslash();
 	static RemoveBackslash();

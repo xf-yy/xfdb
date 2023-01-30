@@ -319,10 +319,13 @@ Status DataWriter::Write(IteratorImpl& iter)
 
 Status DataWriter::Finish()
 {
-	if(!m_file.Sync())
-	{
-		return ERR_FILE_WRITE;
-	}
+    if(m_bucket_conf.sync_data)
+    {
+        if(!m_file.Sync())
+        {
+            return ERR_FILE_WRITE;
+        }
+    }
 	return OK;
 }
 

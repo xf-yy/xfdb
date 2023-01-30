@@ -38,7 +38,7 @@ StrView ObjectWriter::CloneString(const StrView& str)
 
 Object* ObjectWriter::CloneObject(objectid_t seqid, const Object* object)
 {	
-	ObjectTypeStat* stat;
+	TypeObjectStat* stat;
     switch (object->type)
     {
     case SetType:

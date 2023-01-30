@@ -28,7 +28,7 @@ class IteratorImpl
 public:
 	IteratorImpl()
     {
-        m_max_objid = INVALID_OBJECT_ID;
+        m_max_object_id = INVALID_OBJECT_ID;
     }
 	virtual ~IteratorImpl()
     {}
@@ -60,13 +60,13 @@ public:
     //最大object id
 	const objectid_t MaxObjectID() const
     {
-        return m_max_objid;
+        return m_max_object_id;
     }	
 
 protected:
     const Object* m_obj_ptr;
     StrView m_max_key;
-    objectid_t m_max_objid;
+    objectid_t m_max_object_id;
 
 private:
 	IteratorImpl(const IteratorImpl&) = delete;
