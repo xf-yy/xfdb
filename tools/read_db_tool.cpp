@@ -17,7 +17,7 @@ limitations under the License.
 #include <iostream>
 #include <vector>
 #include <string>
-#include "xfdb/xfdb.h"
+#include "xfdb.h"
 
 using namespace xfutil;
 using namespace xfdb;

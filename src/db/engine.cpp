@@ -80,9 +80,13 @@ private:
 };
 static EngineWrapper s_engine_wrapper;
 
-const char* Version()
+const char* GetVersionString()
 {
 	return XFDB_VERSION_DESC;
+}
+uint32_t GetVersion()
+{
+    return (XFDB_MAJOR_VERSION<<16) | (XFDB_MINOR_VERSION<<8) | XFDB_PATCH_VERSION;
 }
 
 Status Start(const GlobalConfig& gconf)

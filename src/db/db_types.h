@@ -31,9 +31,9 @@ namespace xfdb
 {
 
 //库版本号
-#define XFDB_MAJOR_VERSION		0
-#define XFDB_MINOR_VERSION		4
-#define XFDB_PATCH_VERSION		0
+#define XFDB_MAJOR_VERSION		0   //<65536
+#define XFDB_MINOR_VERSION		4   //<256
+#define XFDB_PATCH_VERSION		0   //<256
 #define XFDB_VERSION_DESC		"0.4.0"
 
 typedef uint32_t bucketid_t;
