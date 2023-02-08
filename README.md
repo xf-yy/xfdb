@@ -1,28 +1,23 @@
 # ●项目介绍   
 ***   
-    xfdb是一项自研的全新的嵌入式KV库（也称NoSQL库），采用c++11语言开发。   
+    xfdb是一个轻量级的嵌入式KV库（也称NoSQL库），采用c++11语言开发。   
     作者：xiaofan <75631302@qq.com>   
    
 # ●特性   
 ***    
     已实现：  
-        0、支持linux环境
-        1、支持多种读写模式：只读模式，只写模式，读写模式   
-        2、支持桶的操作：创建、删除、列举、统计值   
-        3、支持Key/Value操作：设置、删除、读取；注：key长度最大16KB，value长度最大64KB
-        4、支持数据定期刷盘  
+        1、支持多种模式：只读模式，只写模式，读写模式   
+        2、支持桶的操作：create、delete、backup(全量)、list、getstat等   
+        3、支持Key/Value操作：put、delete、get、append、batch、iterator操作
+        4、支持自动flush（暂不支持WAL）数据  
         5、支持自动merge，手工merge
         6、支持读cache
-        7、支持批量写
-        8、BloomFilter
-        9、Iterator遍历
-        10、后台日志输出
-        11、Append
+        7、支持BloomFilter
+        8、后台日志输出
     实现中：  
-        1、Backup
-   
+   			NA
     待实现：   
-        
+        NA
    
 # ●编译方法   
 ***   
