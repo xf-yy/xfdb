@@ -24,7 +24,7 @@ limitations under the License.
 #include "xfdb/batch.h"
 #include "db_types.h"
 #include "rwlock.h"
-#include "db_metafile.h"
+#include "dbmeta_file.h"
 
 namespace xfdb 
 {

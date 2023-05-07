@@ -44,11 +44,11 @@ public:
 	void Clear();
 	
 private:
-    Status GetWriter(const std::string& bucket_name, WriteOnlyWriterPtr& writer);    
+    Status GetWriter(const std::string& bucket_name, WriteOnlyObjectWriterPtr& writer);    
 
 private:
 	//key:bucket_name
-	std::map<std::string, WriteOnlyWriterPtr> m_data;
+	std::map<std::string, WriteOnlyObjectWriterPtr> m_data;
 	
 private:
     friend class WritableDB;

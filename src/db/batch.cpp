@@ -15,7 +15,7 @@ limitations under the License.
 ***************************************************************************/
 
 #include "xfdb/batch.h"
-#include "writeonly_writer.h"
+#include "writeonly_objectwriter.h"
 #include "engine.h"
 
 namespace xfdb 
@@ -24,7 +24,7 @@ namespace xfdb
 //设置指定bucket中的记录
 Status ObjectBatch::Set(const std::string& bucket_name, const xfutil::StrView& key, const xfutil::StrView& value)
 {
-    WriteOnlyWriterPtr writer;
+    WriteOnlyObjectWriterPtr writer;
     GetWriter(bucket_name, writer);
 
     Object obj = {SetType, key, value};
@@ -33,7 +33,7 @@ Status ObjectBatch::Set(const std::string& bucket_name, const xfutil::StrView& k
 
 Status ObjectBatch::Append(const std::string& bucket_name, const xfutil::StrView& key, const xfutil::StrView& value)
 {
-    WriteOnlyWriterPtr writer;
+    WriteOnlyObjectWriterPtr writer;
     GetWriter(bucket_name, writer);
 
     Object obj = {AppendType, key, value};
@@ -43,7 +43,7 @@ Status ObjectBatch::Append(const std::string& bucket_name, const xfutil::StrView
 //删除指定bucket中的记录
 Status ObjectBatch::Delete(const std::string& bucket_name, const xfutil::StrView& key)
 {
-    WriteOnlyWriterPtr writer;
+    WriteOnlyObjectWriterPtr writer;
     GetWriter(bucket_name, writer);
 
     Object obj = {DeleteType, key};
@@ -56,13 +56,13 @@ void ObjectBatch::Clear()
     m_data.clear();
 }
 
-Status ObjectBatch::GetWriter(const std::string& bucket_name, WriteOnlyWriterPtr& writer)
+Status ObjectBatch::GetWriter(const std::string& bucket_name, WriteOnlyObjectWriterPtr& writer)
 {
     auto it = m_data.find(bucket_name);
     if(it == m_data.end())
     {
         EnginePtr engine = Engine::GetEngine();
-        writer = NewWriteOnlyWriter(engine->GetSmallPool(), 1024);
+        writer = NewWriteOnlyObjectWriter(engine->GetSmallPool(), 1024);
     }
     else
     {

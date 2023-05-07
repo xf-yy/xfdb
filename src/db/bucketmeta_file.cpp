@@ -17,7 +17,7 @@ limitations under the License.
 #include "db_types.h"
 #include "coding.h"
 #include "path.h"
-#include "bucket_metafile.h"
+#include "bucketmeta_file.h"
 #include "file_util.h"
 #include "segment_file.h"
 

@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_writeonly_writer_h__
-#define __xfdb_writeonly_writer_h__
+#ifndef __xfdb_writeonly_objectwriter_h__
+#define __xfdb_writeonly_objectwriter_h__
 
 #include "db_types.h"
 #include "buffer.h"
@@ -25,15 +25,15 @@ namespace xfdb
 {
 
 //顺序追加
-class WriteOnlyWriter : public ObjectWriter
+class WriteOnlyObjectWriter : public ObjectWriter
 {
 public:
-	explicit WriteOnlyWriter(BlockPool& pool, uint32_t max_object_num);
-	~WriteOnlyWriter();
+	explicit WriteOnlyObjectWriter(BlockPool& pool, uint32_t max_object_num);
+	~WriteOnlyObjectWriter();
 
 public:	
 	virtual Status Write(objectid_t next_seqid, const Object* object) override;
-	virtual Status Write(objectid_t next_seqid, const WriteOnlyWriterPtr& memtable) override;
+	virtual Status Write(objectid_t next_seqid, const WriteOnlyObjectWriterPtr& memtable) override;
 	virtual void Finish() override;
 	
 	virtual IteratorImplPtr NewIterator(objectid_t max_object_id = MAX_OBJECT_ID) override;
@@ -42,18 +42,18 @@ protected:
 	std::vector<Object*> m_objects;
 
 private:
-	friend class WriteOnlyWriterIterator;
-	friend class ReadWriteWriter;
+	friend class WriteOnlyObjectWriterIterator;
+	friend class ReadWriteObjectWriter;
 	
-	WriteOnlyWriter(const WriteOnlyWriter&) = delete;
-	WriteOnlyWriter& operator=(const WriteOnlyWriter&) = delete;
+	WriteOnlyObjectWriter(const WriteOnlyObjectWriter&) = delete;
+	WriteOnlyObjectWriter& operator=(const WriteOnlyObjectWriter&) = delete;
 };
 
-class WriteOnlyWriterIterator : public IteratorImpl 
+class WriteOnlyObjectWriterIterator : public IteratorImpl 
 {
 public:
-	WriteOnlyWriterIterator(WriteOnlyWriterPtr& table);
-	virtual ~WriteOnlyWriterIterator()
+	WriteOnlyObjectWriterIterator(WriteOnlyObjectWriterPtr& table);
+	virtual ~WriteOnlyObjectWriterIterator()
     {}
 
 public:
@@ -77,7 +77,7 @@ private:
     void GetObject();
 
 private:
-	WriteOnlyWriterPtr m_table;
+	WriteOnlyObjectWriterPtr m_table;
 	const ssize_t m_max_num;
 
 	ssize_t m_begin_index;
@@ -87,8 +87,8 @@ private:
     std::string m_value;
 	
 private:
-	WriteOnlyWriterIterator(const WriteOnlyWriterIterator&) = delete;
-	WriteOnlyWriterIterator& operator=(const WriteOnlyWriterIterator&) = delete;
+	WriteOnlyObjectWriterIterator(const WriteOnlyObjectWriterIterator&) = delete;
+	WriteOnlyObjectWriterIterator& operator=(const WriteOnlyObjectWriterIterator&) = delete;
 };
 
 }  

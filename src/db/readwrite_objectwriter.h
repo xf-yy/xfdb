@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#ifndef __xfdb_readwrite_writer_h__
-#define __xfdb_readwrite_writer_h__
+#ifndef __xfdb_readwrite_objectwriter_h__
+#define __xfdb_readwrite_objectwriter_h__
 
 #include <map>
 #include <map>
@@ -54,15 +54,15 @@ struct SkipListNode
 
 };
 
-class ReadWriteWriter : public ObjectWriter
+class ReadWriteObjectWriter : public ObjectWriter
 {
 public:
-    ReadWriteWriter(BlockPool& pool, uint32_t max_object_num);
+    ReadWriteObjectWriter(BlockPool& pool, uint32_t max_object_num);
 
 	virtual Status Get(const StrView& key, objectid_t obj_id, ObjectType& type, std::string& value) const override;
 
 	virtual Status Write(objectid_t next_seqid, const Object* object) override;
-	virtual Status Write(objectid_t next_seqid, const WriteOnlyWriterPtr& memtable) override;
+	virtual Status Write(objectid_t next_seqid, const WriteOnlyObjectWriterPtr& memtable) override;
 	virtual void Finish() override;
 
 	virtual IteratorImplPtr NewIterator(objectid_t max_object_id = MAX_OBJECT_ID) override;
@@ -100,17 +100,17 @@ private:
     SkipListNode* m_head;
 
 private:
-    friend class ReadWriteWriterIterator;
-    ReadWriteWriter(const ReadWriteWriter&) = delete;
-    ReadWriteWriter& operator=(const ReadWriteWriter&) = delete;
+    friend class ReadWriteObjectWriterIterator;
+    ReadWriteObjectWriter(const ReadWriteObjectWriter&) = delete;
+    ReadWriteObjectWriter& operator=(const ReadWriteObjectWriter&) = delete;
 };
 
-class ReadWriteWriterIterator : public IteratorImpl 
+class ReadWriteObjectWriterIterator : public IteratorImpl 
 {
 public:
-	ReadWriteWriterIterator(ReadWriteWriterPtr& table, objectid_t max_object_id);
+	ReadWriteObjectWriterIterator(ReadWriteObjectWriterPtr& table, objectid_t max_object_id);
 
-	virtual ~ReadWriteWriterIterator()
+	virtual ~ReadWriteObjectWriterIterator()
     {}
 
 public:	
@@ -134,7 +134,7 @@ private:
     void GetObject();
 
 private:
-	ReadWriteWriterPtr m_table;
+	ReadWriteObjectWriterPtr m_table;
 
 	const SkipListNode* m_next_node;
 	std::vector<const SkipListNode*> m_nodes;
@@ -142,8 +142,8 @@ private:
     std::string m_value;
 
 private:
-	ReadWriteWriterIterator(const ReadWriteWriterIterator&) = delete;
-	ReadWriteWriterIterator& operator=(const ReadWriteWriterIterator&) = delete;
+	ReadWriteObjectWriterIterator(const ReadWriteObjectWriterIterator&) = delete;
+	ReadWriteObjectWriterIterator& operator=(const ReadWriteObjectWriterIterator&) = delete;
 };
 
 }  

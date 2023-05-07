@@ -17,9 +17,9 @@ limitations under the License.
 #include "db_types.h"
 #include "logger.h"
 #include "writeonly_bucket.h"
-#include "readwrite_writer.h"
+#include "readwrite_objectwriter.h"
 #include "object_writer_snapshot.h"
-#include "bucket_metafile.h"
+#include "bucketmeta_file.h"
 #include "notify_file.h"
 #include "object_reader_snapshot.h"
 #include "writable_db.h"
@@ -49,7 +49,7 @@ WriteOnlyBucket::~WriteOnlyBucket()
 ObjectWriterPtr WriteOnlyBucket::NewObjectWriter(WritableEngine* engine)
 {
 	assert(!(engine->GetConfig().mode & MODE_READONLY));
-	return NewWriteOnlyWriter(engine->GetLargePool(), m_max_memtable_objects);
+	return NewWriteOnlyObjectWriter(engine->GetLargePool(), m_max_memtable_objects);
 }
 
 Status WriteOnlyBucket::Create()
@@ -189,7 +189,7 @@ Status WriteOnlyBucket::Write(const Object* object)
 	return OK;
 }
 
-Status WriteOnlyBucket::Write(const WriteOnlyWriterPtr& memtable)
+Status WriteOnlyBucket::Write(const WriteOnlyObjectWriterPtr& memtable)
 {
 	WriteLockGuard lock_guard(m_segment_rwlock);
 	if(!m_memwriter)

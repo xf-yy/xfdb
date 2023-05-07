@@ -16,9 +16,9 @@ limitations under the License.
 
 #include "db_types.h"
 #include "readwrite_bucket.h"
-#include "readwrite_writer.h"
+#include "readwrite_objectwriter.h"
 #include "object_writer_snapshot.h"
-#include "bucket_metafile.h"
+#include "bucketmeta_file.h"
 #include "notify_file.h"
 #include "object_reader_snapshot.h"
 #include "writable_db.h"
@@ -38,7 +38,7 @@ ReadWriteBucket::~ReadWriteBucket()
 
 ObjectWriterPtr ReadWriteBucket::NewObjectWriter(WritableEngine* engine)
 {
-    return NewReadWriteWriter(engine->GetLargePool(), engine->GetConfig().max_memtable_objects);
+    return NewReadWriteObjectWriter(engine->GetLargePool(), engine->GetConfig().max_memtable_objects);
 }
 
 Status ReadWriteBucket::Get(const StrView& key, std::string& value)

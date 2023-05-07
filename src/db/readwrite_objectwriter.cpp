@@ -16,8 +16,8 @@ limitations under the License.
 
 #include <math.h>
 #include <algorithm>
-#include "readwrite_writer.h"
-#include "writeonly_writer.h"
+#include "readwrite_objectwriter.h"
+#include "writeonly_objectwriter.h"
 #include "object_writer_snapshot.h"
 
 namespace xfdb
@@ -54,7 +54,7 @@ static const SkipListNode* FindSameKey(objectid_t max_object_id, const SkipListN
     return node;
 }
 
-ReadWriteWriter::ReadWriteWriter(BlockPool& pool, uint32_t max_object_num) 
+ReadWriteObjectWriter::ReadWriteObjectWriter(BlockPool& pool, uint32_t max_object_num) 
     : ObjectWriter(pool), LEVEL_BF(RAND_MAX / LEVEL_BRANCH), MAX_LEVEL_NUM(1 + logf(max_object_num) / logf(LEVEL_BRANCH))
 {
     m_max_level = 1;
@@ -66,7 +66,7 @@ ReadWriteWriter::ReadWriteWriter(BlockPool& pool, uint32_t max_object_num)
     }
 }
 
-Status ReadWriteWriter::Get(const StrView& key, objectid_t obj_id, ObjectType& type, std::string& value) const
+Status ReadWriteObjectWriter::Get(const StrView& key, objectid_t obj_id, ObjectType& type, std::string& value) const
 {
     Object dst_obj(MaxObjectType, obj_id, key);
 
@@ -117,13 +117,13 @@ Status ReadWriteWriter::Get(const StrView& key, objectid_t obj_id, ObjectType& t
     return OK;
 }
 
-Status ReadWriteWriter::Write(objectid_t next_seqid, const Object* object)
+Status ReadWriteObjectWriter::Write(objectid_t next_seqid, const Object* object)
 {
     Object* obj = CloneObject(next_seqid, object);   
     return Write(obj);
 }
 
-Status ReadWriteWriter::Write(const Object* obj)
+Status ReadWriteObjectWriter::Write(const Object* obj)
 {	
     SkipListNode* prev[MAX_LEVEL_NUM];
     SkipListNode* node = LowerBound(*obj, prev);
@@ -151,7 +151,7 @@ Status ReadWriteWriter::Write(const Object* obj)
     return OK;
 }
 
-Status ReadWriteWriter::Write(objectid_t next_seqid, const WriteOnlyWriterPtr& memtable)
+Status ReadWriteObjectWriter::Write(objectid_t next_seqid, const WriteOnlyObjectWriterPtr& memtable)
 {
 	AddWriter(memtable);
 
@@ -165,26 +165,26 @@ Status ReadWriteWriter::Write(objectid_t next_seqid, const WriteOnlyWriterPtr& m
 	return OK;
 }
 
-IteratorImplPtr ReadWriteWriter::NewIterator(objectid_t max_object_id)
+IteratorImplPtr ReadWriteObjectWriter::NewIterator(objectid_t max_object_id)
 {
     //NOTE: 可能Writer未Finish
     if(m_max_key.Empty())
     {
         Finish();
     }
-    ReadWriteWriterPtr ptr = std::dynamic_pointer_cast<ReadWriteWriter>(shared_from_this());
-    return NewReadWriteWriterIterator(ptr, max_object_id);
+    ReadWriteObjectWriterPtr ptr = std::dynamic_pointer_cast<ReadWriteObjectWriter>(shared_from_this());
+    return NewReadWriteObjectWriterIterator(ptr, max_object_id);
 }
 
 //大于最大key的key
-void ReadWriteWriter::Finish()
+void ReadWriteObjectWriter::Finish()
 {
     SkipListNode* node = Last();
     m_max_key = (node != m_head) ? node->object->key : StrView();
     assert(m_max_key.size != 0);
 }
 
-SkipListNode* ReadWriteWriter::Last() const
+SkipListNode* ReadWriteObjectWriter::Last() const
 {
     SkipListNode* node = m_head;
 
@@ -202,7 +202,7 @@ SkipListNode* ReadWriteWriter::Last() const
     return node;
 }
 
-SkipListNode* ReadWriteWriter::LowerBound(const Object& obj, SkipListNode** prev) const
+SkipListNode* ReadWriteObjectWriter::LowerBound(const Object& obj, SkipListNode** prev) const
 {
     assert(prev != nullptr);
 
@@ -223,7 +223,7 @@ SkipListNode* ReadWriteWriter::LowerBound(const Object& obj, SkipListNode** prev
     return node->Next(0);
 }
 
-int ReadWriteWriter::RandomLevel()
+int ReadWriteObjectWriter::RandomLevel()
 {
     int level = 1;
     while (level < MAX_LEVEL_NUM && rand() <= LEVEL_BF) 
@@ -234,7 +234,7 @@ int ReadWriteWriter::RandomLevel()
 }
 
 //////////////////////////////////////////////////////////////////////
-ReadWriteWriterIterator::ReadWriteWriterIterator(ReadWriteWriterPtr& table, objectid_t max_object_id) 
+ReadWriteObjectWriterIterator::ReadWriteObjectWriterIterator(ReadWriteObjectWriterPtr& table, objectid_t max_object_id) 
     : m_table(table)
 {
     m_nodes.reserve(16);
@@ -249,14 +249,14 @@ ReadWriteWriterIterator::ReadWriteWriterIterator(ReadWriteWriterPtr& table, obje
 }
 
 /**移到第1个元素处*/
-void ReadWriteWriterIterator::First()
+void ReadWriteObjectWriterIterator::First()
 {
     m_next_node = m_table->m_head->Next(0);
 
     GetObject();
 }
 
-void ReadWriteWriterIterator::Seek(const StrView& key)
+void ReadWriteObjectWriterIterator::Seek(const StrView& key)
 {
     Object dst_obj(MaxObjectType, m_max_object_id, key);
     m_next_node = m_table->LowerBound(dst_obj);
@@ -264,12 +264,12 @@ void ReadWriteWriterIterator::Seek(const StrView& key)
     GetObject();
 }
 
-void ReadWriteWriterIterator::Next()
+void ReadWriteObjectWriterIterator::Next()
 {
     GetObject();
 }
 
-void ReadWriteWriterIterator::GetObject()
+void ReadWriteObjectWriterIterator::GetObject()
 {
     if(!FindSameKey())
     {
@@ -315,7 +315,7 @@ void ReadWriteWriterIterator::GetObject()
 	m_obj_ptr = &m_obj;
 }
 
-bool ReadWriteWriterIterator::FindSameKey()
+bool ReadWriteObjectWriterIterator::FindSameKey()
 {
     m_nodes.clear();
     if(m_next_node == nullptr)

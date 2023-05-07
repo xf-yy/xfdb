@@ -19,7 +19,7 @@ limitations under the License.
 #include "path.h"
 #include "coding.h"
 #include "file_util.h"
-#include "db_metafile.h"
+#include "dbmeta_file.h"
 #include "writeonly_bucket.h"
 
 using namespace xfutil;

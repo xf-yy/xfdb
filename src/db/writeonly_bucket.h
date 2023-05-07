@@ -19,7 +19,7 @@ limitations under the License.
 
 #include "db_types.h"
 #include "writable_engine.h"
-#include "writeonly_writer.h"
+#include "writeonly_objectwriter.h"
 #include "object_writer_snapshot.h"
 #include "object_reader_snapshot.h"
 #include "bucket.h"
@@ -42,7 +42,7 @@ public:
 	virtual void GetStat(BucketStat& stat) const override;
 
 	Status Write(const Object* object);
-	Status Write(const WriteOnlyWriterPtr& memtable);
+	Status Write(const WriteOnlyObjectWriterPtr& memtable);
 	
 	//异步
 	virtual Status TryFlush() override;

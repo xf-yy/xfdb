@@ -15,19 +15,19 @@ limitations under the License.
 ***************************************************************************/
 
 #include <algorithm>
-#include "writeonly_writer.h"
+#include "writeonly_objectwriter.h"
 #include "object_writer_snapshot.h"
 
 namespace xfdb
 {
 
-WriteOnlyWriter::WriteOnlyWriter(BlockPool& pool, uint32_t max_object_num)
+WriteOnlyObjectWriter::WriteOnlyObjectWriter(BlockPool& pool, uint32_t max_object_num)
 	: ObjectWriter(pool)
 {
 	m_objects.reserve(max_object_num+1024/*额外数量*/);
 }
 
-WriteOnlyWriter::~WriteOnlyWriter()
+WriteOnlyObjectWriter::~WriteOnlyObjectWriter()
 {
 	//FIXME: 无需析构
 	#if 0
@@ -39,7 +39,7 @@ WriteOnlyWriter::~WriteOnlyWriter()
 }
 
 
-Status WriteOnlyWriter::Write(objectid_t next_seqid, const Object* object)
+Status WriteOnlyObjectWriter::Write(objectid_t next_seqid, const Object* object)
 {
 	Object* obj = CloneObject(next_seqid, object);
 	m_objects.push_back(obj);
@@ -48,7 +48,7 @@ Status WriteOnlyWriter::Write(objectid_t next_seqid, const Object* object)
 	return OK;
 }
 
-Status WriteOnlyWriter::Write(objectid_t next_seqid, const WriteOnlyWriterPtr& memtable)
+Status WriteOnlyObjectWriter::Write(objectid_t next_seqid, const WriteOnlyObjectWriterPtr& memtable)
 {
 	AddWriter(memtable);
 
@@ -65,7 +65,7 @@ Status WriteOnlyWriter::Write(objectid_t next_seqid, const WriteOnlyWriterPtr& m
 	return OK;
 }
 
-void WriteOnlyWriter::Finish()
+void WriteOnlyObjectWriter::Finish()
 {
 	if(m_objects.size() > 1)
 	{
@@ -74,14 +74,14 @@ void WriteOnlyWriter::Finish()
 	}
 }
 
-IteratorImplPtr WriteOnlyWriter::NewIterator(objectid_t max_object_id)
+IteratorImplPtr WriteOnlyObjectWriter::NewIterator(objectid_t max_object_id)
 {
-	WriteOnlyWriterPtr ptr = std::dynamic_pointer_cast<WriteOnlyWriter>(shared_from_this());
+	WriteOnlyObjectWriterPtr ptr = std::dynamic_pointer_cast<WriteOnlyObjectWriter>(shared_from_this());
 
-	return NewWriteOnlyWriterIterator(ptr);
+	return NewWriteOnlyObjectWriterIterator(ptr);
 }
 
-WriteOnlyWriterIterator::WriteOnlyWriterIterator(WriteOnlyWriterPtr& table)
+WriteOnlyObjectWriterIterator::WriteOnlyObjectWriterIterator(WriteOnlyObjectWriterPtr& table)
 	: m_table(table), m_max_num(table->m_objects.size())
 {
     m_value.reserve(4096);
@@ -94,19 +94,19 @@ WriteOnlyWriterIterator::WriteOnlyWriterIterator(WriteOnlyWriterPtr& table)
 	First();
 }
 
-void WriteOnlyWriterIterator::First()
+void WriteOnlyObjectWriterIterator::First()
 {
     m_begin_index = 0;
     GetObject();
 }
 
-void WriteOnlyWriterIterator::Seek(const StrView& key)
+void WriteOnlyObjectWriterIterator::Seek(const StrView& key)
 {
     //不支持seek
     assert(false);
 }
 
-void WriteOnlyWriterIterator::Next()
+void WriteOnlyObjectWriterIterator::Next()
 {
     assert(m_begin_index < m_max_num);
 
@@ -114,7 +114,7 @@ void WriteOnlyWriterIterator::Next()
     GetObject();
 }
 
-bool WriteOnlyWriterIterator::FindSameKey()
+bool WriteOnlyObjectWriterIterator::FindSameKey()
 {    
 	//如果key与后面的相同则跳过
 	for(m_end_index = m_begin_index+1; m_end_index < m_max_num; ++m_end_index)
@@ -128,7 +128,7 @@ bool WriteOnlyWriterIterator::FindSameKey()
     return m_begin_index < m_max_num;
 };
 
-void WriteOnlyWriterIterator::GetObject()
+void WriteOnlyObjectWriterIterator::GetObject()
 {
     if(!FindSameKey())
     {

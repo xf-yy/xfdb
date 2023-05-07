@@ -15,7 +15,7 @@ limitations under the License.
 ***************************************************************************/
 
 #include "bucket.h"
-#include "bucket_metafile.h"
+#include "bucketmeta_file.h"
 #include "object_reader_snapshot.h"
 #include "path.h"
 #include "logger.h"

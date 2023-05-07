@@ -343,13 +343,13 @@ class ObjectWriter;
 typedef std::shared_ptr<ObjectWriter> ObjectWriterPtr;
 
 class SkipListNode;
-class ReadWriteWriter;
-typedef std::shared_ptr<ReadWriteWriter> ReadWriteWriterPtr;
-#define NewReadWriteWriter 	std::make_shared<ReadWriteWriter>
+class ReadWriteObjectWriter;
+typedef std::shared_ptr<ReadWriteObjectWriter> ReadWriteObjectWriterPtr;
+#define NewReadWriteObjectWriter 	std::make_shared<ReadWriteObjectWriter>
 
-//class WriteOnlyWriter;
-//typedef std::shared_ptr<WriteOnlyWriter> WriteOnlyWriterPtr;
-#define NewWriteOnlyWriter 	std::make_shared<WriteOnlyWriter>
+//class WriteOnlyObjectWriter;
+//typedef std::shared_ptr<WriteOnlyObjectWriter> WriteOnlyObjectWriterPtr;
+#define NewWriteOnlyObjectWriter 	std::make_shared<WriteOnlyObjectWriter>
 
 class IteratorImpl;
 typedef std::shared_ptr<IteratorImpl> IteratorImplPtr;
@@ -390,13 +390,13 @@ class IteratorSet;
 typedef std::shared_ptr<IteratorSet> IteratorSetPtr;
 #define NewIteratorSet 	std::make_shared<IteratorSet>
 
-class WriteOnlyWriterIterator;
-typedef std::shared_ptr<WriteOnlyWriterIterator> WriteOnlyWriterIteratorPtr;
-#define NewWriteOnlyWriterIterator 	std::make_shared<WriteOnlyWriterIterator>
+class WriteOnlyObjectWriterIterator;
+typedef std::shared_ptr<WriteOnlyObjectWriterIterator> WriteOnlyObjectWriterIteratorPtr;
+#define NewWriteOnlyObjectWriterIterator 	std::make_shared<WriteOnlyObjectWriterIterator>
 
-class ReadWriteWriterIterator;
-typedef std::shared_ptr<ReadWriteWriterIterator> ReadWriteWriterIteratorPtr;
-#define NewReadWriteWriterIterator 	std::make_shared<ReadWriteWriterIterator>
+class ReadWriteObjectWriterIterator;
+typedef std::shared_ptr<ReadWriteObjectWriterIterator> ReadWriteObjectWriterIteratorPtr;
+#define NewReadWriteObjectWriterIterator 	std::make_shared<ReadWriteObjectWriterIterator>
 
 struct MergingSegmentInfo
 {

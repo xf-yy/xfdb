@@ -17,7 +17,7 @@ limitations under the License.
 #include "db_impl.h"
 #include "db_types.h"
 #include "bucket.h"
-#include "db_metafile.h"
+#include "dbmeta_file.h"
 #include "bucket_set.h"
 #include "logger.h"
 

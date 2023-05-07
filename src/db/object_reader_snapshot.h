@@ -21,7 +21,7 @@ limitations under the License.
 #include <set>
 #include "db_types.h"
 #include "segment_file.h"
-#include "bucket_metafile.h"
+#include "bucketmeta_file.h"
 #include "object_reader.h"
 
 namespace xfdb 

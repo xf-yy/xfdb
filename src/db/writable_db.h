@@ -26,7 +26,7 @@ limitations under the License.
 #include "lock_file.h"
 #include "db_impl.h"
 #include "writable_engine.h"
-#include "db_metafile.h"
+#include "dbmeta_file.h"
 
 namespace xfdb 
 {

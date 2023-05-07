@@ -23,7 +23,7 @@ limitations under the License.
 #include "object_writer.h"
 #include "rwlock.h"
 #include "path.h"
-#include "bucket_metafile.h"
+#include "bucketmeta_file.h"
 #include "db_impl.h"
 
 namespace xfdb 
