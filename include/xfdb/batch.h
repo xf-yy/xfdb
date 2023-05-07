@@ -28,14 +28,13 @@ namespace xfdb
 class ObjectBatch
 {
 public:
-	ObjectBatch();
-	~ObjectBatch();
+	ObjectBatch()
+    {}
 		
 public:
 	//设置指定bucket中的记录
 	Status Set(const std::string& bucket_name, const xfutil::StrView& key, const xfutil::StrView& value);
 	Status Append(const std::string& bucket_name, const xfutil::StrView& key, const xfutil::StrView& value);
-
 
 	//删除指定bucket中的记录
 	Status Delete(const std::string& bucket_name, const xfutil::StrView& key);
@@ -44,11 +43,11 @@ public:
 	void Clear();
 	
 private:
-    Status GetWriter(const std::string& bucket_name, WriteOnlyObjectWriterPtr& writer);    
+    Status GetObjectWriter(const std::string& bucket_name, WriteOnlyObjectWriterPtr& writer);    
 
 private:
 	//key:bucket_name
-	std::map<std::string, WriteOnlyObjectWriterPtr> m_data;
+	std::map<std::string, WriteOnlyObjectWriterPtr> m_writers;
 	
 private:
     friend class WritableDB;

@@ -441,7 +441,7 @@ Status WritableDB::Delete(const std::string& bucket_name, const StrView& key)
 
 Status WritableDB::Write(const ObjectBatch& ob)
 {
-	for(auto it = ob.m_data.begin(); it != ob.m_data.end(); ++it)
+	for(auto it = ob.m_writers.begin(); it != ob.m_writers.end(); ++it)
 	{
 		BucketPtr bptr;
 		Status s = CreateBucketIfMissing(it->first, bptr);

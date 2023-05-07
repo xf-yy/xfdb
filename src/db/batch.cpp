@@ -25,7 +25,11 @@ namespace xfdb
 Status ObjectBatch::Set(const std::string& bucket_name, const xfutil::StrView& key, const xfutil::StrView& value)
 {
     WriteOnlyObjectWriterPtr writer;
-    GetWriter(bucket_name, writer);
+    Status s = GetObjectWriter(bucket_name, writer);
+    if(s != OK)
+    {
+        return s;
+    }
 
     Object obj = {SetType, key, value};
     return writer->Write(0, &obj);
@@ -34,7 +38,11 @@ Status ObjectBatch::Set(const std::string& bucket_name, const xfutil::StrView& k
 Status ObjectBatch::Append(const std::string& bucket_name, const xfutil::StrView& key, const xfutil::StrView& value)
 {
     WriteOnlyObjectWriterPtr writer;
-    GetWriter(bucket_name, writer);
+    Status s = GetObjectWriter(bucket_name, writer);
+    if(s != OK)
+    {
+        return s;
+    }
 
     Object obj = {AppendType, key, value};
     return writer->Write(0, &obj);
@@ -44,7 +52,11 @@ Status ObjectBatch::Append(const std::string& bucket_name, const xfutil::StrView
 Status ObjectBatch::Delete(const std::string& bucket_name, const xfutil::StrView& key)
 {
     WriteOnlyObjectWriterPtr writer;
-    GetWriter(bucket_name, writer);
+    Status s = GetObjectWriter(bucket_name, writer);
+    if(s != OK)
+    {
+        return s;
+    }
 
     Object obj = {DeleteType, key};
     return writer->Write(0, &obj);    
@@ -53,20 +65,25 @@ Status ObjectBatch::Delete(const std::string& bucket_name, const xfutil::StrView
 //清理
 void ObjectBatch::Clear()
 {
-    m_data.clear();
+    m_writers.clear();
 }
 
-Status ObjectBatch::GetWriter(const std::string& bucket_name, WriteOnlyObjectWriterPtr& writer)
+Status ObjectBatch::GetObjectWriter(const std::string& bucket_name, WriteOnlyObjectWriterPtr& writer)
 {
-    auto it = m_data.find(bucket_name);
-    if(it == m_data.end())
+    auto it = m_writers.find(bucket_name);
+    if(it != m_writers.end())
     {
-        EnginePtr engine = Engine::GetEngine();
-        writer = NewWriteOnlyObjectWriter(engine->GetSmallPool(), 1024);
+        writer = it->second;
     }
     else
     {
-        writer = it->second;
+        EnginePtr engine = Engine::GetEngine();
+        if(!engine)
+        {
+            return ERR_STOPPED;
+        }
+        writer = NewWriteOnlyObjectWriter(engine->GetSmallPool(), 1024);
+        m_writers[bucket_name] = writer;
     }
     return OK;
 }
