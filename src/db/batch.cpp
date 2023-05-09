@@ -82,7 +82,7 @@ Status ObjectBatch::GetObjectWriter(const std::string& bucket_name, WriteOnlyObj
         {
             return ERR_STOPPED;
         }
-        writer = NewWriteOnlyObjectWriter(engine->GetSmallPool(), 1024);
+        writer = NewWriteOnlyObjectWriter(engine->GetSmallBlockPool(), 1024);
         m_writers[bucket_name] = writer;
     }
     return OK;

@@ -288,7 +288,7 @@ DataBlockReaderIteratorPtr DataBlockReader::NewIterator()
 }
 
 DataBlockReaderIterator::DataBlockReaderIterator(DataBlockReader& block) 
-	: m_block(block), m_buf(Engine::GetEngine()->GetSmallPool())
+	: m_block(block), m_buf(Engine::GetEngine()->GetSmallBlockPool())
 {
     m_idx = 0;
 }

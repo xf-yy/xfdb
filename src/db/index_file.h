@@ -64,7 +64,7 @@ private:
 	bool CheckBloomFilter(const SegmentL1Index* L1Index, const StrView& key) const;
 
 private:
-	BlockPool& m_large_pool;
+	BlockPool& m_large_block_pool;
 
 	File m_file;
 	std::string m_path;
@@ -119,7 +119,7 @@ private:
 private:
 	const BucketConfig& m_bucket_conf;
 
-	BlockPool& m_large_pool;
+	BlockPool& m_large_block_pool;
 
 	char m_bucket_path[MAX_PATH_LEN];
 	fileid_t m_segment_fileid;

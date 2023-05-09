@@ -49,7 +49,7 @@ WriteOnlyBucket::~WriteOnlyBucket()
 ObjectWriterPtr WriteOnlyBucket::NewObjectWriter(WritableEngine* engine)
 {
 	assert(!(engine->GetConfig().mode & MODE_READONLY));
-	return NewWriteOnlyObjectWriter(engine->GetLargePool(), m_max_memtable_objects);
+	return NewWriteOnlyObjectWriter(engine->GetLargeBlockPool(), m_max_memtable_objects);
 }
 
 Status WriteOnlyBucket::Create()
@@ -318,7 +318,7 @@ Status WriteOnlyBucket::WriteSegment(ObjectWriterSnapshotPtr& memwriter_snapshot
 	assert(db);
 	{
 		auto& bucket_conf = db->GetConfig().GetBucketConfig(m_info.name);
-		SegmentWriter segment_writer(bucket_conf, m_engine->GetLargePool());
+		SegmentWriter segment_writer(bucket_conf, m_engine->GetLargeBlockPool());
 		Status s = segment_writer.Create(m_bucket_path.c_str(), fileid);
 		if(s != OK)
 		{
@@ -449,7 +449,7 @@ Status WriteOnlyBucket::Merge(MergingSegmentInfo& msinfo)
 			tmp_bucket_conf.bloom_filter_bitnum = 0;
 		}
 
-		SegmentWriter segment_writer(tmp_bucket_conf, m_engine->GetLargePool());
+		SegmentWriter segment_writer(tmp_bucket_conf, m_engine->GetLargeBlockPool());
 		Status s = segment_writer.Create(m_bucket_path.c_str(), msinfo.new_segment_fileid);
 		if(s != OK)
 		{

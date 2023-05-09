@@ -40,7 +40,7 @@ enum
     MID_MAX_MERGE_SEGMENT_ID,
 };
 
-IndexReader::IndexReader() : m_large_pool(Engine::GetEngine()->GetLargePool()), m_buf(m_large_pool)
+IndexReader::IndexReader() : m_large_block_pool(Engine::GetEngine()->GetLargeBlockPool()), m_buf(m_large_block_pool)
 {
 }
 
@@ -214,9 +214,9 @@ Status IndexReader::ParseMeta(const byte_t* data, uint32_t meta_size)
 bool IndexReader::Read(const SegmentL1Index* L1Index, std::string& bf_data, std::string& index_data) const
 {
 	byte_t* buffer;
-	if(L1Index->L1compress_size <= m_large_pool.BlockSize())
+	if(L1Index->L1compress_size <= m_large_block_pool.BlockSize())
 	{
-		buffer = m_large_pool.Alloc();
+		buffer = m_large_block_pool.Alloc();
 	}
 	else
 	{
@@ -226,9 +226,9 @@ bool IndexReader::Read(const SegmentL1Index* L1Index, std::string& bf_data, std:
 	int64_t r_size = m_file.Read(L1Index->L1offset, (void*)buffer, L1Index->L1compress_size);
 	if((uint64_t)r_size != L1Index->L1compress_size)
 	{
-		if(L1Index->L1compress_size <= m_large_pool.BlockSize())
+		if(L1Index->L1compress_size <= m_large_block_pool.BlockSize())
 		{
-			m_large_pool.Free(buffer);
+			m_large_block_pool.Free(buffer);
 		}
 		else
 		{
@@ -256,9 +256,9 @@ bool IndexReader::Read(const SegmentL1Index* L1Index, std::string& bf_data, std:
 	index_data.assign((char*)buffer+L1Index->bloom_filter_size, L1Index->L1origin_size-L1Index->bloom_filter_size);
 	index_cache.Add(cache_key, index_data, index_data.size());
 
-	if(L1Index->L1compress_size <= m_large_pool.BlockSize())
+	if(L1Index->L1compress_size <= m_large_block_pool.BlockSize())
 	{
-		m_large_pool.Free(buffer);
+		m_large_block_pool.Free(buffer);
 	}
 	else
 	{
@@ -344,7 +344,7 @@ Status IndexReader::Search(const StrView& key, SegmentL0Index& L0_index) const
 
 ////////////////////////////////////////////////////////////
 IndexWriter::IndexWriter(const BucketConfig& bucket_conf, BlockPool& pool)
-	: m_bucket_conf(bucket_conf), m_large_pool(pool), m_L1key_buf(pool), m_L0key_buf(pool)
+	: m_bucket_conf(bucket_conf), m_large_block_pool(pool), m_L1key_buf(pool), m_L0key_buf(pool)
 {
 	m_offset = 0;
 	m_L1offset_start = 0;
@@ -354,7 +354,7 @@ IndexWriter::IndexWriter(const BucketConfig& bucket_conf, BlockPool& pool)
 	m_writing_size = 0;
 	
 	m_block_start = pool.Alloc();
-	m_block_end = m_block_start + m_large_pool.BlockSize();
+	m_block_end = m_block_start + m_large_block_pool.BlockSize();
 	m_block_ptr = m_block_start;
 
     //m_prev_key.Reserve(1024);
@@ -370,7 +370,7 @@ IndexWriter::~IndexWriter()
 
 	File::Rename(tmp_file_path, file_path);
 
-	m_large_pool.Free(m_block_start);
+	m_large_block_pool.Free(m_block_start);
 }
 
 Status IndexWriter::Create(const char* bucket_path, fileid_t fileid)

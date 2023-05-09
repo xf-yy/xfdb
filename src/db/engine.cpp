@@ -41,7 +41,7 @@ public:
 		}
 	}	
 
-	EnginePtr GetEngine()
+	EnginePtr& GetEngine()
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
 		return m_engine;
@@ -94,7 +94,7 @@ Status Start(const GlobalConfig& gconf)
 	return s_engine_wrapper.Start(gconf);
 }
 
-EnginePtr Engine::GetEngine()
+EnginePtr& Engine::GetEngine()
 {
 	return s_engine_wrapper.GetEngine();
 }
@@ -125,8 +125,8 @@ Status Engine::Init()
 	{
 		++cache_num;
 	}
-	m_large_pool.Init(LARGE_BLOCK_SIZE, cache_num);
-	m_small_pool.Init(4096, 16384);
+	m_large_block_pool.Init(LARGE_BLOCK_SIZE, cache_num);
+	m_small_block_pool.Init(4096, 16384);
 
     LogInfo("xfdb started");
 	return OK;
@@ -147,13 +147,21 @@ Status Engine::OpenDB(const DBConfig& conf, const std::string& db_path, DBPtr& d
 	DBImplPtr dbptr;
 	if(!QueryDB(db_path, dbptr))
 	{
-		dbptr = NewDB(conf, db_path);
-		Status s = dbptr->Open();
+		DBImplPtr new_dbptr = NewDB(conf, db_path);
+		Status s = new_dbptr->Open();
 		if(s != OK)
 		{
+            LogWarn("failed to open db: %s, status: %d", db_path.c_str(), s);
 			return s;
 		}
-		UpdateDB(db_path, dbptr);
+		if(InsertDB(db_path, new_dbptr, dbptr))
+        {
+            dbptr = new_dbptr;
+        }
+        else
+        {
+            LogWarn("duplicate open db: %s", db_path.c_str());
+        }
 	}
 	
 	db = std::shared_ptr<DB>(new DB(dbptr));
@@ -178,32 +186,30 @@ void Engine::CloseAllDB()
 	}
 }
 
-bool Engine::UpdateDB(const std::string& db_path, DBImplPtr& dbptr)
+bool Engine::InsertDB(const std::string& db_path, DBImplPtr& dbptr, DBImplPtr& old_dbptr)
 {
 	DBImplWptr dbwptr(dbptr);
 
 	m_db_mutex.lock();
 	auto ret = m_dbs.insert(std::make_pair(db_path, dbwptr));
-	if(!ret.second)
-	{
-		DBImplPtr prev_dbptr = ret.first->second.lock();
-		if(prev_dbptr)
-		{
-			dbptr = prev_dbptr;
-		}
-		else
-		{
-			ret.first->second = dbwptr;
-		}
-	}
+    if(!ret.second)
+    {
+        old_dbptr = ret.first->second.lock();
+        //对于无效的db，则重置
+        if(!old_dbptr)
+        {
+            ret.first->second = dbptr;
+            ret.second = true;
+        }
+    }
 	m_db_mutex.unlock();
 
 	return ret.second;
 }
 
-bool Engine::QueryDB(const std::string& db_path, DBImplPtr& dbptr)
+bool Engine::QueryDB(const std::string& db_path, DBImplPtr& dbptr) const
 {	
-	bool found = false;
+	dbptr.reset();
 
 	m_db_mutex.lock();
 	
@@ -211,18 +217,11 @@ bool Engine::QueryDB(const std::string& db_path, DBImplPtr& dbptr)
 	if(it != m_dbs.end())
 	{
 		dbptr = it->second.lock();
-		if(dbptr)
-		{
-			found = true;
-		}
-		else
-		{
-			m_dbs.erase(it);
-		}
 	}
+
 	m_db_mutex.unlock();
 
-	return found;
+	return (bool)dbptr;
 }
 
 }  

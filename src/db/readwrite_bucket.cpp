@@ -38,7 +38,7 @@ ReadWriteBucket::~ReadWriteBucket()
 
 ObjectWriterPtr ReadWriteBucket::NewObjectWriter(WritableEngine* engine)
 {
-    return NewReadWriteObjectWriter(engine->GetLargePool(), engine->GetConfig().max_memtable_objects);
+    return NewReadWriteObjectWriter(engine->GetLargeBlockPool(), engine->GetConfig().max_memtable_objects);
 }
 
 Status ReadWriteBucket::Get(const StrView& key, std::string& value)

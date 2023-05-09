@@ -308,7 +308,7 @@ IndexBlockReaderIteratorPtr IndexBlockReader::NewIterator()
 	return iter_ptr;
 }
 
-IndexBlockReaderIterator::IndexBlockReaderIterator() : m_buf(Engine::GetEngine()->GetSmallPool())
+IndexBlockReaderIterator::IndexBlockReaderIterator() : m_buf(Engine::GetEngine()->GetSmallBlockPool())
 {
 	m_L0indexs.reserve(MAX_OBJECT_NUM_OF_BLOCK);
     m_idx = 0;

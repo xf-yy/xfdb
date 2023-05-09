@@ -45,20 +45,20 @@ public:
 		
 	}
 	
-	static EnginePtr GetEngine();
+	static EnginePtr& GetEngine();
 
 	inline const GlobalConfig& GetConfig() const
 	{
 		return m_conf;
 	}
 	
-	inline BlockPool& GetLargePool()
+	inline BlockPool& GetLargeBlockPool()
 	{
-		return m_large_pool;
+		return m_large_block_pool;
 	}
-	inline BlockPool& GetSmallPool()
+	inline BlockPool& GetSmallBlockPool()
 	{
-		return m_small_pool;
+		return m_small_block_pool;
 	}	
 	inline LruCache<std::string, std::string>& GetIndexCache()
 	{
@@ -77,7 +77,6 @@ public:
 	virtual void Stop() = 0;
 
 	Status OpenDB(const DBConfig& conf, const std::string& db_path, DBPtr& db);
-	void CloseAllDB();
 	
 	virtual Status RemoveDB(const std::string& db_path)
 	{
@@ -88,17 +87,19 @@ protected:
 	Status Init();
 	void Uninit();
 
+	void CloseAllDB();
+
 	virtual DBImplPtr NewDB(const DBConfig& conf, const std::string& db_path) = 0;
-	bool QueryDB(const std::string& db_path, DBImplPtr& dbptr);
-	bool UpdateDB(const std::string& db_path, DBImplPtr& dbptr);
+	bool QueryDB(const std::string& db_path, DBImplPtr& dbptr) const;
+	bool InsertDB(const std::string& db_path, DBImplPtr& dbptr, DBImplPtr& old_dbptr);
 
 protected:
 	const GlobalConfig m_conf;
 
 	volatile bool m_started;
 
-	BlockPool m_large_pool;
-	BlockPool m_small_pool;
+	BlockPool m_large_block_pool;
+	BlockPool m_small_block_pool;
 
 	//key:, value:
 	LruCache<std::string, std::string> m_index_cache;
