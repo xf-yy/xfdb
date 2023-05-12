@@ -37,14 +37,8 @@ WritableEngine::~WritableEngine()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-Status WritableEngine::Start()
+Status WritableEngine::Start_()
 {
-	Status s = Init();
-	if(s != OK)
-	{
-		return s;
-	}
-
 	m_part_merge_threadgroup.Start(m_conf.part_merge_thread_num, PartMergeThread, this);
 	m_full_merge_threadgroup.Start(m_conf.full_merge_thread_num, FullMergeThread, this);
 	
@@ -59,19 +53,11 @@ Status WritableEngine::Start()
 
 	ScanNotifyFile();
 
-	m_started = true;
 	return OK;
 }
  
-void WritableEngine::Stop()
+void WritableEngine::Stop_()
 {	
-	if(!m_started)
-	{
-		return;
-	}
-	//尝试关闭所有的db
-	CloseAllDB();
-
 	NotifyMsg msg;
 
 	m_clean_queue.Push(msg);
@@ -104,8 +90,6 @@ void WritableEngine::Stop()
 	}
 	m_write_metadata_threadgroup.Join();
 	delete[] m_write_metadata_queues;
-
-	Uninit();
 }
 
 DBImplPtr WritableEngine::NewDB(const DBConfig& conf, const std::string& db_path)

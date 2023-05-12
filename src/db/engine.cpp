@@ -99,7 +99,7 @@ EnginePtr& Engine::GetEngine()
 	return s_engine_wrapper.GetEngine();
 }
 
-Status Engine::Init()
+Status Engine::Start()
 {
 	if(!m_conf.Check()) 
 	{
@@ -128,18 +128,28 @@ Status Engine::Init()
 	m_large_block_pool.Init(LARGE_BLOCK_SIZE, cache_num);
 	m_small_block_pool.Init(4096, 16384);
 
-    LogInfo("xfdb started");
-	return OK;
+	Status s = Start_();
+    m_started = (s == OK);
+    return s;
 }
 
-void Engine::Uninit()
+void Engine::Stop()
 {
-	LogWarn("xfdb stopped");
+    if(!m_started)
+	{
+		return;
+	}
+
+	//尝试关闭所有的db
+	CloseAllDB();
+
+    Stop_();
 
     if(!m_conf.log_file_path.empty())
     {
         Logger::Close(); 
     }
+    m_started = false;
 }
 
 Status Engine::OpenDB(const DBConfig& conf, const std::string& db_path, DBPtr& db)
@@ -151,7 +161,6 @@ Status Engine::OpenDB(const DBConfig& conf, const std::string& db_path, DBPtr& d
 		Status s = new_dbptr->Open();
 		if(s != OK)
 		{
-            LogWarn("failed to open db: %s, status: %d", db_path.c_str(), s);
 			return s;
 		}
 		if(InsertDB(db_path, new_dbptr, dbptr))
@@ -166,6 +175,11 @@ Status Engine::OpenDB(const DBConfig& conf, const std::string& db_path, DBPtr& d
 	
 	db = std::shared_ptr<DB>(new DB(dbptr));
 	return OK;
+}
+
+void Engine::CloseDB(DBImplPtr& db)
+{
+	db->Flush();
 }
 
 void Engine::CloseAllDB()

@@ -38,14 +38,8 @@ ReadOnlyEngine::~ReadOnlyEngine()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-Status ReadOnlyEngine::Start()
+Status ReadOnlyEngine::Start_()
 {
-	Status s = Init();
-	if(s != OK)
-	{
-		return s;
-	}
-
 	if(m_conf.auto_reload_db)
 	{
 		m_reload_queues = new BlockingQueue<NotifyData>[m_conf.reload_db_thread_num];
@@ -58,20 +52,11 @@ Status ReadOnlyEngine::Start()
 		m_notify_thread.Start(ReadNotifyThread, this);
 	}	
 
-	m_started = true;
 	return OK;
 }
 
-void ReadOnlyEngine::Stop()
-{
-	if(!m_started)
-	{
-		return;
-	}
-	
-	//关闭所有的db
-	CloseAllDB();
-	
+void ReadOnlyEngine::Stop_()
+{	
 	if(m_conf.auto_reload_db)
 	{
 		//FIXME:写个关闭的通知文件
@@ -88,7 +73,6 @@ void ReadOnlyEngine::Stop()
 		delete[] m_reload_queues;
 		m_reload_queues = nullptr;
 	}
-	Uninit();
 }
 
 DBImplPtr ReadOnlyEngine::NewDB(const DBConfig& conf, const std::string& db_path)

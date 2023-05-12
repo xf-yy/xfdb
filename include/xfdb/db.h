@@ -39,6 +39,9 @@ public:
 	static Status Remove(const std::string& db_path);
 
 public:	
+    //获取db path
+    const std::string& GetPath();
+
 	//创建bucket
 	Status CreateBucket(const std::string& bucket_name);	
 

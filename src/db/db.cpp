@@ -79,7 +79,11 @@ DB::DB(DBImplPtr& db) : m_db(db)
 
 DB::~DB()
 {
-	m_db->Flush();
+	EnginePtr engine = Engine::GetEngine();
+	if(engine)
+	{
+        engine->CloseDB(m_db);
+	}
 }
 
 Status DB::Open(const DBConfig& dbconf, const std::string& db_path, DBPtr& db)
@@ -108,6 +112,12 @@ Status DB::Remove(const std::string& db_path)
 		return ERR_STOPPED;
 	}
 	return engine->RemoveDB(db_path);
+}
+
+const std::string& DB::GetPath()
+{
+    assert(m_db);
+    return m_db->GetPath();
 }
 
 Status DB::CreateBucket(const std::string& bucket_name)

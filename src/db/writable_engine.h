@@ -38,8 +38,8 @@ public:
 	virtual ~WritableEngine();
 	
 public:	
-	virtual Status Start() override;
-	virtual void Stop() override;
+	virtual Status Start_() override;
+	virtual void Stop_() override;
 
 	virtual Status RemoveDB(const std::string& db_path) override;
 

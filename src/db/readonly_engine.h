@@ -37,8 +37,8 @@ public:
 	virtual ~ReadOnlyEngine();
 
 public:	
-	virtual Status Start() override;
-	virtual void Stop() override;	
+	virtual Status Start_() override;
+	virtual void Stop_() override;	
 
 public:
 	void PostNotifyData(const NotifyData& nd);

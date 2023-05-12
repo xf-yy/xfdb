@@ -42,7 +42,6 @@ public:
 	}
 	virtual ~Engine()
 	{
-		
 	}
 	
 	static EnginePtr& GetEngine();
@@ -73,10 +72,11 @@ public:
 		return m_bloom_filter_cache;
 	}	
 public:	
-	virtual Status Start() = 0;
-	virtual void Stop() = 0;
+	Status Start();
+	void Stop();
 
 	Status OpenDB(const DBConfig& conf, const std::string& db_path, DBPtr& db);
+	void CloseDB(DBImplPtr& db);
 	
 	virtual Status RemoveDB(const std::string& db_path)
 	{
@@ -84,14 +84,15 @@ public:
 	}
 
 protected:
-	Status Init();
-	void Uninit();
-
-	void CloseAllDB();
+	virtual Status Start_() = 0;
+	virtual void Stop_() = 0;
 
 	virtual DBImplPtr NewDB(const DBConfig& conf, const std::string& db_path) = 0;
 	bool QueryDB(const std::string& db_path, DBImplPtr& dbptr) const;
 	bool InsertDB(const std::string& db_path, DBImplPtr& dbptr, DBImplPtr& old_dbptr);
+
+private:
+	void CloseAllDB();
 
 protected:
 	const GlobalConfig m_conf;
