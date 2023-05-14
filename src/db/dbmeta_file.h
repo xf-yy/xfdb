@@ -45,8 +45,6 @@ private:
 	static Status Parse(const byte_t* data, uint32_t size, DBMeta& dm);
 	static Status Serialize(const DBMeta& dm, String& str);
 	static uint32_t EstimateSize(const DBMeta& dm);
-	static Status Check(const byte_t* data, uint32_t size);
-
 };
 
 

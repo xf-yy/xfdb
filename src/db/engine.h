@@ -115,6 +115,26 @@ private:
 	Engine& operator=(const Engine&) = delete;
 };
 
+class EngineWrapper
+{
+public:
+	~EngineWrapper();	
+
+	EnginePtr& GetEngine()
+	{
+		std::lock_guard<std::mutex> lock(m_mutex);
+		return m_engine;
+	}
+
+	Status Start(const GlobalConfig& conf);
+
+private:
+	EnginePtr NewEngine(const GlobalConfig& conf);
+	
+private:
+	std::mutex m_mutex;
+	EnginePtr m_engine;
+};
 
 }  
 

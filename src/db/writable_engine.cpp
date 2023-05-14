@@ -125,7 +125,7 @@ void WritableEngine::PartMergeThread(size_t index, void* arg)
 		Status s = bucket->PartMerge();
         if(s != OK)
         {
-            LogWarn("part merge for %s failed, status: %u", bucket->GetInfo().name.c_str(), s);
+            LogWarn("part merge for %s failed, status: %u", bucket->Info().name.c_str(), s);
         }
 	}
 	LogDebug("the %dst part merge thread exit", index);	
@@ -160,7 +160,7 @@ void WritableEngine::FullMergeThread(size_t index, void* arg)
 		}
         else if(s != OK)
         {
-            LogWarn("full merge for %s failed, status: %u", bucket->GetInfo().name.c_str(), s);
+            LogWarn("full merge for %s failed, status: %u", bucket->Info().name.c_str(), s);
         }
 	}
 	LogDebug("the %dst full merge thread started", index);
@@ -227,7 +227,7 @@ void WritableEngine::WriteSegmentThread(size_t index, void* arg)
 		Status s = bucket->WriteSegment();
         if(s != OK)
         {
-            LogWarn("write segment for %s failed, status: %u", bucket->GetInfo().name.c_str(), s);
+            LogWarn("write segment for %s failed, status: %u", bucket->Info().name.c_str(), s);
         }
 	}
 	LogDebug("the %dst write segment thread exit", index);	

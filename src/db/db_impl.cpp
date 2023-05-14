@@ -39,7 +39,7 @@ DBImpl::~DBImpl()
 {
 }
 
-bool DBImpl::ExistBucket(const std::string& bucket_name) const
+bool DBImpl::BucketExist(const std::string& bucket_name) const
 {
 	BucketPtr bptr;
 	return GetBucket(bucket_name, bptr);
@@ -211,7 +211,7 @@ Status DBImpl::BackupDBMeta(BucketSetPtr& bucket_set, const std::string& backup_
         dm.alive_buckets.reserve(buckets.size());
         for(auto it = buckets.begin(); it != buckets.end(); ++it)
         {
-            dm.alive_buckets.push_back(it->second->GetInfo());
+            dm.alive_buckets.push_back(it->second->Info());
         }
 
         dm.next_bucketid = m_next_bucket_id;

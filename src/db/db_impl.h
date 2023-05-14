@@ -45,7 +45,7 @@ public:
 	{
 		return ERR_INVALID_MODE;
 	}
-	virtual bool ExistBucket(const std::string& bucket_name) const;	
+	virtual bool BucketExist(const std::string& bucket_name) const;	
 	virtual Status GetBucketStat(const std::string& bucket_name, BucketStat& stat) const;
 	virtual void ListBucket(std::vector<std::string>& bucket_names) const;
 

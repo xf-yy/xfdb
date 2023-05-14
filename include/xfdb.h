@@ -26,12 +26,13 @@ limitations under the License.
 namespace xfdb 
 {
 
-//初始化xfdb系统
-Status Start(const GlobalConfig& gconf);
-
-//xfdb当前版本号
+//版本号/描述
 const char* GetVersionString();
 uint32_t GetVersion();
+
+//启动
+Status Start(const GlobalConfig& gconf);
+
 
 } 
 

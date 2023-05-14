@@ -36,14 +36,12 @@ public:
 	explicit ReadOnlyEngine(const GlobalConfig& conf);
 	virtual ~ReadOnlyEngine();
 
-public:	
-	virtual Status Start_() override;
-	virtual void Stop_() override;	
-
 public:
 	void PostNotifyData(const NotifyData& nd);
 
 protected:
+	virtual Status Start_() override;
+	virtual void Stop_() override;	
 	virtual DBImplPtr NewDB(const DBConfig& conf, const std::string& db_path);
 	
 private:		

@@ -49,7 +49,7 @@ public:
 	Status DeleteBucket(const std::string& bucket_name);
 
 	//判断bucket是否存在
-	bool ExistBucket(const std::string& bucket_name) const;
+	bool BucketExist(const std::string& bucket_name) const;
 
 	//获取bucket统计
 	Status GetBucketStat(const std::string& bucket_name, BucketStat& stat) const;

@@ -379,7 +379,7 @@ Status WritableDB::DeleteBucket(const std::string& bucket_name)
 		m_bucket_set.swap(new_bs_ptr);
 		m_bucket_rwlock.WriteUnlock();
 		
-		m_deleting_buckets[bucket->GetInfo().id] = bucket_name;
+		m_deleting_buckets[bucket->Info().id] = bucket_name;
 
 		++m_bucket_changed_cnt;
 	}
@@ -564,7 +564,7 @@ void WritableDB::WriteDBMeta(DBMeta& dm)
 		dm.alive_buckets.reserve(buckets.size());
 		for(auto it = buckets.begin(); it != buckets.end(); ++it)
 		{
-			dm.alive_buckets.push_back(it->second->GetInfo());
+			dm.alive_buckets.push_back(it->second->Info());
 		}
 	}
 	for(auto it = m_deleting_buckets.begin(); it != m_deleting_buckets.end(); ++it)

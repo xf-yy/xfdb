@@ -37,10 +37,7 @@ public:
 	explicit WritableEngine(const GlobalConfig& conf);
 	virtual ~WritableEngine();
 	
-public:	
-	virtual Status Start_() override;
-	virtual void Stop_() override;
-
+public:
 	virtual Status RemoveDB(const std::string& db_path) override;
 
 public:	
@@ -96,6 +93,8 @@ public:
 	void WriteNotifyFile(const NotifyData& nd);
 
 protected:
+	virtual Status Start_() override;
+	virtual void Stop_() override;
 	virtual DBImplPtr NewDB(const DBConfig& conf, const std::string& db_path);
 
 private:

@@ -41,7 +41,7 @@ public:
 	{
 		return m_info.name;
 	}
-	inline const BucketInfo& GetInfo() const
+	inline const BucketInfo& Info() const
 	{
 		return m_info;
 	}

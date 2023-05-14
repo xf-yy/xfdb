@@ -30,54 +30,6 @@ limitations under the License.
 namespace xfdb 
 {
 
-class EngineWrapper
-{
-public:
-	~EngineWrapper()
-	{
-		if(m_engine)
-		{
-			m_engine->Stop();
-		}
-	}	
-
-	EnginePtr& GetEngine()
-	{
-		std::lock_guard<std::mutex> lock(m_mutex);
-		return m_engine;
-	}
-
-	Status Start(const GlobalConfig& conf)
-	{
-		std::lock_guard<std::mutex> lock(m_mutex);
-		if(m_engine)
-		{
-			return ERR_STARTED;
-		}
-
-		EnginePtr engine = NewEngine(conf);
-		Status s = engine->Start();
-		if(s == OK)
-		{
-			m_engine = engine;
-		}
-		return s;
-	}
-
-private:
-	EnginePtr NewEngine(const GlobalConfig& conf)
-	{
-		if(conf.mode == MODE_READONLY)
-		{
-			return NewReadOnlyEngine(conf);
-		}
-		return NewWritableEngine(conf);
-	}
-	
-private:
-	std::mutex m_mutex;
-	EnginePtr m_engine;
-};
 static EngineWrapper s_engine_wrapper;
 
 const char* GetVersionString()
@@ -92,6 +44,40 @@ uint32_t GetVersion()
 Status Start(const GlobalConfig& gconf)
 {
 	return s_engine_wrapper.Start(gconf);
+}
+
+EngineWrapper::~EngineWrapper()
+{
+    if(m_engine)
+    {
+        m_engine->Stop();
+    }
+}	
+
+Status EngineWrapper::Start(const GlobalConfig& conf)
+{
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if(m_engine)
+    {
+        return ERR_STARTED;
+    }
+
+    EnginePtr engine = NewEngine(conf);
+    Status s = engine->Start();
+    if(s == OK)
+    {
+        m_engine = engine;
+    }
+    return s;
+}
+
+EnginePtr EngineWrapper::NewEngine(const GlobalConfig& conf)
+{
+    if(conf.mode == MODE_READONLY)
+    {
+        return NewReadOnlyEngine(conf);
+    }
+    return NewWritableEngine(conf);
 }
 
 EnginePtr& Engine::GetEngine()
@@ -120,13 +106,9 @@ Status Engine::Start()
     //初始化随机数
     srand(time(nullptr));
 
-	uint64_t cache_num = m_conf.write_cache_size / LARGE_BLOCK_SIZE;
-	if(m_conf.write_cache_size % LARGE_BLOCK_SIZE != 0)
-	{
-		++cache_num;
-	}
+	uint64_t cache_num = (m_conf.write_cache_size+LARGE_BLOCK_SIZE-1) / LARGE_BLOCK_SIZE;
 	m_large_block_pool.Init(LARGE_BLOCK_SIZE, cache_num);
-	m_small_block_pool.Init(4096, 16384);
+	m_small_block_pool.Init(SMALL_BLOCK_SIZE, cache_num);
 
 	Status s = Start_();
     m_started = (s == OK);

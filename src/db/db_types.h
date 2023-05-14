@@ -85,6 +85,7 @@ static_assert(MAX_VALUE_SIZE <= 64*1024, "invalid MAX_VALUE_SIZE");			//待支�
 #define MAX_BUFFER_SIZE				(MAX_COMPRESS_BLOCK_SIZE + MAX_OBJECT_SIZE)
 
 #define LARGE_BLOCK_SIZE			(256*1024)
+#define SMALL_BLOCK_SIZE            (4*1024)
 
 #ifndef MAX_FILENAME_LEN
 #define MAX_FILENAME_LEN			64	//包括结束符'\0'

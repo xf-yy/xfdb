@@ -132,10 +132,10 @@ Status DB::DeleteBucket(const std::string& bucket_name)
 	return m_db->DeleteBucket(bucket_name);
 }
 
-bool DB::ExistBucket(const std::string& bucket_name) const
+bool DB::BucketExist(const std::string& bucket_name) const
 {
 	assert(m_db);
-	return m_db->ExistBucket(bucket_name);
+	return m_db->BucketExist(bucket_name);
 }
 
 void DB::ListBucket(std::vector<std::string>& bucket_names) const
