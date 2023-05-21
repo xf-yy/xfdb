@@ -23,7 +23,6 @@ limitations under the License.
 #include "notify_file.h"
 #include "bucket.h"
 #include "process.h"
-#include "xfdb/db.h"
 #include "readonly_engine.h"
 #include "writable_engine.h"
 
@@ -134,28 +133,27 @@ void Engine::Stop()
     m_started = false;
 }
 
-Status Engine::OpenDB(const DBConfig& conf, const std::string& db_path, DBPtr& db)
+Status Engine::OpenDB(const DBConfig& conf, const std::string& db_path, DBImplPtr& dbptr)
 {
-	DBImplPtr dbptr;
-	if(!QueryDB(db_path, dbptr))
+	if(QueryDB(db_path, dbptr))
 	{
-		DBImplPtr new_dbptr = NewDB(conf, db_path);
-		Status s = new_dbptr->Open();
-		if(s != OK)
-		{
-			return s;
-		}
-		if(InsertDB(db_path, new_dbptr, dbptr))
-        {
-            dbptr = new_dbptr;
-        }
-        else
-        {
-            LogWarn("duplicate open db: %s", db_path.c_str());
-        }
-	}
+        return OK;
+    }
+    DBImplPtr new_dbptr = NewDB(conf, db_path);
+    Status s = new_dbptr->Open();
+    if(s != OK)
+    {
+        return s;
+    }
+    if(InsertDB(db_path, new_dbptr, dbptr))
+    {
+        dbptr = new_dbptr;
+    }
+    else
+    {
+        LogWarn("duplicate open db: %s", db_path.c_str());
+    }
 	
-	db = std::shared_ptr<DB>(new DB(dbptr));
 	return OK;
 }
 
@@ -169,7 +167,7 @@ void Engine::CloseAllDB()
 	std::map<std::string, DBImplWptr> dbs;
 
 	m_db_mutex.lock();
-	dbs.swap(m_dbs);
+	m_dbs.swap(dbs);
 	m_db_mutex.unlock();
 
 	for(auto it = dbs.begin(); it != dbs.end(); ++it)
@@ -218,6 +216,29 @@ bool Engine::QueryDB(const std::string& db_path, DBImplPtr& dbptr) const
 	m_db_mutex.unlock();
 
 	return (bool)dbptr;
+}
+
+void Engine::TryDeleteDB()
+{
+	if(!m_db_mutex.try_lock())
+    {
+        return;
+    }
+
+    //尝试删除已关闭的db记录
+    for(auto it = m_dbs.begin(); it != m_dbs.end(); )
+    {
+        if(it->second.expired())
+        {
+            m_dbs.erase(it++);
+        }
+        else
+        {
+            ++it;
+        }
+    }        
+	
+	m_db_mutex.unlock();    
 }
 
 }  

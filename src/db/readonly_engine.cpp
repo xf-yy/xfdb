@@ -153,15 +153,30 @@ void ReadOnlyEngine::ProcessNotifyThread(size_t index, void* arg)
 	
 	BlockingQueue<NotifyData>& reload_queue = engine->m_reload_queues[index];
 
+	const uint32_t time_ms = engine->m_conf.clean_interval_s * 1000;
+	second_t last_delete_time = time(nullptr);
+
+    NotifyData nd;
+    
 	for(;;)
 	{
-		NotifyData nd;
-		reload_queue.Pop(nd);
-		if(nd.type == NOTIFY_EXIT)
-		{
-			break;
-		}	
-		engine->ProcessNotifyData(nd);
+		if(reload_queue.Pop(nd, time_ms))
+        {
+            if(nd.type == NOTIFY_EXIT)
+            {
+                break;
+            }	
+            engine->ProcessNotifyData(nd);
+        }
+
+        //FIXME: 借用这个线程删除无效db
+        second_t now_s = time(nullptr);
+        if(now_s >= last_delete_time + engine->m_conf.clean_interval_s)
+        {
+            last_delete_time = now_s;
+
+            engine->TryDeleteDB();
+        }
 	}
 	LogDebug("the %dst process notify thread exit", index);	
 	

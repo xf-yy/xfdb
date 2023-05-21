@@ -97,7 +97,14 @@ Status DB::Open(const DBConfig& dbconf, const std::string& db_path, DBPtr& db)
 	{
 		return ERR_STOPPED;
 	}
-	return engine->OpenDB(dbconf, db_path, db);
+
+    DBImplPtr dbptr;
+	Status s = engine->OpenDB(dbconf, db_path, dbptr);
+    if(s == OK)
+    {
+    	db = std::shared_ptr<DB>(new DB(dbptr));
+    }
+    return s;
 }
 
 Status DB::Remove(const std::string& db_path)

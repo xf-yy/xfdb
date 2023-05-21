@@ -415,14 +415,13 @@ void WritableEngine::CleanThread(void* arg)
 	assert(engine != nullptr);
 	
 	const uint32_t time_ms = engine->m_conf.clean_interval_s * 1000;
-
-	//key: db path
-	std::set<std::string> clean_dbs;
-	
 	second_t last_clean_time = time(nullptr);
+
+	std::set<std::string> clean_dbs;    //待清理的db路径
+    NotifyMsg nd;
+
 	for(;;)
 	{
-		NotifyMsg nd;
 		if(engine->m_clean_queue.Pop(nd, time_ms))
 		{
 			if(nd.type == NOTIFY_EXIT)
@@ -431,16 +430,17 @@ void WritableEngine::CleanThread(void* arg)
 			}
 			assert(nd.type == NOTIFY_CLEAN_DB);
 			clean_dbs.insert(nd.db->GetPath());
-
-			if((second_t)time(nullptr) < last_clean_time + engine->m_conf.clean_interval_s)
-			{
-				continue;
-			}
 		}
-		last_clean_time = time(nullptr);
-		
-		engine->CleanDB(clean_dbs);
-		engine->CleanNotifyFile();
+        second_t now_s = time(nullptr);
+        if(now_s >= last_clean_time + engine->m_conf.clean_interval_s)
+        {
+            last_clean_time = now_s;
+            
+            engine->CleanDB(clean_dbs);
+            engine->CleanNotifyFile();
+
+            engine->TryDeleteDB();
+        }
 	}
 	
 	LogDebug("clean thread exit");	

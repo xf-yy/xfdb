@@ -18,12 +18,12 @@ limitations under the License.
 #define __xfdb_engine_h__
 
 #include <map>
+#include <mutex>
 #include "xfdb/strutil.h"
 #include "db_types.h"
 #include "notify_msg.h"
 #include "file_util.h"
 #include "block_pool.h"
-#include <mutex>
 #include "lru_cache.h"
 
 namespace xfdb 
@@ -34,9 +34,9 @@ class Engine : public std::enable_shared_from_this<Engine>
 public:
 	explicit Engine(const GlobalConfig& conf) 
 		: m_conf(conf), 
-		m_index_cache(conf.index_cache_size), 
-		m_data_cache(conf.data_cache_size),
-		m_bloom_filter_cache(conf.bloom_filter_cache_size)
+		  m_bloom_filter_cache(conf.bloom_filter_cache_size),
+	   	  m_index_cache(conf.index_cache_size), 
+		  m_data_cache(conf.data_cache_size)
 	{
 		m_started = false;
 	}
@@ -59,6 +59,10 @@ public:
 	{
 		return m_small_block_pool;
 	}	
+	inline LruCache<std::string, std::string>& GetBloomFilterCache()
+	{
+		return m_bloom_filter_cache;
+	}	
 	inline LruCache<std::string, std::string>& GetIndexCache()
 	{
 		return m_index_cache;
@@ -67,15 +71,11 @@ public:
 	{
 		return m_data_cache;
 	}	
-	inline LruCache<std::string, std::string>& GetBloomFilterCache()
-	{
-		return m_bloom_filter_cache;
-	}	
 public:	
 	Status Start();
 	void Stop();
 
-	Status OpenDB(const DBConfig& conf, const std::string& db_path, DBPtr& db);
+	Status OpenDB(const DBConfig& conf, const std::string& db_path, DBImplPtr& dbptr);
 	void CloseDB(DBImplPtr& db);
 	
 	virtual Status RemoveDB(const std::string& db_path)
@@ -90,6 +90,7 @@ protected:
 	virtual DBImplPtr NewDB(const DBConfig& conf, const std::string& db_path) = 0;
 	bool QueryDB(const std::string& db_path, DBImplPtr& dbptr) const;
 	bool InsertDB(const std::string& db_path, DBImplPtr& dbptr, DBImplPtr& old_dbptr);
+    void TryDeleteDB();
 
 private:
 	void CloseAllDB();
@@ -102,10 +103,9 @@ protected:
 	BlockPool m_large_block_pool;
 	BlockPool m_small_block_pool;
 
-	//key:, value:
+	LruCache<std::string, std::string> m_bloom_filter_cache;
 	LruCache<std::string, std::string> m_index_cache;
 	LruCache<std::string, std::string> m_data_cache;
-	LruCache<std::string, std::string> m_bloom_filter_cache;
 
 	mutable std::mutex m_db_mutex;
 	std::map<std::string, DBImplWptr> m_dbs;	//key: db path
