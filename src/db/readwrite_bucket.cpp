@@ -43,36 +43,32 @@ ObjectWriterPtr ReadWriteBucket::NewObjectWriter(WritableEngine* engine)
 
 Status ReadWriteBucket::Get(const StrView& key, std::string& value)
 {	
-	m_segment_rwlock.ReadLock();
-
-    objectid_t curr_obj_id = m_next_object_id;
-    ObjectWriterPtr memwriter = m_memwriter;
-	ObjectWriterSnapshotPtr writer_snapshot = m_memwriter_snapshot;
-	ObjectReaderSnapshotPtr reader_snapshot = m_reader_snapshot;
-
-	m_segment_rwlock.ReadUnlock();
-
     std::vector<ObjectReaderPtr> readers;
     readers.reserve(3);
 
-    if(memwriter)
+	m_segment_rwlock.ReadLock();
+
+    objectid_t curr_obj_id = m_next_object_id;
+    if(m_memwriter)
     {
-        readers.push_back(memwriter);
+        readers.push_back(m_memwriter);
     }
-    if(writer_snapshot)
+    if(m_memwriter_snapshot)
     {
-        readers.push_back(writer_snapshot);
+        readers.push_back(m_memwriter_snapshot);
     }
-    if(reader_snapshot)
+    if(m_reader_snapshot)
     {
-        readers.push_back(reader_snapshot);
+        readers.push_back(m_reader_snapshot);
     }
 
-    ObjectType type;
+	m_segment_rwlock.ReadUnlock();
+
     //FIXME: 以下与ObjectReaderSnapshot::Get相仿
     std::vector<std::string> values;
 	for(size_t idx = 0; idx < readers.size(); ++idx)
 	{
+        ObjectType type;
 		if(readers[idx]->Get(key, curr_obj_id, type, value) != OK)
 		{
             continue;
@@ -81,8 +77,7 @@ Status ReadWriteBucket::Get(const StrView& key, std::string& value)
         {
             break;
         }
-        std::string tmp(value);
-        values.push_back(tmp);  
+        values.push_back(value);  
         if(type == SetType)
         {
             break;
@@ -90,8 +85,7 @@ Status ReadWriteBucket::Get(const StrView& key, std::string& value)
 	}
     if(!values.empty())
     {
-        value.clear();
-        for(ssize_t idx = values.size() - 1; idx >= 0; --idx)
+        for(ssize_t idx = (ssize_t)values.size() - 2; idx >= 0; --idx)
         {
             value.append(values[idx]);
         }

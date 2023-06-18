@@ -88,20 +88,20 @@ Status ReadWriteObjectWriter::Get(const StrView& key, objectid_t obj_id, ObjectT
 
     assert(!nodes.empty());
 
-    ssize_t idx;
-    for(idx = 1; idx < (ssize_t)nodes.size(); ++idx)
+    ssize_t idx = 1;
+    while(idx < (ssize_t)nodes.size())
     {
-        const Object* obj = nodes[idx]->object;
+        const Object* obj = nodes[idx++]->object;
 
         if(obj->type == SetType)
         {
             type = SetType;
-            ++idx;
             break;
         }
         else if(obj->type == DeleteType)
         {
             type = SetType;
+            --idx;
             break;
         }
     }
