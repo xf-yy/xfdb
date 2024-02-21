@@ -339,7 +339,6 @@ Status WritableDB::CreateBucketIfMissing(const std::string& bucket_name, BucketP
 	{
 		return OK;
 	}
-	EnginePtr engine = Engine::GetEngine();
 	if(!m_conf.create_bucket_if_missing)
 	{
 		return ERR_BUCKET_NOT_EXIST;

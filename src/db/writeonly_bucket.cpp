@@ -537,6 +537,12 @@ bool WriteOnlyBucket::AddMerging(MergingSegmentInfo& msinfo)
 	assert(new_level <= m_conf.max_level_num);
 	assert(m_merging_segment_fileids[new_level].find(msinfo.new_segment_fileid) == m_merging_segment_fileids[new_level].end());
 	m_merging_segment_fileids[new_level][msinfo.new_segment_fileid] = 0;
+
+	for(auto it = msinfo.merging_segment_fileids.begin(); it != msinfo.merging_segment_fileids.end(); ++it)
+	{
+		uint8_t level = GetLevelID(MERGE_COUNT(*it));
+		m_tobe_merge_segments[level].erase(*it);
+	}
 	return true;
 }
 
@@ -569,10 +575,6 @@ Status WriteOnlyBucket::FullMerge()
 			if(it->second < m_engine->GetConfig().max_merge_size && MERGE_COUNT(it->first) < MAX_MERGE_COUNT)
 			{
 				msinfo.merging_segment_fileids.insert(it->first);
-
-				uint8_t level = GetLevelID(MERGE_COUNT(it->first));
-				assert(level <= m_conf.max_level_num);
-				m_tobe_merge_segments[level].erase(it->first);
 			}
 			else
 			{
@@ -620,7 +622,7 @@ Status WriteOnlyBucket::PartMerge()
 				}
 
 				auto it = m_tobe_merge_segments[level].begin();
-				for(uint32_t m = 0; m < merge_factor; ++m)
+				for(uint32_t m = 0; m < merge_factor; ++m, ++it)
 				{
 					//如果segment大小超过阈值或level已达最大值，则不参与合并
 					if(it->second >= m_engine->GetConfig().max_merge_size || GetLevelID(MERGE_COUNT(it->first)) >= m_conf.max_level_num)
@@ -628,7 +630,6 @@ Status WriteOnlyBucket::PartMerge()
 						break;
 					}
 					msinfo.merging_segment_fileids.insert(it->first);
-					it = m_tobe_merge_segments[level].erase(it);
 				}
 				AddMerging(msinfo);
 			}
